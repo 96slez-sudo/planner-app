@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Смола — Планировщик</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f4f6f9; padding: 16px; min-height: 100vh; display: flex; justify-content: center; }
@@ -27,8 +28,6 @@
         .btn-success:hover { background: #1e8449; }
         .btn-danger { background: #e74c3c; }
         .btn-danger:hover { background: #c0392b; }
-        .btn-warning { background: #f39c12; color: white; }
-        .btn-warning:hover { background: #d68910; }
         .badge { display: inline-block; padding: 3px 12px; border-radius: 16px; font-size: 12px; font-weight: 500; }
         .badge-waiting { background: #fff3cd; color: #856404; }
         .badge-work { background: #cce5ff; color: #004085; }
@@ -91,7 +90,11 @@
     </div>
 </div>
 <script>
-    var API_URL = 'https://script.google.com/macros/s/AKfycbylukQfen66524Qr5EHGb5C3ZV2qL6Dilf15GOu12Ltpn65hVgHPeRMBni1yBJFg9BwzQ/exec';
+    const SUPABASE_URL = 'https://knuqfydp6kkdapivsnm.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_ваш_длинный_ключ_из_api_keys';
+
+    const { createClient } = supabase;
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     function showMessage(text, type) {
         var el = document.getElementById('message');
@@ -100,236 +103,55 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
-    function getSuggestedSplits(totalBlocks) {
-        var splits = [];
-        var remaining = totalBlocks;
-        var maxPerShelf = 46;
-        var shelves = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-        var shelfIndex = 0;
-        while (remaining > 0) {
-            var blocks = Math.min(remaining, maxPerShelf);
-            splits.push({ shelf: shelves[shelfIndex % shelves.length], blocks: blocks });
-            remaining -= blocks;
-            shelfIndex++;
-        }
-        return splits;
-    }
-
-    function loadResinOrders() {
+    async function loadResinOrders() {
         var container = document.getElementById('resinList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
-        fetch(API_URL + '?action=getResinOrders&_=' + Date.now())
-        .then(function(response) { return response.json(); })
-        .then(function(result) {
-            if (result.error) { container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>'; return; }
-            if (!result.data || result.data.length === 0) { container.innerHTML = '<div class="empty">Нет заказов на смоле</div>'; return; }
-            fetch(API_URL + '?action=getDryingOrders&_=' + Date.now())
-            .then(function(dryResponse) { return dryResponse.json(); })
-            .then(function(dryResult) {
-                var html = '';
-                for (var i = 0; i < result.data.length; i++) {
-                    var item = result.data[i];
-                    var badgeClass = '';
-                    var statusText = item.status || 'Ожидание';
-                    if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
-                    else if (statusText === 'В работе') badgeClass = 'badge-work';
-                    else if (statusText === 'Готов к сушке') badgeClass = 'badge-shelf';
-                    else if (statusText === 'Выполнено') badgeClass = 'badge-done';
-                    var shelfList = [];
-                    if (dryResult && dryResult.data) {
-                        for (var j = 0; j < dryResult.data.length; j++) {
-                            var dryItem = dryResult.data[j];
-                            if (dryItem.orders && dryItem.orders.indexOf(String(item.order)) !== -1) {
-                                shelfList.push(dryItem.shelf);
-                            }
-                        }
-                    }
-                    var shelfDisplay = (shelfList.length > 0) ? shelfList.join(', ') : (item.shelf || '—');
-                    html += '<div class="item" data-order="' + item.order + '">';
-                    html += '  <div class="head">';
-                    html += '    <span class="order-num">' + item.order + '</span>';
-                    html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
-                    html += '  </div>';
-                    html += '  <div class="order-meta">Блоков: ' + item.blocks + ' | Стеллажи: ' + shelfDisplay + '</div>';
-                    html += '  <div class="actions">';
-                    if (statusText === 'Ожидание') {
-                        html += '    <button class="btn btn-sm btn-success" onclick="updateResinOrder(\'' + item.order + '\', \'В работе\')">Взять в работу</button>';
-                    }
-                    if (statusText === 'В работе') {
-                        if (item.blocks <= 46) {
-                            html += '    <div class="shelf-select">';
-                            html += '      <select id="shelf-' + item.order + '">';
-                            for (var s = 65; s <= 72; s++) { var letter = String.fromCharCode(s); html += '<option value="' + letter + '">' + letter + '</option>'; }
-                            html += '      </select>';
-                            html += '      <input type="number" id="blocks-' + item.order + '" value="' + item.blocks + '" min="1" max="' + item.blocks + '">';
-                            html += '      <button class="btn btn-sm btn-success" onclick="assignShelf(\'' + item.order + '\')">Назначить</button>';
-                            html += '    </div>';
-                        }
-                        if (item.blocks > 46) {
-                            var suggested = getSuggestedSplits(item.blocks);
-                            var suggestionText = '';
-                            for (var j = 0; j < suggested.length; j++) {
-                                suggestionText += suggested[j].shelf + ' (' + suggested[j].blocks + ')';
-                                if (j < suggested.length - 1) suggestionText += ' + ';
-                            }
-                            html += '    <div class="split-section">';
-                            html += '      <label>Разделить ' + item.blocks + ' блоков (макс. 46):</label>';
-                            html += '      <div class="suggested">';
-                            html += '        <span><strong>Предложено:</strong> ' + suggestionText + '</span>';
-                            html += '        <button class="btn btn-sm btn-success" onclick="applySuggestedSplit(\'' + item.order + '\', ' + item.blocks + ')">Принять</button>';
-                            html += '      </div>';
-                            html += '      <div id="split-container-' + item.order + '">';
-                            for (var r = 1; r <= 2; r++) {
-                                var defaultBlocks = r === 1 ? Math.min(46, item.blocks) : Math.min(46, item.blocks - 46);
-                                if (defaultBlocks <= 0) defaultBlocks = 46;
-                                html += '        <div class="split-row" id="split-row-' + r + '-' + item.order + '">';
-                                html += '          <select id="split-shelf-' + r + '-' + item.order + '">';
-                                for (var s = 65; s <= 72; s++) { var letter = String.fromCharCode(s); html += '<option value="' + letter + '">' + letter + '</option>'; }
-                                html += '          </select>';
-                                html += '          <input type="number" id="split-blocks-' + r + '-' + item.order + '" value="' + defaultBlocks + '" min="1" max="46">';
-                                html += '        </div>';
-                            }
-                            html += '      </div>';
-                            html += '      <div class="split-actions">';
-                            html += '        <button class="btn btn-sm btn-warning" onclick="addSplitRow(\'' + item.order + '\')">+ Добавить стеллаж</button>';
-                            html += '        <button class="btn btn-sm btn-success" onclick="splitOrder(\'' + item.order + '\')">Разделить</button>';
-                            html += '      </div>';
-                            html += '    </div>';
-                        }
-                    }
-                    if (statusText === 'Готов к сушке') {
-                        html += '    <button class="btn btn-sm btn-danger" onclick="updateResinOrder(\'' + item.order + '\', \'Выполнено\')">Завершить</button>';
-                    }
-                    html += '  </div>';
-                    html += '</div>';
+
+        const { data, error } = await supabaseClient
+            .from('orders')
+            .select('*')
+            .eq('status', 'На смоле');
+
+        if (error) { container.innerHTML = '<div class="empty">Ошибка: ' + error.message + '</div>'; return; }
+        if (!data || data.length === 0) { container.innerHTML = '<div class="empty">Нет заказов на смоле</div>'; return; }
+
+        var html = '';
+        data.forEach(function(item) {
+            var badgeClass = '';
+            var statusText = item.status || 'Ожидание';
+            if (statusText === 'На смоле') badgeClass = 'badge-waiting';
+            html += '<div class="item">';
+            html += '  <div class="head">';
+            html += '    <span class="order-num">' + item.order_number + '</span>';
+            html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
+            html += '  </div>';
+            html += '  <div class="order-meta">Блоков: ' + (item.blocks || 0) + '</div>';
+            html += '  <div class="actions">';
+            html += '    <button class="btn btn-sm btn-success" onclick="updateResinOrder(\'' + item.order_number + '\')">Завершить этап</button>';
+            html += '  </div>';
+            html += '</div>';
+        });
+        container.innerHTML = html;
+    }
+
+    async function updateResinOrder(orderNumber) {
+        await supabaseClient
+            .from('orders')
+            .update({ status: 'На сушке' })
+            .eq('order_number', orderNumber);
+
+        await supabaseClient
+            .from('order_history')
+            .insert([
+                { 
+                    order_id: orderNumber, 
+                    stage: 'Смола', 
+                    status: 'Завершено' 
                 }
-                container.innerHTML = html;
-            })
-            .catch(function(err) { container.innerHTML = '<div class="empty">Ошибка при загрузке сушки: ' + err.message + '</div>'; });
-        })
-        .catch(function(err) { container.innerHTML = '<div class="empty">Ошибка: ' + err.message + '</div>'; });
-    }
+            ]);
 
-    function applySuggestedSplit(orderNumber, totalBlocks) {
-        var suggested = getSuggestedSplits(totalBlocks);
-        var container = document.getElementById('split-container-' + orderNumber);
-        container.innerHTML = '';
-        for (var i = 0; i < suggested.length; i++) {
-            var row = document.createElement('div');
-            row.className = 'split-row';
-            row.id = 'split-row-' + (i+1) + '-' + orderNumber;
-            var select = document.createElement('select');
-            select.id = 'split-shelf-' + (i+1) + '-' + orderNumber;
-            for (var s = 65; s <= 72; s++) {
-                var letter = String.fromCharCode(s);
-                var option = document.createElement('option');
-                option.value = letter;
-                option.textContent = letter;
-                if (letter === suggested[i].shelf) option.selected = true;
-                select.appendChild(option);
-            }
-            row.appendChild(select);
-            var input = document.createElement('input');
-            input.type = 'number';
-            input.id = 'split-blocks-' + (i+1) + '-' + orderNumber;
-            input.value = suggested[i].blocks;
-            input.min = 1;
-            input.max = 46;
-            input.style.width = '50px';
-            input.style.padding = '3px 6px';
-            input.style.border = '1px solid #ddd';
-            input.style.borderRadius = '4px';
-            input.style.textAlign = 'center';
-            row.appendChild(input);
-            container.appendChild(row);
-        }
-        showMessage('Предложенное разделение применено', 'ok');
-    }
-
-    function addSplitRow(orderNumber) {
-        var container = document.getElementById('split-container-' + orderNumber);
-        var rowCount = container.children.length + 1;
-        var newRow = document.createElement('div');
-        newRow.className = 'split-row';
-        newRow.id = 'split-row-' + rowCount + '-' + orderNumber;
-        var select = document.createElement('select');
-        select.id = 'split-shelf-' + rowCount + '-' + orderNumber;
-        for (var s = 65; s <= 72; s++) {
-            var letter = String.fromCharCode(s);
-            var option = document.createElement('option');
-            option.value = letter;
-            option.textContent = letter;
-            select.appendChild(option);
-        }
-        newRow.appendChild(select);
-        var input = document.createElement('input');
-        input.type = 'number';
-        input.id = 'split-blocks-' + rowCount + '-' + orderNumber;
-        input.value = 46;
-        input.min = 1;
-        input.max = 46;
-        input.style.width = '50px';
-        input.style.padding = '3px 6px';
-        input.style.border = '1px solid #ddd';
-        input.style.borderRadius = '4px';
-        input.style.textAlign = 'center';
-        newRow.appendChild(input);
-        container.appendChild(newRow);
-    }
-
-    function splitOrder(orderNumber) {
-        var container = document.getElementById('split-container-' + orderNumber);
-        var rows = container.children;
-        var splits = [];
-        var sum = 0;
-        for (var i = 0; i < rows.length; i++) {
-            var shelf = document.getElementById('split-shelf-' + (i+1) + '-' + orderNumber).value;
-            var blocks = parseInt(document.getElementById('split-blocks-' + (i+1) + '-' + orderNumber).value) || 0;
-            if (blocks > 0) { splits.push({ shelf: shelf, blocks: blocks }); sum += blocks; }
-        }
-        if (splits.length === 0) { showMessage('Добавьте хотя бы один стеллаж', 'err'); return; }
-        for (var i = 0; i < splits.length; i++) {
-            if (splits[i].blocks > 46) {
-                showMessage('Стеллаж ' + splits[i].shelf + ' (' + splits[i].blocks + ' блоков) превышает лимит 46', 'err');
-                return;
-            }
-        }
-        var data = { action: 'splitShelf', orderNumber: orderNumber, splits: splits };
-        fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
-            .then(function(response) { return response.json(); })
-            .then(function(result) {
-                if (result.error) { showMessage(result.error, 'err'); return; }
-                showMessage('Заказ разделён', 'ok');
-                loadResinOrders();
-            })
-            .catch(function(err) { showMessage('Ошибка: ' + err.message, 'err'); });
-    }
-
-    function assignShelf(orderNumber) {
-        var shelf = document.getElementById('shelf-' + orderNumber).value;
-        var blocks = parseInt(document.getElementById('blocks-' + orderNumber).value) || 0;
-        if (blocks > 46) { showMessage('На один стеллаж максимум 46 блоков', 'err'); return; }
-        var data = { action: 'assignShelf', orderNumber: orderNumber, shelf: shelf, blocks: blocks };
-        fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
-            .then(function(response) { return response.json(); })
-            .then(function(result) {
-                if (result.error) { showMessage(result.error, 'err'); return; }
-                showMessage('Заказ назначен на стеллаж ' + shelf, 'ok');
-                loadResinOrders();
-            })
-            .catch(function(err) { showMessage('Ошибка: ' + err.message, 'err'); });
-    }
-
-    function updateResinOrder(orderNumber, newStatus) {
-        var data = { action: 'updateResinStatus', orderNumber: orderNumber, status: newStatus };
-        fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
-            .then(function(response) { return response.json(); })
-            .then(function(result) {
-                if (result.error) { showMessage(result.error, 'err'); return; }
-                showMessage('Статус обновлён', 'ok');
-                loadResinOrders();
-            })
-            .catch(function(err) { showMessage('Ошибка: ' + err.message, 'err'); });
+        showMessage('Заказ отправлен на сушку', 'ok');
+        loadResinOrders();
     }
 
     document.addEventListener('DOMContentLoaded', function() { loadResinOrders(); });
