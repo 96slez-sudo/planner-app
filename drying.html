@@ -97,7 +97,7 @@
         }, 5000);
     }
 
-    function loadDryingOrders() {
+        function loadDryingOrders() {
         var container = document.getElementById('dryingList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
 
@@ -119,7 +119,6 @@
                     var item = result.data[i];
                     var badgeClass = '';
                     var statusText = 'Свободен';
-                    var freeSpace = 46;
                     
                     // Безопасное преобразование orders в строку
                     var ordersStr = '';
@@ -129,17 +128,17 @@
                     
                     var orderCount = 0;
                     var usedBlocks = 0;
+                    var freeSpace = 46;
                     
                     if (ordersStr && ordersStr.trim() !== '' && ordersStr !== '0') {
                         var orderList = ordersStr.split(',').map(function(s) { return s.trim(); });
                         orderCount = orderList.length;
                         
                         // Получаем количество блоков из item (сервер должен вернуть blocksCount)
-                        // Если сервер не вернул blocksCount, используем приблизительный расчёт
                         if (item.blocksCount) {
                             usedBlocks = Number(item.blocksCount);
                         } else {
-                            // Приблизительный расчёт: 46 блоков на заказ
+                            // Если сервер не вернул, считаем приблизительно (надежный fallback)
                             usedBlocks = orderCount * 46;
                         }
                         freeSpace = Math.max(0, 46 - usedBlocks);
@@ -155,24 +154,27 @@
                         statusText = 'Укомплектован';
                         badgeClass = 'badge-work';
                     } else {
-                        badgeClass = 'badge-waiting';
+                        badgeClass = 'badge-free';
                     }
                     
-                    var freeBadge = '';
-                    if (freeSpace === 0 && orderCount > 0) {
-                        freeBadge = '<span class="badge badge-full">Занят</span>';
-                    } else if (freeSpace > 0 && orderCount > 0) {
-                        freeBadge = '<span class="badge badge-free">Свободно ' + freeSpace + '/46</span>';
-                    } else if (freeSpace === 46) {
-                        freeBadge = '<span class="badge badge-free">Пуст</span>';
+                    // --- ФОРМИРУЕМ СТРОКУ СО СВОБОДНЫМ МЕСТОМ ---
+                    var spaceInfo = '';
+                    if (statusText === 'На сушке' || statusText === 'Укомплектован') {
+                        spaceInfo = 'Занято: ' + usedBlocks + ' / 46';
+                    } else {
+                        spaceInfo = 'Свободно: ' + freeSpace + ' / 46';
                     }
+                    // ----------------------------------------------------
 
                     html += '<div class="item">';
                     html += '  <div class="head">';
                     html += '    <span class="order-num">Стеллаж ' + item.shelf + '</span>';
                     html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
                     html += '  </div>';
-                    html += '  <div class="order-meta">Заказов: ' + orderCount + ' | Зона: ' + (item.zone || '—') + ' | ' + freeBadge + '</div>';
+                    
+                    // ВЫВОДИМ ИНФОРМАЦИЮ О МЕСТЕ
+                    html += '  <div class="order-meta">Заказов: ' + orderCount + ' | Зона: ' + (item.zone || '—') + ' | ' + spaceInfo + '</div>';
+                    
                     if (ordersStr && ordersStr !== '0') {
                         html += '  <div class="order-meta">Заказы: ' + ordersStr + '</div>';
                     }
