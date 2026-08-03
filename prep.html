@@ -145,10 +145,12 @@
                     .from('rolls')
                     .insert([
                         { 
-                            order_id: orderNumber, 
-                            roll_index: index, 
-                            blocks: blocks, 
-                            status: 'Ожидание' 
+                            { 
+    order_id: orderNumber, 
+    roll_index: index, 
+    blocks: blocks, 
+    status: 'Ожидание' 
+    }
                         }
                     ])
             );
