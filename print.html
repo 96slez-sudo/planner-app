@@ -6,56 +6,44 @@
     <title>Печать — Планировщик</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f0f4f8; padding: 16px; min-height: 100vh; display: flex; justify-content: center; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f4f6f9; padding: 16px; min-height: 100vh; display: flex; justify-content: center; }
         .container { max-width: 500px; width: 100%; }
-        
         .header { margin-bottom: 16px; }
-        .header h1 { font-size: 24px; font-weight: 700; color: #1a1a2e; }
+        .header h1 { font-size: 22px; font-weight: 600; color: #1a1a2e; }
         .header p { font-size: 14px; color: #888; }
-        
-        .nav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; background: white; padding: 8px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-        .nav a { padding: 8px 14px; background: #e8ecf0; border-radius: 20px; text-decoration: none; font-size: 13px; color: #555; font-weight: 500; transition: 0.2s; }
-        .nav a:hover { background: #d0d4d8; }
+        .nav { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; background: white; padding: 8px; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        .nav a { padding: 6px 12px; background: #eef1f4; border-radius: 16px; text-decoration: none; font-size: 12px; color: #555; font-weight: 500; }
+        .nav a:hover { background: #dce0e4; }
         .nav a.active { background: #2c3e50; color: white; }
-        
-        .card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid #eaeef2; }
-        .card h3 { font-size: 17px; font-weight: 600; margin-bottom: 16px; color: #1a1a2e; display: flex; align-items: center; gap: 8px; }
-        
-        .btn { padding: 10px 20px; background: #2c3e50; color: white; border: none; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .card { background: white; border-radius: 12px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); border: 1px solid #eaeef2; }
+        .card h3 { font-size: 16px; font-weight: 600; margin-bottom: 14px; color: #1a1a2e; }
+        .btn { padding: 8px 16px; background: #2c3e50; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.2s; }
         .btn:hover { background: #1a252f; }
-        .btn:active { transform: scale(0.98); }
-        .btn-sm { padding: 8px 16px; font-size: 13px; }
+        .btn-sm { padding: 5px 12px; font-size: 12px; }
         .btn-success { background: #27ae60; }
         .btn-success:hover { background: #1e8449; }
         .btn-danger { background: #e74c3c; }
         .btn-danger:hover { background: #c0392b; }
-        .btn-outline { background: transparent; color: #2c3e50; border: 1.5px solid #2c3e50; }
-        .btn-outline:hover { background: #2c3e50; color: white; }
-        
-        .badge { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+        .badge { display: inline-block; padding: 3px 12px; border-radius: 16px; font-size: 12px; font-weight: 500; }
         .badge-waiting { background: #fff3cd; color: #856404; }
         .badge-work { background: #cce5ff; color: #004085; }
         .badge-done { background: #d4edda; color: #155724; }
-        
-        .item { padding: 14px 0; border-bottom: 1px solid #f0f2f5; }
+        .item { padding: 12px 0; border-bottom: 1px solid #f0f2f5; }
         .item:last-child { border-bottom: none; }
-        .item .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-        .item .order-num { font-weight: 600; font-size: 16px; color: #1a1a2e; }
-        .item .order-meta { font-size: 14px; color: #666; margin-top: 4px; }
-        .item .actions { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
-        
-        .msg { padding: 14px 16px; border-radius: 10px; margin-bottom: 16px; font-size: 14px; display: none; }
+        .item .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
+        .item .order-num { font-weight: 600; font-size: 15px; color: #1a1a2e; }
+        .item .order-meta { font-size: 14px; color: #666; }
+        .item .actions { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .msg { padding: 12px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; display: none; }
         .msg.show { display: block; }
         .msg.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .msg.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        
-        .empty { text-align: center; padding: 32px 0; color: #aaa; font-size: 14px; }
-        .empty .icon { font-size: 40px; display: block; margin-bottom: 8px; }
-        .loading { text-align: center; padding: 20px 0; color: #999; font-size: 14px; }
-        
+        .empty { text-align: center; padding: 28px 0; color: #aaa; font-size: 14px; }
+        .loading { text-align: center; padding: 16px 0; color: #999; font-size: 14px; }
         @media (max-width: 480px) {
             body { padding: 12px; }
-            .card { padding: 16px; }
+            .card { padding: 14px; }
+            .nav a { font-size: 11px; padding: 5px 10px; }
         }
     </style>
 </head>
@@ -63,8 +51,8 @@
 
 <div class="container">
     <div class="header">
-        <h1>🖨️ Печать</h1>
-        <p>Очередь рулонов на печати</p>
+        <h1>Печать</h1>
+        <p>Очередь рулонов</p>
     </div>
 
     <div class="nav">
@@ -82,9 +70,9 @@
     <div id="message" class="msg"></div>
 
     <div class="card">
-        <h3>📋 Очередь рулонов</h3>
+        <h3>Очередь рулонов</h3>
         <div id="rollsList"></div>
-        <button class="btn" style="width:100%; margin-top:12px; font-size:14px; padding:10px; background:#e8ecf0; color:#333;" onclick="loadRolls()">🔄 Обновить</button>
+        <button class="btn" style="width:100%; margin-top:10px; background:#eef1f4; color:#333;" onclick="loadRolls()">Обновить</button>
     </div>
 </div>
 
@@ -100,22 +88,22 @@
 
     function loadRolls() {
         var container = document.getElementById('rollsList');
-        container.innerHTML = '<div class="loading">⏳ Загрузка...</div>';
+        container.innerHTML = '<div class="loading">Загрузка...</div>';
 
         fetch(API_URL + '?action=getRolls&_=' + Date.now())
         .then(function(response) { return response.json(); })
         .then(function(result) {
             if (result.error) {
-                container.innerHTML = '<div class="empty"><span class="icon">❌</span>Ошибка: ' + result.error + '</div>';
+                container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>';
                 return;
             }
             if (!result.data || result.data.length === 0) {
-                container.innerHTML = '<div class="empty"><span class="icon">📭</span>Нет рулонов на печати</div>';
+                container.innerHTML = '<div class="empty">Нет рулонов на печати</div>';
                 return;
             }
             var rolls = result.data.filter(function(r) { return r.stage === 'Печать' && r.status !== 'Выполнено'; });
             if (rolls.length === 0) {
-                container.innerHTML = '<div class="empty"><span class="icon">✅</span>Все рулоны выполнены</div>';
+                container.innerHTML = '<div class="empty">Все рулоны выполнены</div>';
                 return;
             }
             var html = '';
@@ -131,12 +119,12 @@
                 html += '    <span class="order-num">№ ' + item.order + ' — ' + item.rollId + '</span>';
                 html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
                 html += '  </div>';
-                html += '  <div class="order-meta">📦 ' + item.blocks + ' блоков</div>';
+                html += '  <div class="order-meta">Блоков: ' + item.blocks + '</div>';
                 html += '  <div class="actions">';
                 if (statusText === 'Ожидание') {
-                    html += '    <button class="btn btn-sm btn-success" onclick="updateRoll(\'' + item.rollId + '\', \'В работе\')">▶ Взять в работу</button>';
+                    html += '    <button class="btn btn-sm btn-success" onclick="updateRoll(\'' + item.rollId + '\', \'В работе\')">Взять в работу</button>';
                 } else if (statusText === 'В работе') {
-                    html += '    <button class="btn btn-sm btn-danger" onclick="updateRoll(\'' + item.rollId + '\', \'Выполнено\')">✅ Завершить</button>';
+                    html += '    <button class="btn btn-sm btn-danger" onclick="updateRoll(\'' + item.rollId + '\', \'Выполнено\')">Завершить</button>';
                 }
                 html += '  </div>';
                 html += '</div>';
@@ -144,7 +132,7 @@
             container.innerHTML = html;
         })
         .catch(function(err) {
-            container.innerHTML = '<div class="empty"><span class="icon">❌</span>Ошибка: ' + err + '</div>';
+            container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>';
         });
     }
 
@@ -158,11 +146,11 @@
             body: JSON.stringify(data)
         })
         .then(function() {
-            showMessage('✅ Рулон ' + rollId + ' — ' + newStatus, 'ok');
+            showMessage('Рулон ' + rollId + ' — ' + newStatus, 'ok');
             loadRolls();
         })
         .catch(function(err) {
-            showMessage('❌ Ошибка: ' + err, 'err');
+            showMessage('Ошибка: ' + err, 'err');
         });
     }
 
