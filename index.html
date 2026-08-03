@@ -5,475 +5,324 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Планировщик производства</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-            background: #f0f2f5;
-            padding: 16px;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-        }
-        .container {
-            max-width: 500px;
-            width: 100%;
-        }
-        .card {
-            background: white;
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-        .card h3 {
-            margin-bottom: 12px;
-            font-size: 18px;
-        }
-        .field {
-            margin-bottom: 12px;
-        }
-        .field label {
-            display: block;
-            font-size: 13px;
-            font-weight: 500;
-            color: #555;
-            margin-bottom: 4px;
-        }
-        .field input,
-        .field select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 15px;
-        }
-        .btn {
-            width: 100%;
-            padding: 12px;
-            background: #2c3e50;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-        .btn:active {
-            transform: scale(0.98);
-        }
-        .btn-success {
-            background: #27ae60;
-        }
-        .btn-success:active {
-            background: #1e8449;
-        }
-        .btn-sm {
-            padding: 8px 16px;
-            width: auto;
-            font-size: 14px;
-        }
-        .badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-        .badge-waiting {
-            background: #fff3cd;
-            color: #856404;
-        }
-        .badge-work {
-            background: #cce5ff;
-            color: #004085;
-        }
-        .badge-done {
-            background: #d4edda;
-            color: #155724;
-        }
-        .item {
-            padding: 10px 0;
-            border-bottom: 1px solid #eee;
-        }
-        .item:last-child {
-            border-bottom: none;
-        }
-        .item .head {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .msg {
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 12px;
-            display: none;
-            font-size: 14px;
-        }
-        .msg.show {
-            display: block;
-        }
-        .msg.ok {
-            background: #d4edda;
-            color: #155724;
-        }
-        .msg.err {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        .empty {
-            text-align: center;
-            padding: 32px 0;
-            color: #999;
-            font-size: 14px;
-        }
-        .tabs {
-            display: flex;
-            gap: 6px;
-            margin-bottom: 16px;
-            flex-wrap: wrap;
-        }
-        .tab {
-            padding: 8px 16px;
-            background: #e8ecf0;
-            border: none;
-            border-radius: 20px;
-            font-size: 14px;
-            cursor: pointer;
-        }
-        .tab.active {
-            background: #2c3e50;
-            color: white;
-        }
-        .page {
-            display: none;
-        }
-        .page.active {
-            display: block;
-        }
-        .check-group {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin-bottom: 12px;
-        }
-        .check-group label {
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-        .loading {
-            text-align: center;
-            color: #999;
-            padding: 20px 0;
-            font-size: 14px;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f0f4f8; padding: 16px; min-height: 100vh; display: flex; justify-content: center; }
+        .container { max-width: 500px; width: 100%; }
+        
+        /* ШАПКА */
+        .header { margin-bottom: 16px; }
+        .header h1 { font-size: 24px; font-weight: 700; color: #1a1a2e; }
+        .header p { font-size: 14px; color: #888; }
+        
+        /* НАВИГАЦИЯ */
+        .nav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; background: white; padding: 8px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .nav a { padding: 8px 14px; background: #e8ecf0; border-radius: 20px; text-decoration: none; font-size: 13px; color: #555; font-weight: 500; transition: 0.2s; }
+        .nav a:hover { background: #d0d4d8; }
+        .nav a.active { background: #2c3e50; color: white; }
+        
+        /* КАРТОЧКИ */
+        .card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid #eaeef2; }
+        .card h3 { font-size: 17px; font-weight: 600; margin-bottom: 16px; color: #1a1a2e; }
+        .card-title { display: flex; align-items: center; gap: 8px; }
+        .card-title .icon { font-size: 20px; }
+        
+        /* ПОЛЯ */
+        .field { margin-bottom: 14px; }
+        .field label { display: block; font-size: 13px; font-weight: 500; color: #555; margin-bottom: 4px; }
+        .field input, .field select { width: 100%; padding: 12px 14px; border: 1.5px solid #dce0e5; border-radius: 10px; font-size: 15px; background: #fafbfc; transition: 0.2s; }
+        .field input:focus, .field select:focus { outline: none; border-color: #2c3e50; background: white; }
+        
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .row .field { margin-bottom: 0; }
+        
+        .check-group { display: flex; flex-wrap: wrap; gap: 12px 20px; margin: 4px 0 12px 0; }
+        .check-group label { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #333; cursor: pointer; }
+        .check-group input[type="checkbox"] { width: 17px; height: 17px; accent-color: #2c3e50; cursor: pointer; }
+        
+        /* КНОПКИ */
+        .btn { width: 100%; padding: 14px; background: #2c3e50; color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn:hover { background: #1a252f; }
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled { background: #95a5a6; cursor: not-allowed; }
+        .btn-sm { padding: 8px 16px; width: auto; font-size: 14px; }
+        .btn-success { background: #27ae60; }
+        .btn-success:hover { background: #1e8449; }
+        .btn-danger { background: #e74c3c; }
+        .btn-danger:hover { background: #c0392b; }
+        .btn-outline { background: transparent; color: #2c3e50; border: 1.5px solid #2c3e50; }
+        .btn-outline:hover { background: #2c3e50; color: white; }
+        
+        /* ЗАКАЗЫ */
+        .order-item { padding: 14px 0; border-bottom: 1px solid #f0f2f5; }
+        .order-item:last-child { border-bottom: none; }
+        .order-item .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        .order-item .order-num { font-weight: 600; font-size: 16px; color: #1a1a2e; }
+        .order-item .order-stage { font-size: 14px; color: #666; }
+        .order-item .order-meta { font-size: 13px; color: #999; margin-top: 4px; }
+        .order-item .actions { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+        
+        /* БЕЙДЖИ (статусы) */
+        .badge { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+        .badge-waiting { background: #fff3cd; color: #856404; }
+        .badge-work { background: #cce5ff; color: #004085; }
+        .badge-done { background: #d4edda; color: #155724; }
+        .badge-launched { background: #e8daef; color: #6c3483; }
+        
+        /* СООБЩЕНИЯ */
+        .msg { padding: 14px 16px; border-radius: 10px; margin-bottom: 16px; font-size: 14px; display: none; }
+        .msg.show { display: block; }
+        .msg.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .msg.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .msg.info { background: #cce5ff; color: #004085; border: 1px solid #b8daff; }
+        
+        /* ПУСТО */
+        .empty { text-align: center; padding: 32px 0; color: #aaa; font-size: 14px; }
+        .empty .icon { font-size: 40px; display: block; margin-bottom: 8px; }
+        .loading { text-align: center; padding: 20px 0; color: #999; font-size: 14px; }
+        
+        /* АДАПТИВ */
+        @media (max-width: 480px) {
+            body { padding: 12px; }
+            .card { padding: 16px; }
+            .row { grid-template-columns: 1fr; gap: 0; }
+            .row .field { margin-bottom: 14px; }
+            .row .field:last-child { margin-bottom: 0; }
+            .check-group { gap: 8px 16px; }
         }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <!-- Вкладки -->
-        <div class="tabs">
-            <button class="tab active" data-page="manager">Менеджер</button>
-            <button class="tab" data-page="queue">Очередь</button>
-        </div>
-
-        <!-- Сообщения -->
-        <div id="message" class="msg"></div>
-
-        <!-- ==================== МЕНЕДЖЕР ==================== -->
-        <div id="page-manager" class="page active">
-            <div class="card">
-                <h3>Создать заказ</h3>
-                <div class="field">
-                    <label>Номер заказа</label>
-                    <input type="text" id="orderNumber" placeholder="Например: 1001" />
-                </div>
-                <div class="field">
-                    <label>Дата создания</label>
-                    <input type="date" id="creationDate" />
-                </div>
-                <div class="field">
-                    <label>Плановая дата</label>
-                    <input type="date" id="planDate" />
-                </div>
-                <div class="field">
-                    <label>Приоритет</label>
-                    <select id="priority">
-                        <option value="Срочный">Срочный</option>
-                        <option value="Высокий">Высокий</option>
-                        <option value="Обычный" selected>Обычный</option>
-                        <option value="Не срочный">Не срочный</option>
-                    </select>
-                </div>
-                <div class="check-group">
-                    <label><input type="checkbox" id="r1" /> Р1</label>
-                    <label><input type="checkbox" id="selection" /> Выборка</label>
-                    <label><input type="checkbox" id="resin" /> Смола</label>
-                    <label><input type="checkbox" id="r2" /> Р2</label>
-                </div>
-                <button class="btn" onclick="createOrder()">Запустить заказ</button>
-            </div>
-
-            <div class="card">
-                <h3>Все заказы</h3>
-                <div id="orderList"></div>
-                <button class="btn" style="font-size:14px; padding:10px; margin-top:12px;" onclick="loadOrders()">Обновить</button>
-            </div>
-        </div>
-
-        <!-- ==================== ОЧЕРЕДЬ ==================== -->
-        <div id="page-queue" class="page">
-            <div class="card">
-                <h3>Очередь по этапам</h3>
-                <div id="queueList"></div>
-                <button class="btn" style="font-size:14px; padding:10px; margin-top:12px;" onclick="loadQueue()">Обновить</button>
-            </div>
-        </div>
+<div class="container">
+    <!-- ШАПКА -->
+    <div class="header">
+        <h1>📋 Планировщик</h1>
+        <p>Управление производственными заказами</p>
     </div>
 
-    <script>
-        // ============================================================
-        // НАСТРОЙКИ
-        // ============================================================
-        // ⚠️ ЗАМЕНИТЕ ЭТУ ССЫЛКУ НА ВАШУ ИЗ APPS SCRIPT
-        const API_URL = 'https://script.google.com/macros/s/AKfycbxa8Ag_VFouB9IITEXP0XlcMtVMsG-MgeheLC3f38x_TDnLqpQGy7OmvyPxTPAcueFbcw/exec';
+    <!-- НАВИГАЦИЯ -->
+    <div class="nav">
+        <a href="/planner-app/" class="active">Главная</a>
+        <a href="/planner-app/prep.html">Подготовка</a>
+        <a href="/planner-app/print.html">Печать</a>
+        <a href="/planner-app/cutter.html">Каттер</a>
+        <a href="/planner-app/cutting.html">Раскрой</a>
+        <a href="/planner-app/resin.html">Смола</a>
+        <a href="/planner-app/drying.html">Сушка</a>
+        <a href="/planner-app/otk.html">ОТК</a>
+        <a href="/planner-app/packing.html">Упаковка</a>
+    </div>
 
-        // ============================================================
-        // ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК
-        // ============================================================
-        document.querySelectorAll('.tab').forEach(function(tab) {
-            tab.addEventListener('click', function() {
-                document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
-                this.classList.add('active');
-                var pageId = this.dataset.page;
-                document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
-                document.getElementById('page-' + pageId).classList.add('active');
-                if (pageId === 'queue') loadQueue();
-            });
-        });
+    <!-- СООБЩЕНИЯ -->
+    <div id="message" class="msg"></div>
 
-        // ============================================================
-        // СООБЩЕНИЯ
-        // ============================================================
-        function showMessage(text, type) {
-            var el = document.getElementById('message');
-            el.textContent = text;
-            el.className = 'msg show ' + type;
-            setTimeout(function() { el.classList.remove('show'); }, 5000);
-        }
+    <!-- КАРТОЧКА: СОЗДАНИЕ ЗАКАЗА -->
+    <div class="card">
+        <div class="card-title">
+            <span class="icon">🚀</span>
+            <h3>Создать заказ</h3>
+        </div>
+        <div class="field">
+            <label>Номер заказа</label>
+            <input type="text" id="orderNumber" placeholder="Например: 1001" />
+        </div>
+        <div class="row">
+            <div class="field">
+                <label>Дата создания</label>
+                <input type="date" id="creationDate" />
+            </div>
+            <div class="field">
+                <label>Плановая дата</label>
+                <input type="date" id="planDate" />
+            </div>
+        </div>
+        <div class="field">
+            <label>Приоритет</label>
+            <select id="priority">
+                <option value="Срочный">🔴 Срочный</option>
+                <option value="Высокий">🟠 Высокий</option>
+                <option value="Обычный" selected>🟢 Обычный</option>
+                <option value="Не срочный">⚪ Не срочный</option>
+            </select>
+        </div>
+        <div class="check-group">
+            <label><input type="checkbox" id="r1" /> Раскрой 1</label>
+            <label><input type="checkbox" id="selection" /> Выборка</label>
+            <label><input type="checkbox" id="resin" /> Смола</label>
+            <label><input type="checkbox" id="r2" /> Раскрой 2</label>
+        </div>
+        <button class="btn" onclick="createOrder()">🚀 Запустить заказ</button>
+    </div>
 
-        // ============================================================
-        // ЗАПРОС К API
-        // ============================================================
-        function callApi(action, data, callback) {
-            var body = { action: action };
-            if (data) {
-                Object.keys(data).forEach(function(key) {
-                    body[key] = data[key];
-                });
-            }
+    <!-- КАРТОЧКА: ВСЕ ЗАКАЗЫ -->
+    <div class="card">
+        <div class="card-title">
+            <span class="icon">📦</span>
+            <h3>Все заказы</h3>
+        </div>
+        <div id="orderList"></div>
+        <button class="btn" style="font-size:14px; padding:10px; margin-top:12px; background:#e8ecf0; color:#333;" onclick="loadOrders()">🔄 Обновить список</button>
+    </div>
+</div>
 
-            fetch(API_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                })
-                .then(function(response) {
-                    // Из-за no-cors мы не можем прочитать ответ напрямую
-                    // Поэтому используем второй запрос для получения данных
-                    return fetch(API_URL + '?action=' + action + '&_=' + Date.now());
-                })
-                .then(function(response) { return response.json(); })
-                .then(function(result) {
-                    if (callback) callback(result);
-                })
-                .catch(function(err) {
-                    if (callback) callback({ error: err.toString() });
-                });
-        }
+<script>
+    // ============================================================
+    // НАСТРОЙКИ
+    // ============================================================
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxa8Ag_VFouB9IITEXP0XlcMtVMsG-MgeheLC3f38x_TDnLqpQGy7OmvyPxTPAcueFbcw/exec';
 
-        // ============================================================
-        // МЕНЕДЖЕР — СОЗДАНИЕ ЗАКАЗА
-        // ============================================================
-        function createOrder() {
-            var orderNumber = document.getElementById('orderNumber').value.trim();
-            var creationDate = document.getElementById('creationDate').value;
-            var planDate = document.getElementById('planDate').value;
-            var priority = document.getElementById('priority').value;
+    // ============================================================
+    // ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК (для навигации)
+    // ============================================================
+    // Навигация через обычные ссылки, ничего дополнительно не нужно
 
-            if (!orderNumber) { showMessage('Введите номер заказа', 'err'); return; }
-            if (!creationDate) { showMessage('Выберите дату создания', 'err'); return; }
-            if (!planDate) { showMessage('Выберите плановую дату', 'err'); return; }
+    // ============================================================
+    // СООБЩЕНИЯ
+    // ============================================================
+    function showMessage(text, type) {
+        var el = document.getElementById('message');
+        el.textContent = text;
+        el.className = 'msg show ' + type;
+        setTimeout(function() { el.classList.remove('show'); }, 5000);
+    }
 
-            var data = {
-                action: 'createOrder',
-                orderNumber: orderNumber,
-                creationDate: creationDate,
-                planDate: planDate,
-                priority: priority,
-                r1: document.getElementById('r1').checked,
-                selection: document.getElementById('selection').checked,
-                resin: document.getElementById('resin').checked,
-                r2: document.getElementById('r2').checked
-            };
+    // ============================================================
+    // СОЗДАНИЕ ЗАКАЗА
+    // ============================================================
+    function createOrder() {
+        var orderNumber = document.getElementById('orderNumber').value.trim();
+        var creationDate = document.getElementById('creationDate').value;
+        var planDate = document.getElementById('planDate').value;
+        var priority = document.getElementById('priority').value;
 
-            var btn = document.querySelector('#page-manager .btn');
-            btn.disabled = true;
-            btn.textContent = 'Запуск...';
+        if (!orderNumber) { showMessage('Введите номер заказа', 'err'); return; }
+        if (!creationDate) { showMessage('Выберите дату создания', 'err'); return; }
+        if (!planDate) { showMessage('Выберите плановую дату', 'err'); return; }
 
-            // Отправляем запрос через fetch
-            fetch(API_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                })
-                .then(function() {
-                    btn.disabled = false;
-                    btn.textContent = 'Запустить заказ';
-                    showMessage('Заказ ' + orderNumber + ' создан!', 'ok');
-                    document.getElementById('orderNumber').value = '';
-                    document.getElementById('creationDate').value = '';
-                    document.getElementById('planDate').value = '';
-                    document.getElementById('r1').checked = false;
-                    document.getElementById('selection').checked = false;
-                    document.getElementById('resin').checked = false;
-                    document.getElementById('r2').checked = false;
-                    loadOrders();
-                })
-                .catch(function(err) {
-                    btn.disabled = false;
-                    btn.textContent = 'Запустить заказ';
-                    showMessage('Ошибка: ' + err, 'err');
-                });
-        }
+        var data = {
+            action: 'createOrder',
+            orderNumber: orderNumber,
+            creationDate: creationDate,
+            planDate: planDate,
+            priority: priority,
+            r1: document.getElementById('r1').checked,
+            selection: document.getElementById('selection').checked,
+            resin: document.getElementById('resin').checked,
+            r2: document.getElementById('r2').checked
+        };
 
-        // ============================================================
-        // МЕНЕДЖЕР — ЗАГРУЗКА ЗАКАЗОВ
-        // ============================================================
-        function loadOrders() {
-            var container = document.getElementById('orderList');
-            container.innerHTML = '<div class="loading">Загрузка...</div>';
+        var btn = document.querySelector('#page-manager .btn');
+        btn.disabled = true;
+        btn.textContent = '⏳ Запуск...';
 
-            fetch(API_URL + '?action=getOrders&_=' + Date.now())
-                .then(function(response) { return response.json(); })
-                .then(function(result) {
-                    if (result.error) {
-                        container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>';
-                        return;
-                    }
-                    if (!result.data || result.data.length === 0) {
-                        container.innerHTML = '<div class="empty">Нет заказов</div>';
-                        return;
-                    }
-                    var html = '';
-                    result.data.forEach(function(item) {
-                        var badgeClass = '';
-                        var statusText = item.status || 'Ожидание';
-                        if (statusText === 'Запущен' || statusText === 'Ожидание') badgeClass = 'badge-waiting';
-                        else if (statusText === 'В работе') badgeClass = 'badge-work';
-                        else if (statusText === 'Завершено') badgeClass = 'badge-done';
-
-                        html += '<div class="item">';
-                        html += '  <div class="head">';
-                        html += '    <span><strong>№ ' + item.order + '</strong> — ' + item.stage + '</span>';
-                        html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
-                        html += '  </div>';
-                        html += '  <div style="font-size:13px; color:#888;">Блоков: ' + item.blocks + ' | Рулонов: ' + item.rolls +
-                            ' | ' + item.priority + '</div>';
-                        html += '  <button class="btn btn-sm btn-success" style="margin-top:6px;" onclick="nextStage(\'' +
-                            item.order + '\')">Перевести на следующий этап</button>';
-                        html += '</div>';
-                    });
-                    container.innerHTML = html;
-                })
-                .catch(function(err) {
-                    container.innerHTML = '<div class="empty">Ошибка загрузки: ' + err + '</div>';
-                });
-        }
-
-        // ============================================================
-        // МЕНЕДЖЕР — СЛЕДУЮЩИЙ ЭТАП
-        // ============================================================
-        function nextStage(orderNumber) {
-            var data = { action: 'nextStage', orderNumber: orderNumber };
-
-            fetch(API_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                })
-                .then(function() {
-                    showMessage('Заказ ' + orderNumber + ' переведён', 'ok');
-                    loadOrders();
-                    loadQueue();
-                })
-                .catch(function(err) {
-                    showMessage('Ошибка: ' + err, 'err');
-                });
-        }
-
-        // ============================================================
-        // ОЧЕРЕДЬ
-        // ============================================================
-        function loadQueue() {
-            var container = document.getElementById('queueList');
-            container.innerHTML = '<div class="loading">Загрузка...</div>';
-
-            fetch(API_URL + '?action=getOrders&_=' + Date.now())
-                .then(function(response) { return response.json(); })
-                .then(function(result) {
-                    if (result.error) {
-                        container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>';
-                        return;
-                    }
-                    if (!result.data || result.data.length === 0) {
-                        container.innerHTML = '<div class="empty">Нет заказов</div>';
-                        return;
-                    }
-                    var stages = ['Подготовка печати', 'Печать', 'Каттер', 'Раскрой', 'Смола', 'Сушка', 'ОТК', 'Упаковка'];
-                    var html = '';
-                    stages.forEach(function(stage) {
-                        var items = result.data.filter(function(o) { return o.stage === stage; });
-                        if (items.length === 0) return;
-                        html += '<div style="margin-bottom:12px;"><strong>' + stage + '</strong>';
-                        items.forEach(function(item) {
-                            var badgeClass = '';
-                            var statusText = item.status || 'Ожидание';
-                            if (statusText === 'Запущен' || statusText === 'Ожидание') badgeClass = 'badge-waiting';
-                            else if (statusText === 'В работе') badgeClass = 'badge-work';
-                            else if (statusText === 'Завершено') badgeClass = 'badge-done';
-                            html +=
-                                '<div style="padding:6px 0; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">';
-                            html += '  <span>№ ' + item.order + '</span>';
-                            html += '  <span class="badge ' + badgeClass + '">' + statusText + '</span>';
-                            html += '</div>';
-                        });
-                        html += '</div>';
-                    });
-                    container.innerHTML = html || '<div class="empty">Нет заказов в очереди</div>';
-                })
-                .catch(function(err) {
-                    container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>';
-                });
-        }
-
-        // ============================================================
-        // ЗАГРУЗКА ПРИ СТАРТЕ
-        // ============================================================
-        document.addEventListener('DOMContentLoaded', function() {
+        fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(function() {
+            btn.disabled = false;
+            btn.textContent = '🚀 Запустить заказ';
+            showMessage('✅ Заказ ' + orderNumber + ' создан!', 'ok');
+            document.getElementById('orderNumber').value = '';
+            document.getElementById('creationDate').value = '';
+            document.getElementById('planDate').value = '';
+            document.getElementById('r1').checked = false;
+            document.getElementById('selection').checked = false;
+            document.getElementById('resin').checked = false;
+            document.getElementById('r2').checked = false;
             loadOrders();
+        })
+        .catch(function(err) {
+            btn.disabled = false;
+            btn.textContent = '🚀 Запустить заказ';
+            showMessage('❌ Ошибка: ' + err, 'err');
         });
-    </script>
+    }
+
+    // ============================================================
+    // ЗАГРУЗКА ЗАКАЗОВ
+    // ============================================================
+    function loadOrders() {
+        var container = document.getElementById('orderList');
+        container.innerHTML = '<div class="loading">⏳ Загрузка...</div>';
+
+        fetch(API_URL + '?action=getOrders&_=' + Date.now())
+        .then(function(response) { return response.json(); })
+        .then(function(result) {
+            if (result.error) {
+                container.innerHTML = '<div class="empty"><span class="icon">❌</span>Ошибка: ' + result.error + '</div>';
+                return;
+            }
+            if (!result.data || result.data.length === 0) {
+                container.innerHTML = '<div class="empty"><span class="icon">📭</span>Нет заказов</div>';
+                return;
+            }
+            var html = '';
+            result.data.forEach(function(item) {
+                var badgeClass = '';
+                var statusText = item.status || 'Ожидание';
+                if (statusText === 'Запущен') badgeClass = 'badge-launched';
+                else if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
+                else if (statusText === 'В работе') badgeClass = 'badge-work';
+                else if (statusText === 'Выполнено' || statusText === 'Завершено') badgeClass = 'badge-done';
+
+                // Иконка приоритета
+                var priorityIcon = '🟢';
+                if (item.priority === 'Срочный') priorityIcon = '🔴';
+                else if (item.priority === 'Высокий') priorityIcon = '🟠';
+                else if (item.priority === 'Не срочный') priorityIcon = '⚪';
+
+                html += '<div class="order-item">';
+                html += '  <div class="head">';
+                html += '    <span class="order-num">№ ' + item.order + '</span>';
+                html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
+                html += '  </div>';
+                html += '  <div class="order-stage">📍 ' + item.stage + ' &nbsp;|&nbsp; ' + priorityIcon + ' ' + item.priority + '</div>';
+                html += '  <div class="order-meta">Блоков: ' + item.blocks + ' | Рулонов: ' + item.rolls + '</div>';
+                html += '  <div class="actions">';
+                if (item.status !== 'Завершено' && item.status !== 'Выполнено') {
+                    html += '    <button class="btn btn-sm btn-success" onclick="nextStage(\'' + item.order + '\')">➡️ Перевести</button>';
+                }
+                html += '  </div>';
+                html += '</div>';
+            });
+            container.innerHTML = html;
+        })
+        .catch(function(err) {
+            container.innerHTML = '<div class="empty"><span class="icon">❌</span>Ошибка: ' + err + '</div>';
+        });
+    }
+
+    // ============================================================
+    // СЛЕДУЮЩИЙ ЭТАП
+    // ============================================================
+    function nextStage(orderNumber) {
+        var data = { action: 'nextStage', orderNumber: orderNumber };
+
+        fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(function() {
+            showMessage('✅ Заказ ' + orderNumber + ' переведён на следующий этап', 'ok');
+            loadOrders();
+        })
+        .catch(function(err) {
+            showMessage('❌ Ошибка: ' + err, 'err');
+        });
+    }
+
+    // ============================================================
+    // ЗАГРУЗКА ПРИ СТАРТЕ
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', function() {
+        loadOrders();
+    });
+</script>
 
 </body>
 </html>
