@@ -98,4 +98,47 @@
 
                     html += '<div class="item">';
                     html += '  <div class="head">';
-                    html += '    <span><strong>№ ' + item.order + '</
+                    html += '    <span><strong>№ ' + item.order + '</strong> — ' + item.rollId + ' (' + item.blocks + ' блоков)</span>';
+                    html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
+                    html += '  </div>';
+                    html += '  <div class="actions">';
+                    if (statusText === 'Ожидание') {
+                        html += '    <button class="btn btn-sm btn-success" onclick="updateRoll(\'' + item.rollId + '\', \'В работе\')">Взять в работу</button>';
+                    } else if (statusText === 'В работе') {
+                        html += '    <button class="btn btn-sm btn-danger" onclick="updateRoll(\'' + item.rollId + '\', \'Выполнено\')">Завершить</button>';
+                    }
+                    html += '  </div>';
+                    html += '</div>';
+                });
+                container.innerHTML = html;
+            })
+            .catch(function(err) {
+                container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>';
+            });
+    }
+
+    function updateRoll(rollId, newStatus) {
+        var data = { action: 'updateRoll', rollId: rollId, status: newStatus };
+
+        fetch(API_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(function() {
+                showMessage('Рулон ' + rollId + ' — ' + newStatus, 'ok');
+                loadRolls();
+            })
+            .catch(function(err) {
+                showMessage('Ошибка: ' + err, 'err');
+            });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        loadRolls();
+    });
+</script>
+
+</body>
+</html>
