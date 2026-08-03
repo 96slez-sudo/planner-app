@@ -32,6 +32,8 @@
         .badge-work { background: #cce5ff; color: #004085; }
         .badge-done { background: #d4edda; color: #155724; }
         .badge-drying { background: #fdebd0; color: #935e38; }
+        .badge-free { background: #d5f5e3; color: #1a7a42; }
+        .badge-full { background: #fadbd8; color: #922b21; }
         .item { padding: 12px 0; border-bottom: 1px solid #f0f2f5; }
         .item:last-child { border-bottom: none; }
         .item .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
@@ -84,13 +86,15 @@
 </div>
 
 <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbxa8Ag_VFouB9IITEXP0XlcMtVMsG-MgeheLC3f38x_TDnLqpQGy7OmvyPxTPAcueFbcw/exec';
+    var API_URL = 'https://script.google.com/macros/s/AKfycbxa8Ag_VFouB9IITEXP0XlcMtVMsG-MgeheLC3f38x_TDnLqpQGy7OmvyPxTPAcueFbcw/exec';
 
     function showMessage(text, type) {
         var el = document.getElementById('message');
         el.textContent = text;
         el.className = 'msg show ' + type;
-        setTimeout(function() { el.classList.remove('show'); }, 5000);
+        setTimeout(function() {
+            el.classList.remove('show');
+        }, 5000);
     }
 
     function loadDryingOrders() {
@@ -98,68 +102,96 @@
         container.innerHTML = '<div class="loading">Загрузка...</div>';
 
         fetch(API_URL + '?action=getDryingOrders&_=' + Date.now())
-        .then(function(response) { return response.json(); })
-        .then(function(result) {
-            if (result.error) {
-                container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>';
-                return;
-            }
-            if (!result.data || result.data.length === 0) {
-                container.innerHTML = '<div class="empty">Нет стеллажей</div>';
-                return;
-            }
-            var html = '';
-            result.data.forEach(function(item) {
-                var badgeClass = '';
-                var statusText = 'Свободен';
-                
-                if (item.packed && !item.rolledOut) {
-                    statusText = 'На сушке';
-                    badgeClass = 'badge-drying';
-                } else if (item.packed && item.rolledOut) {
-                    statusText = 'Готов к выкату';
-                    badgeClass = 'badge-done';
-                } else if (!item.packed && item.count > 0) {
-                    statusText = 'Укомплектован';
-                    badgeClass = 'badge-work';
-                } else {
-                    badgeClass = 'badge-waiting';
+            .then(function(response) { return response.json(); })
+            .then(function(result) {
+                if (result.error) {
+                    container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>';
+                    return;
                 }
-
-                html += '<div class="item">';
-                html += '  <div class="head">';
-                html += '    <span class="order-num">Стеллаж ' + item.shelf + '</span>';
-                html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
-                html += '  </div>';
-                html += '  <div class="order-meta">Заказов: ' + item.count + ' | Зона: ' + (item.zone || '—') + '</div>';
-                if (item.orders) {
-                    html += '  <div class="order-meta">Заказы: ' + item.orders + '</div>';
+                if (!result.data || result.data.length === 0) {
+                    container.innerHTML = '<div class="empty">Нет стеллажей</div>';
+                    return;
                 }
-                html += '  <div class="actions">';
-                
-                if (item.count > 0 && !item.packed && !item.rolledOut) {
-                    html += '    <div class="shelf-select">';
-                    html += '      <select id="zone-' + item.shelf + '">';
-                    for (var z = 1; z <= 5; z++) {
-                        html += '<option value="Зона ' + z + '">Зона ' + z + '</option>';
+                var html = '';
+                for (var i = 0; i < result.data.length; i++) {
+                    var item = result.data[i];
+                    var badgeClass = '';
+                    var statusText = 'Свободен';
+                    var freeSpace = 46;
+                    
+                    // Считаем свободное место
+                    if (item.orders) {
+                        var orderList = item.orders.split(',').map(function(s) { return s.trim(); });
+                        // Получаем количество блоков на стеллаже из Базы
+                        // Показываем приблизительное значение
+                        var usedBlocks = 0;
+                        for (var j = 0; j < orderList.length; j++) {
+                            var orderNumber = orderList[j];
+                            if (orderNumber) {
+                                // Упрощённо: считаем, что каждый заказ использует 46 блоков (максимум)
+                                // В реальности нужно брать из Базы
+                                usedBlocks += 46;
+                            }
+                        }
+                        freeSpace = Math.max(0, 46 - usedBlocks);
                     }
-                    html += '      </select>';
-                    html += '      <button class="btn btn-sm btn-success" onclick="packShelf(\'' + item.shelf + '\')">Укомплектовать</button>';
-                    html += '    </div>';
+                    
+                    if (item.packed && !item.rolledOut) {
+                        statusText = 'На сушке';
+                        badgeClass = 'badge-drying';
+                    } else if (item.packed && item.rolledOut) {
+                        statusText = 'Готов к выкату';
+                        badgeClass = 'badge-done';
+                    } else if (!item.packed && item.count > 0) {
+                        statusText = 'Укомплектован';
+                        badgeClass = 'badge-work';
+                    } else {
+                        badgeClass = 'badge-waiting';
+                    }
+                    
+                    var freeBadge = '';
+                    if (freeSpace === 0 && item.count > 0) {
+                        freeBadge = '<span class="badge badge-full">Занят</span>';
+                    } else if (freeSpace > 0 && item.count > 0) {
+                        freeBadge = '<span class="badge badge-free">Свободно ' + freeSpace + '/46</span>';
+                    } else if (freeSpace === 46) {
+                        freeBadge = '<span class="badge badge-free">Пуст</span>';
+                    }
+
+                    html += '<div class="item">';
+                    html += '  <div class="head">';
+                    html += '    <span class="order-num">Стеллаж ' + item.shelf + '</span>';
+                    html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
+                    html += '  </div>';
+                    html += '  <div class="order-meta">Заказов: ' + item.count + ' | Зона: ' + (item.zone || '—') + ' | ' + freeBadge + '</div>';
+                    if (item.orders) {
+                        html += '  <div class="order-meta">Заказы: ' + item.orders + '</div>';
+                    }
+                    html += '  <div class="actions">';
+                    
+                    if (item.count > 0 && !item.packed && !item.rolledOut) {
+                        html += '    <div class="shelf-select">';
+                        html += '      <select id="zone-' + item.shelf + '">';
+                        for (var z = 1; z <= 5; z++) {
+                            html += '<option value="Зона ' + z + '">Зона ' + z + '</option>';
+                        }
+                        html += '      </select>';
+                        html += '      <button class="btn btn-sm btn-success" onclick="packShelf(\'' + item.shelf + '\')">Укомплектовать</button>';
+                        html += '    </div>';
+                    }
+                    
+                    if (item.packed && !item.rolledOut) {
+                        html += '    <button class="btn btn-sm btn-danger" onclick="rollOutShelf(\'' + item.shelf + '\')">Выкатить</button>';
+                    }
+                    
+                    html += '  </div>';
+                    html += '</div>';
                 }
-                
-                if (item.packed && !item.rolledOut) {
-                    html += '    <button class="btn btn-sm btn-danger" onclick="rollOutShelf(\'' + item.shelf + '\')">Выкатить</button>';
-                }
-                
-                html += '  </div>';
-                html += '</div>';
+                container.innerHTML = html;
+            })
+            ['catch'](function(err) {
+                container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>';
             });
-            container.innerHTML = html;
-        })
-        .catch(function(err) {
-            container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>';
-        });
     }
 
     function packShelf(shelf) {
@@ -172,13 +204,13 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         })
-        .then(function() {
-            showMessage('Стеллаж ' + shelf + ' укомплектован, зона ' + zone, 'ok');
-            loadDryingOrders();
-        })
-        .catch(function(err) {
-            showMessage('Ошибка: ' + err, 'err');
-        });
+            .then(function() {
+                showMessage('Стеллаж ' + shelf + ' укомплектован, зона ' + zone, 'ok');
+                loadDryingOrders();
+            })
+            ['catch'](function(err) {
+                showMessage('Ошибка: ' + err, 'err');
+            });
     }
 
     function rollOutShelf(shelf) {
@@ -190,13 +222,13 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         })
-        .then(function() {
-            showMessage('Стеллаж ' + shelf + ' выкатили', 'ok');
-            loadDryingOrders();
-        })
-        .catch(function(err) {
-            showMessage('Ошибка: ' + err, 'err');
-        });
+            .then(function() {
+                showMessage('Стеллаж ' + shelf + ' выкатили', 'ok');
+                loadDryingOrders();
+            })
+            ['catch'](function(err) {
+                showMessage('Ошибка: ' + err, 'err');
+            });
     }
 
     document.addEventListener('DOMContentLoaded', function() {
