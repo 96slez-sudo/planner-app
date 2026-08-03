@@ -40,7 +40,6 @@
         .msg.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
         .empty { text-align: center; padding: 28px 0; color: #aaa; font-size: 14px; }
         .loading { text-align: center; padding: 16px 0; color: #999; font-size: 14px; }
-        .debug { background: #f5f5f5; padding: 8px; font-size: 11px; color: #666; border-radius: 4px; margin-top: 8px; max-height: 150px; overflow: auto; white-space: pre-wrap; word-break: break-all; }
         @media (max-width: 480px) {
             body { padding: 12px; }
             .card { padding: 14px; }
@@ -75,24 +74,10 @@
         <div id="otkList"></div>
         <button class="btn" style="width:100%; margin-top:10px; background:#eef1f4; color:#333;" onclick="loadOtkOrders()">Обновить</button>
     </div>
-
-    <div class="card" style="background:#fafafa; border:1px solid #eee;">
-        <h3 style="font-size:14px; color:#666;">Отладка</h3>
-        <div id="debugLog" class="debug">Ожидание...</div>
-    </div>
 </div>
 
 <script>
     var API_URL = 'https://script.google.com/macros/s/AKfycbxa8Ag_VFouB9IITEXP0XlcMtVMsG-MgeheLC3f38x_TDnLqpQGy7OmvyPxTPAcueFbcw/exec';
-
-    function debug(msg) {
-        var el = document.getElementById('debugLog');
-        var time = new Date().toLocaleTimeString();
-        el.textContent = time + ' | ' + msg + '\n' + el.textContent;
-        if (el.textContent.length > 2000) {
-            el.textContent = el.textContent.substring(0, 2000);
-        }
-    }
 
     function showMessage(text, type) {
         var el = document.getElementById('message');
@@ -106,23 +91,18 @@
     function loadOtkOrders() {
         var container = document.getElementById('otkList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
-        debug('Запрос к API: getStageOrders, stage=ОТК');
 
         fetch(API_URL + '?action=getStageOrders&stage=ОТК&_=' + Date.now())
             .then(function(response) {
-                debug('Ответ получен, статус: ' + response.status);
                 return response.json();
             })
             .then(function(result) {
-                debug('Результат: ' + JSON.stringify(result));
-                
                 if (result.error) {
                     container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>';
                     return;
                 }
                 if (!result.data || result.data.length === 0) {
                     container.innerHTML = '<div class="empty">Нет заказов на ОТК</div>';
-                    debug('Нет данных');
                     return;
                 }
                 var html = '';
@@ -150,10 +130,8 @@
                     html += '</div>';
                 }
                 container.innerHTML = html;
-                debug('Отображено ' + result.data.length + ' заказов');
             })
             ['catch'](function(err) {
-                debug('Ошибка: ' + err);
                 container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>';
             });
     }
@@ -166,8 +144,6 @@
             stage: 'ОТК'
         };
 
-        debug('Отправка: updateStageStatus, заказ ' + orderNumber + ', статус ' + newStatus);
-
         fetch(API_URL, {
             method: 'POST',
             mode: 'no-cors',
@@ -179,13 +155,11 @@
                 loadOtkOrders();
             })
             ['catch'](function(err) {
-                debug('Ошибка: ' + err);
                 showMessage('Ошибка: ' + err, 'err');
             });
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-        debug('Страница загружена');
         loadOtkOrders();
     });
 </script>
