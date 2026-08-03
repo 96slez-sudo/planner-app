@@ -164,19 +164,31 @@
             });
     }
 
-        function updatePrintRoll(rollId, newStatus) {
-        // 1. Строим URL с параметрами, как при GET-запросе
-        var url = API_URL + '?action=updateRoll&rollId=' + encodeURIComponent(rollId) + '&status=' + encodeURIComponent(newStatus);
+            function updatePrintRoll(rollId, newStatus) {
+        // Генерируем случайное имя функции для callback
+        var callbackName = 'callback_' + Date.now();
         
-        // 2. Создаем тег <script> с этим URL и вставляем в страницу
-        // Браузеры никогда не блокируют загрузку скриптов (это обход CORS)
+        // Строим URL, добавляя параметр callback
+        var url = API_URL + '?action=updateRoll&rollId=' + encodeURIComponent(rollId) + '&status=' + encodeURIComponent(newStatus) + '&callback=' + callbackName;
+        
+        // Создаем функцию-обработчик, которая сработает, когда Google вернет ответ
+        window[callbackName] = function(result) {
+            // Удаляем скрипт из DOM и очищаем функцию
+            document.body.removeChild(script);
+            delete window[callbackName];
+            
+            if (result && result.success) {
+                showMessage(result.message || 'Статус обновлён', 'ok');
+                loadPrintRolls(); // Тут же обновляем список
+            } else {
+                showMessage((result && result.error) || 'Ошибка', 'err');
+            }
+        };
+        
+        // Создаем тег script с URL
         var script = document.createElement('script');
         script.src = url;
         document.body.appendChild(script);
-        
-        // 3. Показываем сообщение пользователю и перезагружаем список
-        showMessage('Рулон ' + rollId + ' — ' + newStatus, 'ok');
-        setTimeout(loadPrintRolls, 1500);
     }
 
     document.addEventListener('DOMContentLoaded', function() {
