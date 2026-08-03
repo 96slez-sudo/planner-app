@@ -98,7 +98,7 @@
         const { data, error } = await supabaseClient
             .from('orders')
             .select('*')
-            .eq('stage', 'Подготовка');
+            .eq('status', 'Запущен');
 
         if (error) { container.innerHTML = '<div class="empty">Ошибка: ' + error.message + '</div>'; return; }
         if (!data || data.length === 0) { container.innerHTML = '<div class="empty">Нет заказов в подготовке</div>'; return; }
