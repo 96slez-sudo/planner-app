@@ -22,6 +22,8 @@
         .btn-sm { padding: 5px 12px; font-size: 12px; }
         .btn-success { background: #27ae60; }
         .btn-success:hover { background: #1e8449; }
+        .btn-danger { background: #e74c3c; }
+        .btn-danger:hover { background: #c0392b; }
         .badge { display: inline-block; padding: 3px 12px; border-radius: 16px; font-size: 12px; font-weight: 500; }
         .badge-waiting { background: #fff3cd; color: #856404; }
         .badge-work { background: #cce5ff; color: #004085; }
@@ -31,7 +33,7 @@
         .item .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
         .item .order-num { font-weight: 600; font-size: 15px; color: #1a1a2e; }
         .item .order-meta { font-size: 14px; color: #666; }
-        .item .actions { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .item .actions { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
         .msg { padding: 12px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; display: none; }
         .msg.show { display: block; }
         .msg.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
@@ -75,13 +77,15 @@
 </div>
 
 <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbxa8Ag_VFouB9IITEXP0XlcMtVMsG-MgeheLC3f38x_TDnLqpQGy7OmvyPxTPAcueFbcw/exec';
+    var API_URL = 'https://script.google.com/macros/s/AKfycbxa8Ag_VFouB9IITEXP0XlcMtVMsG-MgeheLC3f38x_TDnLqpQGy7OmvyPxTPAcueFbcw/exec';
 
     function showMessage(text, type) {
         var el = document.getElementById('message');
         el.textContent = text;
         el.className = 'msg show ' + type;
-        setTimeout(function() { el.classList.remove('show'); }, 5000);
+        setTimeout(function() {
+            el.classList.remove('show');
+        }, 5000);
     }
 
     function loadOtkOrders() {
@@ -89,48 +93,56 @@
         container.innerHTML = '<div class="loading">Загрузка...</div>';
 
         fetch(API_URL + '?action=getStageOrders&stage=ОТК&_=' + Date.now())
-        .then(function(response) { return response.json(); })
-        .then(function(result) {
-            if (result.error) {
-                container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>';
-                return;
-            }
-            if (!result.data || result.data.length === 0) {
-                container.innerHTML = '<div class="empty">Нет заказов на ОТК</div>';
-                return;
-            }
-            var html = '';
-            result.data.forEach(function(item) {
-                var badgeClass = '';
-                var statusText = item.status || 'Ожидание';
-                if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
-                else if (statusText === 'В работе') badgeClass = 'badge-work';
-                else if (statusText === 'Выполнено') badgeClass = 'badge-done';
-
-                html += '<div class="item">';
-                html += '  <div class="head">';
-                html += '    <span class="order-num">№ ' + item.order + '</span>';
-                html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
-                html += '  </div>';
-                html += '  <div class="order-meta">Этап: ' + item.stage + '</div>';
-                html += '  <div class="actions">';
-                if (statusText === 'Ожидание') {
-                    html += '    <button class="btn btn-sm btn-success" onclick="updateStageOrder(\'' + item.order + '\', \'В работе\', \'ОТК\')">Взять в работу</button>';
-                } else if (statusText === 'В работе') {
-                    html += '    <button class="btn btn-sm btn-success" onclick="updateStageOrder(\'' + item.order + '\', \'Выполнено\', \'ОТК\')">Завершить</button>';
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(result) {
+                if (result.error) {
+                    container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>';
+                    return;
                 }
-                html += '  </div>';
-                html += '</div>';
+                if (!result.data || result.data.length === 0) {
+                    container.innerHTML = '<div class="empty">Нет заказов на ОТК</div>';
+                    return;
+                }
+                var html = '';
+                for (var i = 0; i < result.data.length; i++) {
+                    var item = result.data[i];
+                    var badgeClass = '';
+                    var statusText = item.status || 'Ожидание';
+                    if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
+                    else if (statusText === 'В работе') badgeClass = 'badge-work';
+                    else if (statusText === 'Выполнено') badgeClass = 'badge-done';
+
+                    html += '<div class="item">';
+                    html += '  <div class="head">';
+                    html += '    <span class="order-num">№ ' + item.order + '</span>';
+                    html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
+                    html += '  </div>';
+                    html += '  <div class="order-meta">Этап: ' + item.stage + '</div>';
+                    html += '  <div class="actions">';
+                    if (statusText === 'Ожидание') {
+                        html += '    <button class="btn btn-sm btn-success" onclick="updateOtkOrder(\'' + item.order + '\', \'В работе\')">Взять в работу</button>';
+                    } else if (statusText === 'В работе') {
+                        html += '    <button class="btn btn-sm btn-danger" onclick="updateOtkOrder(\'' + item.order + '\', \'Выполнено\')">Завершить</button>';
+                    }
+                    html += '  </div>';
+                    html += '</div>';
+                }
+                container.innerHTML = html;
+            })
+            ['catch'](function(err) {
+                container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>';
             });
-            container.innerHTML = html;
-        })
-        .catch(function(err) {
-            container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>';
-        });
     }
 
-    function updateStageOrder(orderNumber, newStatus, stage) {
-        var data = { action: 'updateStageStatus', orderNumber: orderNumber, status: newStatus, stage: stage };
+    function updateOtkOrder(orderNumber, newStatus) {
+        var data = {
+            action: 'updateStageStatus',
+            orderNumber: orderNumber,
+            status: newStatus,
+            stage: 'ОТК'
+        };
 
         fetch(API_URL, {
             method: 'POST',
@@ -138,13 +150,22 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         })
-        .then(function() {
-            showMessage('Заказ ' + orderNumber + ' — ' + newStatus, 'ok');
-            loadOtkOrders();
-        })
-        .catch(function(err) {
-            showMessage('Ошибка: ' + err, 'err');
-        });
+            .then(function() {
+                showMessage('Заказ ' + orderNumber + ' — ' + newStatus, 'ok');
+                loadOtkOrders();
+                // Обновляем Упаковку, если заказ завершён на ОТК
+                if (newStatus === 'Выполнено') {
+                    setTimeout(function() {
+                        // Страница Упаковки обновится при переходе
+                        if (document.getElementById('packingList')) {
+                            // Если есть вкладка Упаковки, она обновится при переключении
+                        }
+                    }, 500);
+                }
+            })
+            ['catch'](function(err) {
+                showMessage('Ошибка: ' + err, 'err');
+            });
     }
 
     document.addEventListener('DOMContentLoaded', function() {
