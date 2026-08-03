@@ -43,18 +43,15 @@
         @media (max-width: 480px) {
             body { padding: 12px; }
             .card { padding: 14px; }
-            .nav a { font-size: 11px; padding: 5px 10px; }
         }
     </style>
 </head>
 <body>
-
 <div class="container">
     <div class="header">
         <h1>Каттер</h1>
         <p>Очередь рулонов</p>
     </div>
-
     <div class="nav">
         <a href="/planner-app/">Главная</a>
         <a href="/planner-app/prep.html">Подготовка</a>
@@ -66,18 +63,15 @@
         <a href="/planner-app/otk.html">ОТК</a>
         <a href="/planner-app/packing.html">Упаковка</a>
     </div>
-
     <div id="message" class="msg"></div>
-
     <div class="card">
         <h3>Очередь рулонов</h3>
         <div id="rollsList"></div>
         <button class="btn" style="width:100%; margin-top:10px; background:#eef1f4; color:#333;" onclick="loadRolls()">Обновить</button>
     </div>
 </div>
-
 <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbxa8Ag_VFouB9IITEXP0XlcMtVMsG-MgeheLC3f38x_TDnLqpQGy7OmvyPxTPAcueFbcw/exec';
+    var API_URL = 'https://script.google.com/macros/s/AKfycbylukQfen66524Qr5EHGb5C3ZV2qL6Dilf15GOu12Ltpn65hVgHPeRMBni1yBJFg9BwzQ/exec';
 
     function showMessage(text, type) {
         var el = document.getElementById('message');
@@ -89,23 +83,13 @@
     function loadRolls() {
         var container = document.getElementById('rollsList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
-
         fetch(API_URL + '?action=getRolls&_=' + Date.now())
         .then(function(response) { return response.json(); })
         .then(function(result) {
-            if (result.error) {
-                container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>';
-                return;
-            }
-            if (!result.data || result.data.length === 0) {
-                container.innerHTML = '<div class="empty">Нет рулонов на каттере</div>';
-                return;
-            }
+            if (result.error) { container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>'; return; }
+            if (!result.data || result.data.length === 0) { container.innerHTML = '<div class="empty">Нет рулонов на каттере</div>'; return; }
             var rolls = result.data.filter(function(r) { return r.stage === 'Каттер' && r.status !== 'Выполнено'; });
-            if (rolls.length === 0) {
-                container.innerHTML = '<div class="empty">Все рулоны выполнены</div>';
-                return;
-            }
+            if (rolls.length === 0) { container.innerHTML = '<div class="empty">Все рулоны выполнены</div>'; return; }
             var html = '';
             rolls.forEach(function(item) {
                 var badgeClass = '';
@@ -113,7 +97,6 @@
                 if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
                 else if (statusText === 'В работе') badgeClass = 'badge-work';
                 else if (statusText === 'Выполнено') badgeClass = 'badge-done';
-
                 html += '<div class="item">';
                 html += '  <div class="head">';
                 html += '    <span class="order-num">№ ' + item.order + ' — ' + item.rollId + '</span>';
@@ -131,33 +114,18 @@
             });
             container.innerHTML = html;
         })
-        .catch(function(err) {
-            container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>';
-        });
+        .catch(function(err) { container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>'; });
     }
 
     function updateRoll(rollId, newStatus) {
-        var data = { action: 'updateRoll', rollId: rollId, status: newStatus };
-
-        fetch(API_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        })
-        .then(function() {
-            showMessage('Рулон ' + rollId + ' — ' + newStatus, 'ok');
-            loadRolls();
-        })
-        .catch(function(err) {
-            showMessage('Ошибка: ' + err, 'err');
-        });
+        var url = API_URL + '?action=updateRoll&rollId=' + encodeURIComponent(rollId) + '&status=' + encodeURIComponent(newStatus);
+        var img = new Image();
+        img.src = url;
+        showMessage('Рулон ' + rollId + ' — ' + newStatus, 'ok');
+        setTimeout(loadRolls, 1500);
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
-        loadRolls();
-    });
+    document.addEventListener('DOMContentLoaded', function() { loadRolls(); });
 </script>
-
 </body>
 </html>
