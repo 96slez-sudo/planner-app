@@ -102,7 +102,9 @@
         container.innerHTML = '<div class="loading">Загрузка...</div>';
 
         fetch(API_URL + '?action=getDryingOrders&_=' + Date.now())
-            .then(function(response) { return response.json(); })
+            .then(function(response) {
+                return response.json();
+            })
             .then(function(result) {
                 if (result.error) {
                     container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>';
@@ -119,21 +121,22 @@
                     var statusText = 'Свободен';
                     var freeSpace = 46;
                     
-                    // Считаем свободное место
-                    if (item.orders) {
-                        var orderList = item.orders.split(',').map(function(s) { return s.trim(); });
-                        // Получаем количество блоков на стеллаже из Базы
-                        // Показываем приблизительное значение
-                        var usedBlocks = 0;
-                        for (var j = 0; j < orderList.length; j++) {
-                            var orderNumber = orderList[j];
-                            if (orderNumber) {
-                                // Упрощённо: считаем, что каждый заказ использует 46 блоков (максимум)
-                                // В реальности нужно брать из Базы
-                                usedBlocks += 46;
-                            }
+                    // БЕЗОПАСНОЕ ПРЕОБРАЗОВАНИЕ orders В СТРОКУ
+                    var ordersStr = '';
+                    if (item.orders !== undefined && item.orders !== null) {
+                        ordersStr = String(item.orders);
+                    }
+                    
+                    // Если ordersStr — это просто число (например, 0), оно станет "0"
+                    // Проверяем, что там действительно есть заказы (не "0" и не пусто)
+                    var orderCount = 0;
+                    if (ordersStr && ordersStr.trim() !== '' && ordersStr !== '0') {
+                        var orderList = ordersStr.split(',').map(function(s) { return s.trim(); });
+                        orderCount = orderList.length;
+                        if (orderCount > 0) {
+                            freeSpace = 46 - orderCount * 10;
+                            if (freeSpace < 0) freeSpace = 0;
                         }
-                        freeSpace = Math.max(0, 46 - usedBlocks);
                     }
                     
                     if (item.packed && !item.rolledOut) {
@@ -142,7 +145,7 @@
                     } else if (item.packed && item.rolledOut) {
                         statusText = 'Готов к выкату';
                         badgeClass = 'badge-done';
-                    } else if (!item.packed && item.count > 0) {
+                    } else if (!item.packed && orderCount > 0) {
                         statusText = 'Укомплектован';
                         badgeClass = 'badge-work';
                     } else {
@@ -150,10 +153,10 @@
                     }
                     
                     var freeBadge = '';
-                    if (freeSpace === 0 && item.count > 0) {
+                    if (freeSpace === 0 && orderCount > 0) {
                         freeBadge = '<span class="badge badge-full">Занят</span>';
-                    } else if (freeSpace > 0 && item.count > 0) {
-                        freeBadge = '<span class="badge badge-free">Свободно ' + freeSpace + '/46</span>';
+                    } else if (freeSpace > 0 && orderCount > 0) {
+                        freeBadge = '<span class="badge badge-free">Свободно ~' + freeSpace + '/46</span>';
                     } else if (freeSpace === 46) {
                         freeBadge = '<span class="badge badge-free">Пуст</span>';
                     }
@@ -163,13 +166,13 @@
                     html += '    <span class="order-num">Стеллаж ' + item.shelf + '</span>';
                     html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
                     html += '  </div>';
-                    html += '  <div class="order-meta">Заказов: ' + item.count + ' | Зона: ' + (item.zone || '—') + ' | ' + freeBadge + '</div>';
-                    if (item.orders) {
-                        html += '  <div class="order-meta">Заказы: ' + item.orders + '</div>';
+                    html += '  <div class="order-meta">Заказов: ' + orderCount + ' | Зона: ' + (item.zone || '—') + ' | ' + freeBadge + '</div>';
+                    if (ordersStr && ordersStr !== '0') {
+                        html += '  <div class="order-meta">Заказы: ' + ordersStr + '</div>';
                     }
                     html += '  <div class="actions">';
                     
-                    if (item.count > 0 && !item.packed && !item.rolledOut) {
+                    if (orderCount > 0 && !item.packed && !item.rolledOut) {
                         html += '    <div class="shelf-select">';
                         html += '      <select id="zone-' + item.shelf + '">';
                         for (var z = 1; z <= 5; z++) {
