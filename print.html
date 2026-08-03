@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Печать — Планировщик</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f4f6f9; padding: 16px; min-height: 100vh; display: flex; justify-content: center; }
@@ -89,10 +89,11 @@
         var container = document.getElementById('printList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
 
+        // Загружаем рулоны этого заказа из таблицы rolls
         const { data, error } = await supabaseClient
-            .from('orders')
+            .from('rolls')
             .select('*')
-            .eq('status', 'На печати');
+            .eq('status', 'Ожидание');
 
         if (error) { container.innerHTML = '<div class="empty">Ошибка: ' + error.message + '</div>'; return; }
         if (!data || data.length === 0) { container.innerHTML = '<div class="empty">Нет рулонов на печати</div>'; return; }
@@ -101,37 +102,35 @@
         data.forEach(function(item) {
             var badgeClass = '';
             var statusText = item.status || 'Ожидание';
-            if (statusText === 'На печати') badgeClass = 'badge-waiting';
+            if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
+            else if (statusText === 'В работе') badgeClass = 'badge-work';
+            else if (statusText === 'Выполнено') badgeClass = 'badge-done';
+
             html += '<div class="item">';
             html += '  <div class="head">';
-            html += '    <span class="order-num">№ ' + item.order_number + '</span>';
+            html += '    <span class="order-num">№ ' + item.order_id + ' — Р' + item.roll_index + '</span>';
             html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
             html += '  </div>';
+            html += '  <div class="order-meta">Блоков: ' + item.blocks + '</div>';
             html += '  <div class="actions">';
-            html += '    <button class="btn btn-sm btn-success" onclick="updatePrintRoll(\'' + item.order_number + '\')">Взять в работу</button>';
+            if (statusText === 'Ожидание') {
+                html += '    <button class="btn btn-sm btn-success" onclick="updatePrintRoll(\'' + item.id + '\', \'В работе\')">Взять в работу</button>';
+            } else if (statusText === 'В работе') {
+                html += '    <button class="btn btn-sm btn-danger" onclick="updatePrintRoll(\'' + item.id + '\', \'Выполнено\')">Завершить</button>';
+            }
             html += '  </div>';
             html += '</div>';
         });
         container.innerHTML = html;
     }
 
-    async function updatePrintRoll(orderNumber) {
+    async function updatePrintRoll(rollId, newStatus) {
         await supabaseClient
-            .from('orders')
-            .update({ status: 'На каттере' })
-            .eq('order_number', orderNumber);
+            .from('rolls')
+            .update({ status: newStatus })
+            .eq('id', rollId);
 
-        await supabaseClient
-            .from('order_history')
-            .insert([
-                { 
-                    order_id: orderNumber, 
-                    stage: 'Печать', 
-                    status: 'Завершено' 
-                }
-            ]);
-
-        showMessage('Рулон отправлен на каттер', 'ok');
+        showMessage('Рулон обновлён', 'ok');
         loadPrintRolls();
     }
 
