@@ -33,7 +33,7 @@
         .item .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
         .item .order-num { font-weight: 600; font-size: 15px; color: #1a1a2e; }
         .item .order-meta { font-size: 14px; color: #666; }
-        .item .actions { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .item .actions { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
         .msg { padding: 12px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; display: none; }
         .msg.show { display: block; }
         .msg.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
@@ -71,91 +71,108 @@
 
     <div class="card">
         <h3>Очередь рулонов</h3>
-        <div id="rollsList"></div>
-        <button class="btn" style="width:100%; margin-top:10px; background:#eef1f4; color:#333;" onclick="loadRolls()">Обновить</button>
+        <div id="printList"></div>
+        <button class="btn" style="width:100%; margin-top:10px; background:#eef1f4; color:#333;" onclick="loadPrintRolls()">Обновить</button>
     </div>
 </div>
 
 <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbxa8Ag_VFouB9IITEXP0XlcMtVMsG-MgeheLC3f38x_TDnLqpQGy7OmvyPxTPAcueFbcw/exec';
+    var API_URL = 'https://script.google.com/macros/s/AKfycbxa8Ag_VFouB9IITEXP0XlcMtVMsG-MgeheLC3f38x_TDnLqpQGy7OmvyPxTPAcueFbcw/exec';
 
     function showMessage(text, type) {
         var el = document.getElementById('message');
         el.textContent = text;
         el.className = 'msg show ' + type;
-        setTimeout(function() { el.classList.remove('show'); }, 5000);
+        setTimeout(function() {
+            el.classList.remove('show');
+        }, 5000);
     }
 
-    function loadRolls() {
-        var container = document.getElementById('rollsList');
+    function loadPrintRolls() {
+        var container = document.getElementById('printList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
 
         fetch(API_URL + '?action=getRolls&_=' + Date.now())
-        .then(function(response) { return response.json(); })
-        .then(function(result) {
-            if (result.error) {
-                container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>';
-                return;
-            }
-            if (!result.data || result.data.length === 0) {
-                container.innerHTML = '<div class="empty">Нет рулонов на печати</div>';
-                return;
-            }
-            var rolls = result.data.filter(function(r) { return r.stage === 'Печать' && r.status !== 'Выполнено'; });
-            if (rolls.length === 0) {
-                container.innerHTML = '<div class="empty">Все рулоны выполнены</div>';
-                return;
-            }
-            var html = '';
-            rolls.forEach(function(item) {
-                var badgeClass = '';
-                var statusText = item.status || 'Ожидание';
-                if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
-                else if (statusText === 'В работе') badgeClass = 'badge-work';
-                else if (statusText === 'Выполнено') badgeClass = 'badge-done';
-
-                html += '<div class="item">';
-                html += '  <div class="head">';
-                html += '    <span class="order-num">№ ' + item.order + ' — ' + item.rollId + '</span>';
-                html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
-                html += '  </div>';
-                html += '  <div class="order-meta">Блоков: ' + item.blocks + '</div>';
-                html += '  <div class="actions">';
-                if (statusText === 'Ожидание') {
-                    html += '    <button class="btn btn-sm btn-success" onclick="updateRoll(\'' + item.rollId + '\', \'В работе\')">Взять в работу</button>';
-                } else if (statusText === 'В работе') {
-                    html += '    <button class="btn btn-sm btn-danger" onclick="updateRoll(\'' + item.rollId + '\', \'Выполнено\')">Завершить</button>';
+            .then(function(response) {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
                 }
-                html += '  </div>';
-                html += '</div>';
+                return response.json();
+            })
+            .then(function(result) {
+                if (result.error) {
+                    container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>';
+                    return;
+                }
+                if (!result.data || result.data.length === 0) {
+                    container.innerHTML = '<div class="empty">Нет рулонов на печати</div>';
+                    return;
+                }
+                var rolls = result.data.filter(function(r) { return r.stage === 'Печать' && r.status !== 'Выполнено'; });
+                if (rolls.length === 0) {
+                    container.innerHTML = '<div class="empty">Все рулоны выполнены</div>';
+                    return;
+                }
+                var html = '';
+                for (var i = 0; i < rolls.length; i++) {
+                    var item = rolls[i];
+                    var badgeClass = '';
+                    var statusText = item.status || 'Ожидание';
+                    if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
+                    else if (statusText === 'В работе') badgeClass = 'badge-work';
+                    else if (statusText === 'Выполнено') badgeClass = 'badge-done';
+
+                    html += '<div class="item">';
+                    html += '  <div class="head">';
+                    html += '    <span class="order-num">№ ' + item.order + ' — ' + item.rollId + '</span>';
+                    html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
+                    html += '  </div>';
+                    html += '  <div class="order-meta">Блоков: ' + item.blocks + '</div>';
+                    html += '  <div class="actions">';
+                    if (statusText === 'Ожидание') {
+                        html += '    <button class="btn btn-sm btn-success" onclick="updatePrintRoll(\'' + item.rollId + '\', \'В работе\')">Взять в работу</button>';
+                    } else if (statusText === 'В работе') {
+                        html += '    <button class="btn btn-sm btn-danger" onclick="updatePrintRoll(\'' + item.rollId + '\', \'Выполнено\')">Завершить</button>';
+                    }
+                    html += '  </div>';
+                    html += '</div>';
+                }
+                container.innerHTML = html;
+            })
+            .catch(function(err) {
+                container.innerHTML = '<div class="empty">Ошибка: ' + err.message + '</div>';
             });
-            container.innerHTML = html;
-        })
-        .catch(function(err) {
-            container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>';
-        });
     }
 
-    function updateRoll(rollId, newStatus) {
+    function updatePrintRoll(rollId, newStatus) {
         var data = { action: 'updateRoll', rollId: rollId, status: newStatus };
 
         fetch(API_URL, {
             method: 'POST',
-            mode: 'no-cors',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         })
-        .then(function() {
-            showMessage('Рулон ' + rollId + ' — ' + newStatus, 'ok');
-            loadRolls();
-        })
-        .catch(function(err) {
-            showMessage('Ошибка: ' + err, 'err');
-        });
+            .then(function(response) {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(function(result) {
+                if (result.success) {
+                    showMessage(result.message, 'ok');
+                    loadPrintRolls();
+                } else {
+                    showMessage(result.error || 'Ошибка', 'err');
+                }
+            })
+            .catch(function(err) {
+                showMessage('Ошибка: ' + err.message, 'err');
+            });
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-        loadRolls();
+        loadPrintRolls();
     });
 </script>
 
