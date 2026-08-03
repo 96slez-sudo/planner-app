@@ -119,7 +119,7 @@
     </div>
 </div>
 <script>
-    // ВСТАВЬТЕ СВОИ ДАННЫЕ ИЗ НАСТРОЕК SUPABASE (Settings -> API)
+    // ВАШИ ДАННЫЕ ИЗ SUPABASE
     const SUPABASE_URL = 'https://knuqfydp6kkdapivsnm.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_6k1bwNvlNAjNYI9NrijXtg_clTUDrOJ';
 
@@ -147,7 +147,6 @@
         btn.disabled = true;
         btn.textContent = 'Запуск...';
 
-        // 1. Сохраняем заказ в таблицу orders
         const { data, error } = await supabaseClient
             .from('orders')
             .insert([
@@ -163,7 +162,6 @@
                 }
             ]);
 
-        // 2. Если заказ создался успешно, записываем первый шаг в историю
         if (!error) {
             await supabaseClient
                 .from('order_history')
@@ -197,7 +195,6 @@
         var container = document.getElementById('orderList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
 
-        // Загружаем только незавершённые заказы
         const { data, error } = await supabaseClient
             .from('orders')
             .select('*')
