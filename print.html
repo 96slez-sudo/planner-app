@@ -89,7 +89,6 @@
         var container = document.getElementById('printList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
 
-        // Загружаем рулоны этого заказа из таблицы rolls
         const { data, error } = await supabaseClient
             .from('rolls')
             .select('*')
@@ -125,13 +124,17 @@
     }
 
     async function updatePrintRoll(rollId, newStatus) {
-        await supabaseClient
+        const { error } = await supabaseClient
             .from('rolls')
             .update({ status: newStatus })
             .eq('id', rollId);
 
-        showMessage('Рулон обновлён', 'ok');
-        loadPrintRolls();
+        if (error) {
+            showMessage('Ошибка: ' + error.message, 'err');
+        } else {
+            showMessage('Рулон обновлён', 'ok');
+            loadPrintRolls();
+        }
     }
 
     document.addEventListener('DOMContentLoaded', function() { loadPrintRolls(); });
