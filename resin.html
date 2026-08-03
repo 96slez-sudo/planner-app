@@ -165,25 +165,54 @@
                     }
 
                     // ==========================================
-// СТАТУС: В РАБОТЕ
-// ==========================================
-if (statusText === 'В работе') {
-    // ЕСЛИ БЛОКОВ МЕНЬШЕ ИЛИ РАВНО 46 — ПОКАЗЫВАЕМ ОБЫЧНОЕ НАЗНАЧЕНИЕ
-    if (item.blocks <= 46) {
-        html += '    <div class="shelf-select">';
-        html += '      <select id="shelf-' + item.order + '">';
-        for (var s = 65; s <= 72; s++) { var letter = String.fromCharCode(s); html += '<option value="' + letter + '">' + letter + '</option>'; }
-        html += '      </select>';
-        html += '      <input type="number" id="blocks-' + item.order + '" value="' + item.blocks + '" min="1" max="' + item.blocks + '">';
-        html += '      <button class="btn btn-sm btn-success" onclick="assignShelf(\'' + item.order + '\')">Назначить</button>';
-        html += '    </div>';
-    }
+                    // СТАТУС: В РАБОТЕ
+                    // ==========================================
+                    if (statusText === 'В работе') {
+                        // Если блоков 46 или меньше, показываем простое назначение
+                        if (item.blocks <= 46) {
+                            html += '    <div class="shelf-select">';
+                            html += '      <select id="shelf-' + item.order + '">';
+                            for (var s = 65; s <= 72; s++) { var letter = String.fromCharCode(s); html += '<option value="' + letter + '">' + letter + '</option>'; }
+                            html += '      </select>';
+                            html += '      <input type="number" id="blocks-' + item.order + '" value="' + item.blocks + '" min="1" max="' + item.blocks + '">';
+                            html += '      <button class="btn btn-sm btn-success" onclick="assignShelf(\'' + item.order + '\')">Назначить</button>';
+                            html += '    </div>';
+                        }
 
-    // Разделение (если > 46)
-    if (item.blocks > 46) {
-        // ... (весь ваш старый код разделения оставляем как есть внутри этого блока if)
-        var suggested = getSuggestedSplits(item.blocks);
-        // ... и так далее до конца блока разделения
+                        // Если блоков > 46, показываем разделение (верхняя строка назначения не выводится)
+                        if (item.blocks > 46) {
+                            var suggested = getSuggestedSplits(item.blocks);
+                            var suggestionText = '';
+                            for (var j = 0; j < suggested.length; j++) {
+                                suggestionText += suggested[j].shelf + ' (' + suggested[j].blocks + ')';
+                                if (j < suggested.length - 1) suggestionText += ' + ';
+                            }
+
+                            html += '    <div class="split-section">';
+                            html += '      <label>Разделить ' + item.blocks + ' блоков (макс. 46):</label>';
+                            html += '      <div class="suggested">';
+                            html += '        <span><strong>Предложено:</strong> ' + suggestionText + '</span>';
+                            html += '        <button class="btn btn-sm btn-success" onclick="applySuggestedSplit(\'' + item.order + '\', ' + item.blocks + ')">Принять</button>';
+                            html += '      </div>';
+                            html += '      <div id="split-container-' + item.order + '">';
+                            for (var r = 1; r <= 2; r++) {
+                                var defaultBlocks = r === 1 ? Math.min(46, item.blocks) : Math.min(46, item.blocks - 46);
+                                if (defaultBlocks <= 0) defaultBlocks = 46;
+                                html += '        <div class="split-row" id="split-row-' + r + '-' + item.order + '">';
+                                html += '          <select id="split-shelf-' + r + '-' + item.order + '">';
+                                for (var s = 65; s <= 72; s++) { var letter = String.fromCharCode(s); html += '<option value="' + letter + '">' + letter + '</option>'; }
+                                html += '          </select>';
+                                html += '          <input type="number" id="split-blocks-' + r + '-' + item.order + '" value="' + defaultBlocks + '" min="1" max="46">';
+                                html += '        </div>';
+                            }
+                            html += '      </div>';
+                            html += '      <div class="split-actions">';
+                            html += '        <button class="btn btn-sm btn-warning" onclick="addSplitRow(\'' + item.order + '\')">+ Добавить стеллаж</button>';
+                            html += '        <button class="btn btn-sm btn-success" onclick="splitOrder(\'' + item.order + '\')">Разделить</button>';
+                            html += '      </div>';
+                            html += '    </div>';
+                        }
+                    }
 
                     // ==========================================
                     // СТАТУС: ГОТОВ К СУШКЕ
