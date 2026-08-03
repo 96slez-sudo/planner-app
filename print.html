@@ -89,16 +89,36 @@
         var container = document.getElementById('printList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
 
-        const { data, error } = await supabaseClient
-            .from('rolls')
-            .select('*')
+        // 1. Ищем заказы, у которых есть этап 'Печать' со статусом 'Ожидание'
+        const { data: stages, error: stageError } = await supabaseClient
+            .from('stages')
+            .select('*, orders(*)')
+            .eq('stage', 'Печать')
             .eq('status', 'Ожидание');
 
-        if (error) { container.innerHTML = '<div class="empty">Ошибка: ' + error.message + '</div>'; return; }
-        if (!data || data.length === 0) { container.innerHTML = '<div class="empty">Нет рулонов на печати</div>'; return; }
+        if (stageError) { container.innerHTML = '<div class="empty">Ошибка: ' + stageError.message + '</div>'; return; }
+        if (!stages || stages.length === 0) { container.innerHTML = '<div class="empty">Нет заказов на печати</div>'; return; }
+
+        // Ищем все рулоны для этих заказов
+        var allRolls = [];
+        var stageMap = {};
+        for (var s of stages) {
+            stageMap[s.orders.order_number] = s;
+            const { data: rolls, error: rollError } = await supabaseClient
+                .from('rolls')
+                .select('*')
+                .eq('order_number', s.orders.order_number)
+                .neq('status', 'Выполнено');
+
+            if (!rollError && rolls) {
+                allRolls = allRolls.concat(rolls);
+            }
+        }
+
+        if (allRolls.length === 0) { container.innerHTML = '<div class="empty">Все рулоны завершены</div>'; return; }
 
         var html = '';
-        data.forEach(function(item) {
+        allRolls.forEach(function(item) {
             var badgeClass = '';
             var statusText = item.status || 'Ожидание';
             if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
@@ -124,17 +144,65 @@
     }
 
     async function updatePrintRoll(rollId, newStatus) {
-        const { error } = await supabaseClient
+        // 1. Меняем статус рулона
+        const { error: rollError } = await supabaseClient
             .from('rolls')
             .update({ status: newStatus })
             .eq('id', rollId);
+        if (rollError) { showMessage('Ошибка обновления рулона', 'err'); return; }
 
-        if (error) {
-            showMessage('Ошибка: ' + error.message, 'err');
+        // 2. Получаем номер заказа этого рулона
+        const { data: rollData, error: dataError } = await supabaseClient
+            .from('rolls')
+            .select('order_number')
+            .eq('id', rollId)
+            .single();
+        if (dataError || !rollData) { showMessage('Ошибка получения заказа', 'err'); return; }
+        var orderNumber = rollData.order_number;
+
+        // 3. Проверяем, есть ли ещё незавершённые рулоны у этого заказа
+        const { data: remaining, error: countError } = await supabaseClient
+            .from('rolls')
+            .select('id', { count: 'exact' })
+            .eq('order_number', orderNumber)
+            .neq('status', 'Выполнено');
+
+        if (countError) { showMessage('Ошибка подсчёта рулонов', 'err'); return; }
+
+        // 4. Если все рулоны завершены, переводим на следующий этап
+        if (remaining.length === 0) {
+            // Закрываем этап Печать
+            await supabaseClient
+                .from('stages')
+                .update({ status: 'Выполнено' })
+                .eq('order_number', orderNumber)
+                .eq('stage', 'Печать');
+
+            // Создаём новый этап Каттер
+            await supabaseClient
+                .from('stages')
+                .insert([
+                    { order_number: orderNumber, stage: 'Каттер', status: 'Ожидание' }
+                ]);
+
+            // Обновляем главный заказ
+            await supabaseClient
+                .from('orders')
+                .update({ stage: 'Каттер', status: 'В работе' })
+                .eq('order_number', orderNumber);
+
+            await supabaseClient
+                .from('order_history')
+                .insert([
+                    { order_id: orderNumber, stage: 'Печать', status: 'Завершено' }
+                ]);
+
+            showMessage('Все рулоны завершены! Заказ переведён на Каттер', 'ok');
         } else {
-            showMessage('Рулон обновлён', 'ok');
-            loadPrintRolls();
+            showMessage('Рулон обновлён. Осталось ещё ' + remaining.length + ' рулонов', 'ok');
         }
+
+        loadPrintRolls();
     }
 
     document.addEventListener('DOMContentLoaded', function() { loadPrintRolls(); });
