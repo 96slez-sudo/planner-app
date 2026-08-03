@@ -108,6 +108,9 @@
                 var html = '';
                 for (var i = 0; i < result.data.length; i++) {
                     var item = result.data[i];
+                    // Дополнительная проверка: если этап не Упаковка — пропускаем
+                    if (item.stage !== 'Упаковка') continue;
+                    
                     var badgeClass = '';
                     var statusText = item.status || 'Ожидание';
                     if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
@@ -129,7 +132,11 @@
                     html += '  </div>';
                     html += '</div>';
                 }
-                container.innerHTML = html;
+                if (html === '') {
+                    container.innerHTML = '<div class="empty">Нет заказов на упаковке</div>';
+                } else {
+                    container.innerHTML = html;
+                }
             })
             ['catch'](function(err) {
                 container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>';
@@ -153,9 +160,6 @@
             .then(function() {
                 showMessage('Заказ ' + orderNumber + ' — ' + newStatus, 'ok');
                 loadPackingOrders();
-                if (newStatus === 'Выполнено') {
-                    // Заказ завершён
-                }
             })
             ['catch'](function(err) {
                 showMessage('Ошибка: ' + err, 'err');
