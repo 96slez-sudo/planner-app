@@ -48,13 +48,11 @@
     </style>
 </head>
 <body>
-
 <div class="container">
     <div class="header">
         <h1>ОТК</h1>
         <p>Очередь заказов</p>
     </div>
-
     <div class="nav">
         <a href="/planner-app/">Главная</a>
         <a href="/planner-app/prep.html">Подготовка</a>
@@ -66,111 +64,74 @@
         <a href="/planner-app/otk.html" class="active">ОТК</a>
         <a href="/planner-app/packing.html">Упаковка</a>
     </div>
-
     <div id="message" class="msg"></div>
-
     <div class="card">
         <h3>Заказы на ОТК</h3>
         <div id="otkList"></div>
         <button class="btn" style="width:100%; margin-top:10px; background:#eef1f4; color:#333;" onclick="loadOtkOrders()">Обновить</button>
     </div>
 </div>
-
 <script>
-    var API_URL = 'https://script.google.com/macros/s/AKfycbxa8Ag_VFouB9IITEXP0XlcMtVMsG-MgeheLC3f38x_TDnLqpQGy7OmvyPxTPAcueFbcw/exec';
+    var API_URL = 'https://script.google.com/macros/s/AKfycbylukQfen66524Qr5EHGb5C3ZV2qL6Dilf15GOu12Ltpn65hVgHPeRMBni1yBJFg9BwzQ/exec';
 
     function showMessage(text, type) {
         var el = document.getElementById('message');
         el.textContent = text;
         el.className = 'msg show ' + type;
-        setTimeout(function() {
-            el.classList.remove('show');
-        }, 5000);
+        setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
     function loadOtkOrders() {
         var container = document.getElementById('otkList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
-
-        // ЯВНО ПЕРЕДАЁМ stage=ОТК
         fetch(API_URL + '?action=getStageOrders&stage=ОТК&_=' + Date.now())
-            .then(function(response) {
-                return response.json();
-            })
-            .then(function(result) {
-                if (result.error) {
-                    container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>';
-                    return;
+        .then(function(response) { return response.json(); })
+        .then(function(result) {
+            if (result.error) { container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>'; return; }
+            if (!result.data || result.data.length === 0) { container.innerHTML = '<div class="empty">Нет заказов на ОТК</div>'; return; }
+            var html = '';
+            for (var i = 0; i < result.data.length; i++) {
+                var item = result.data[i];
+                if (item.stage !== 'ОТК') continue;
+                var badgeClass = '';
+                var statusText = item.status || 'Ожидание';
+                if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
+                else if (statusText === 'В работе') badgeClass = 'badge-work';
+                else if (statusText === 'Выполнено') badgeClass = 'badge-done';
+                html += '<div class="item">';
+                html += '  <div class="head">';
+                html += '    <span class="order-num">№ ' + item.order + '</span>';
+                html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
+                html += '  </div>';
+                html += '  <div class="order-meta">Этап: ' + item.stage + '</div>';
+                html += '  <div class="actions">';
+                if (statusText === 'Ожидание') {
+                    html += '    <button class="btn btn-sm btn-success" onclick="updateOtkOrder(\'' + item.order + '\', \'В работе\')">Взять в работу</button>';
+                } else if (statusText === 'В работе') {
+                    html += '    <button class="btn btn-sm btn-danger" onclick="updateOtkOrder(\'' + item.order + '\', \'Выполнено\')">Завершить</button>';
                 }
-                if (!result.data || result.data.length === 0) {
-                    container.innerHTML = '<div class="empty">Нет заказов на ОТК</div>';
-                    return;
-                }
-                var html = '';
-                for (var i = 0; i < result.data.length; i++) {
-                    var item = result.data[i];
-                    // Дополнительная проверка: если этап не ОТК — пропускаем
-                    if (item.stage !== 'ОТК') continue;
-                    
-                    var badgeClass = '';
-                    var statusText = item.status || 'Ожидание';
-                    if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
-                    else if (statusText === 'В работе') badgeClass = 'badge-work';
-                    else if (statusText === 'Выполнено') badgeClass = 'badge-done';
-
-                    html += '<div class="item">';
-                    html += '  <div class="head">';
-                    html += '    <span class="order-num">№ ' + item.order + '</span>';
-                    html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
-                    html += '  </div>';
-                    html += '  <div class="order-meta">Этап: ' + item.stage + '</div>';
-                    html += '  <div class="actions">';
-                    if (statusText === 'Ожидание') {
-                        html += '    <button class="btn btn-sm btn-success" onclick="updateOtkOrder(\'' + item.order + '\', \'В работе\')">Взять в работу</button>';
-                    } else if (statusText === 'В работе') {
-                        html += '    <button class="btn btn-sm btn-danger" onclick="updateOtkOrder(\'' + item.order + '\', \'Выполнено\')">Завершить</button>';
-                    }
-                    html += '  </div>';
-                    html += '</div>';
-                }
-                if (html === '') {
-                    container.innerHTML = '<div class="empty">Нет заказов на ОТК</div>';
-                } else {
-                    container.innerHTML = html;
-                }
-            })
-            ['catch'](function(err) {
-                container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>';
-            });
+                html += '  </div>';
+                html += '</div>';
+            }
+            if (html === '') { container.innerHTML = '<div class="empty">Нет заказов на ОТК</div>'; }
+            else { container.innerHTML = html; }
+        })
+        .catch(function(err) { container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>'; });
     }
 
     function updateOtkOrder(orderNumber, newStatus) {
-        var data = {
-            action: 'updateStageStatus',
-            orderNumber: orderNumber,
-            status: newStatus,
-            stage: 'ОТК'
-        };
-
-        fetch(API_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        })
-            .then(function() {
+        var data = { action: 'updateStageStatus', orderNumber: orderNumber, status: newStatus, stage: 'ОТК' };
+        fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+            .then(function(response) { return response.json(); })
+            .then(function(result) {
+                if (result.error) { showMessage(result.error, 'err'); return; }
                 showMessage('Заказ ' + orderNumber + ' — ' + newStatus, 'ok');
                 loadOtkOrders();
             })
-            ['catch'](function(err) {
-                showMessage('Ошибка: ' + err, 'err');
-            });
+            .catch(function(err) { showMessage('Ошибка: ' + err, 'err'); });
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
-        loadOtkOrders();
-    });
+    document.addEventListener('DOMContentLoaded', function() { loadOtkOrders(); });
 </script>
-
 </body>
 </html>
