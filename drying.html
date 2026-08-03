@@ -40,7 +40,6 @@
         .item .order-num { font-weight: 600; font-size: 15px; color: #1a1a2e; }
         .item .order-meta { font-size: 14px; color: #666; }
         .item .actions { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-        .item .actions .btn { margin-right: 4px; }
         .shelf-select { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
         .shelf-select select { padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
         .msg { padding: 12px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; display: none; }
@@ -53,6 +52,7 @@
             body { padding: 12px; }
             .card { padding: 14px; }
             .nav a { font-size: 11px; padding: 5px 10px; }
+            .shelf-select { flex-direction: column; align-items: stretch; }
         }
     </style>
 </head>
@@ -139,10 +139,7 @@
                 }
                 html += '  <div class="actions">';
                 
-                // --- ЛОГИКА КНОПОК ---
-                // 1. Если стеллаж собран (есть заказы, но не укомплектован)
                 if (item.count > 0 && !item.packed && !item.rolledOut) {
-                    // Выбор зоны + кнопка "Укомплектовать"
                     html += '    <div class="shelf-select">';
                     html += '      <select id="zone-' + item.shelf + '">';
                     for (var z = 1; z <= 5; z++) {
@@ -153,12 +150,9 @@
                     html += '    </div>';
                 }
                 
-                // 2. Если стеллаж на сушке
                 if (item.packed && !item.rolledOut) {
                     html += '    <button class="btn btn-sm btn-danger" onclick="rollOutShelf(\'' + item.shelf + '\')">Выкатить</button>';
                 }
-                
-                // 3. Если стеллаж уже выкатили — ничего не показываем
                 
                 html += '  </div>';
                 html += '</div>';
