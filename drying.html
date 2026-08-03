@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Сушка — Планировщик</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f4f6f9; padding: 16px; min-height: 100vh; display: flex; justify-content: center; }
@@ -17,9 +18,6 @@
         .nav a.active { background: #2c3e50; color: white; }
         .card { background: white; border-radius: 12px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); border: 1px solid #eaeef2; }
         .card h3 { font-size: 16px; font-weight: 600; margin-bottom: 14px; color: #1a1a2e; }
-        .field { margin-bottom: 10px; }
-        .field label { display: block; font-size: 13px; font-weight: 500; color: #555; margin-bottom: 4px; }
-        .field select { width: 100%; padding: 10px 12px; border: 1.5px solid #dce0e5; border-radius: 8px; font-size: 15px; background: #fafbfc; }
         .btn { padding: 8px 16px; background: #2c3e50; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.2s; }
         .btn:hover { background: #1a252f; }
         .btn-sm { padding: 5px 12px; font-size: 12px; }
@@ -81,7 +79,11 @@
     </div>
 </div>
 <script>
-    var API_URL = 'https://script.google.com/macros/s/AKfycbylukQfen66524Qr5EHGb5C3ZV2qL6Dilf15GOu12Ltpn65hVgHPeRMBni1yBJFg9BwzQ/exec';
+    const SUPABASE_URL = 'https://knuqfydp6kkdapivsnm.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_ваш_длинный_ключ_из_api_keys';
+
+    const { createClient } = supabase;
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     function showMessage(text, type) {
         var el = document.getElementById('message');
@@ -90,101 +92,54 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
-    function loadDryingOrders() {
+    async function loadDryingOrders() {
         var container = document.getElementById('dryingList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
-        fetch(API_URL + '?action=getDryingOrders&_=' + Date.now())
-        .then(function(response) { return response.json(); })
-        .then(function(result) {
-            if (result.error) { container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>'; return; }
-            if (!result.data || result.data.length === 0) { container.innerHTML = '<div class="empty">Нет стеллажей</div>'; return; }
-            var html = '';
-            for (var i = 0; i < result.data.length; i++) {
-                var item = result.data[i];
-                var badgeClass = '';
-                var statusText = 'Свободен';
-                var ordersStr = '';
-                if (item.orders !== undefined && item.orders !== null) { ordersStr = String(item.orders); }
-                var orderCount = 0;
-                var usedBlocks = 0;
-                var freeSpace = 46;
-                if (ordersStr && ordersStr.trim() !== '' && ordersStr !== '0') {
-                    var orderList = ordersStr.split(',').map(function(s) { return s.trim(); });
-                    orderCount = orderList.length;
-                    if (item.blocksCount) { usedBlocks = Number(item.blocksCount); }
-                    else { usedBlocks = orderCount * 46; }
-                    freeSpace = Math.max(0, 46 - usedBlocks);
-                }
-                if (item.packed && !item.rolledOut) {
-                    statusText = 'На сушке';
-                    badgeClass = 'badge-drying';
-                } else if (item.packed && item.rolledOut) {
-                    statusText = 'Готов к выкату';
-                    badgeClass = 'badge-done';
-                } else if (!item.packed && orderCount > 0) {
-                    statusText = 'Укомплектован';
-                    badgeClass = 'badge-work';
-                } else {
-                    badgeClass = 'badge-free';
-                }
-                var spaceInfo = '';
-                if (statusText === 'На сушке' || statusText === 'Укомплектован') {
-                    spaceInfo = 'Занято: ' + usedBlocks + ' / 46';
-                } else {
-                    spaceInfo = 'Свободно: ' + freeSpace + ' / 46';
-                }
-                html += '<div class="item">';
-                html += '  <div class="head">';
-                html += '    <span class="order-num">Стеллаж ' + item.shelf + '</span>';
-                html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
-                html += '  </div>';
-                html += '  <div class="order-meta">Заказов: ' + orderCount + ' | Зона: ' + (item.zone || '—') + ' | ' + spaceInfo + '</div>';
-                if (ordersStr && ordersStr !== '0') {
-                    html += '  <div class="order-meta">Заказы: ' + ordersStr + '</div>';
-                }
-                html += '  <div class="actions">';
-                if (orderCount > 0 && !item.packed && !item.rolledOut) {
-                    html += '    <div class="shelf-select">';
-                    html += '      <select id="zone-' + item.shelf + '">';
-                    for (var z = 1; z <= 5; z++) { html += '<option value="Зона ' + z + '">Зона ' + z + '</option>'; }
-                    html += '      </select>';
-                    html += '      <button class="btn btn-sm btn-success" onclick="packShelf(\'' + item.shelf + '\')">Укомплектовать</button>';
-                    html += '    </div>';
-                }
-                if (item.packed && !item.rolledOut) {
-                    html += '    <button class="btn btn-sm btn-danger" onclick="rollOutShelf(\'' + item.shelf + '\')">Выкатить</button>';
-                }
-                html += '  </div>';
-                html += '</div>';
-            }
-            container.innerHTML = html;
-        })
-        .catch(function(err) { container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>'; });
+
+        const { data, error } = await supabaseClient
+            .from('orders')
+            .select('*')
+            .eq('status', 'На сушке');
+
+        if (error) { container.innerHTML = '<div class="empty">Ошибка: ' + error.message + '</div>'; return; }
+        if (!data || data.length === 0) { container.innerHTML = '<div class="empty">Нет стеллажей</div>'; return; }
+
+        var html = '';
+        data.forEach(function(item) {
+            var badgeClass = '';
+            var statusText = item.status || 'Ожидание';
+            if (statusText === 'На сушке') badgeClass = 'badge-drying';
+            html += '<div class="item">';
+            html += '  <div class="head">';
+            html += '    <span class="order-num">Стеллаж ' + item.order_number + '</span>';
+            html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
+            html += '  </div>';
+            html += '  <div class="actions">';
+            html += '    <button class="btn btn-sm btn-danger" onclick="updateDryingOrder(\'' + item.order_number + '\')">Выкатить</button>';
+            html += '  </div>';
+            html += '</div>';
+        });
+        container.innerHTML = html;
     }
 
-    function packShelf(shelf) {
-        var zone = document.getElementById('zone-' + shelf).value;
-        var data = { action: 'packShelf', shelf: shelf, zone: zone };
-        fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
-            .then(function(response) { return response.json(); })
-            .then(function(result) {
-                if (result.error) { showMessage(result.error, 'err'); return; }
-                showMessage('Стеллаж ' + shelf + ' укомплектован, зона ' + zone, 'ok');
-                loadDryingOrders();
-            })
-            .catch(function(err) { showMessage('Ошибка: ' + err, 'err'); });
-    }
+    async function updateDryingOrder(orderNumber) {
+        await supabaseClient
+            .from('orders')
+            .update({ status: 'На ОТК' })
+            .eq('order_number', orderNumber);
 
-    function rollOutShelf(shelf) {
-        var data = { action: 'rollOutShelf', shelf: shelf };
-        fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
-            .then(function(response) { return response.json(); })
-            .then(function(result) {
-                if (result.error) { showMessage(result.error, 'err'); return; }
-                showMessage('Стеллаж ' + shelf + ' выкатили', 'ok');
-                loadDryingOrders();
-            })
-            .catch(function(err) { showMessage('Ошибка: ' + err, 'err'); });
+        await supabaseClient
+            .from('order_history')
+            .insert([
+                { 
+                    order_id: orderNumber, 
+                    stage: 'Сушка', 
+                    status: 'Завершено' 
+                }
+            ]);
+
+        showMessage('Стеллаж выкачен, заказ на ОТК', 'ok');
+        loadDryingOrders();
     }
 
     document.addEventListener('DOMContentLoaded', function() { loadDryingOrders(); });
