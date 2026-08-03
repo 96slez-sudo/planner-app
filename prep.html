@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Подготовка печати — Планировщик</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f4f6f9; padding: 16px; min-height: 100vh; display: flex; justify-content: center; }
@@ -76,7 +77,11 @@
     </div>
 </div>
 <script>
-    var API_URL = 'https://script.google.com/macros/s/AKfycbylukQfen66524Qr5EHGb5C3ZV2qL6Dilf15GOu12Ltpn65hVgHPeRMBni1yBJFg9BwzQ/exec';
+    const SUPABASE_URL = 'https://knuqfydp6kkdapivsnm.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_ваш_длинный_ключ_из_api_keys';
+
+    const { createClient } = supabase;
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     function showMessage(text, type) {
         var el = document.getElementById('message');
@@ -85,57 +90,68 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
-    function loadPrepOrders() {
+    async function loadPrepOrders() {
         var container = document.getElementById('prepList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
-        fetch(API_URL + '?action=getPrepOrders&_=' + Date.now())
-        .then(function(response) { return response.json(); })
-        .then(function(result) {
-            if (result.error) { container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>'; return; }
-            if (!result.data || result.data.length === 0) { container.innerHTML = '<div class="empty">Нет заказов в подготовке</div>'; return; }
-            var html = '';
-            result.data.forEach(function(item) {
-                html += '<div class="item">';
-                html += '  <div class="head">';
-                html += '    <span class="order-num">№ ' + item.order + '</span>';
-                html += '    <span class="badge badge-waiting">' + (item.status || 'Ожидание') + '</span>';
-                html += '  </div>';
-                html += '  <div class="order-meta">Приоритет: ' + (item.priority || 'Обычный') + ' | Блоков: ' + (item.blocks || 0) + '</div>';
-                html += '  <div class="roll-row" id="rolls-' + item.order + '">';
-                for (var i = 1; i <= 6; i++) {
-                    html += '    <div class="r">';
-                    html += '      <label>Р' + i + '</label>';
-                    html += '      <input type="number" min="0" value="0" id="roll-' + item.order + '-' + i + '">';
-                    html += '    </div>';
-                }
-                html += '  </div>';
-                html += '  <div class="actions">';
-                html += '    <button class="btn btn-sm btn-success" onclick="createRolls(\'' + item.order + '\')">Создать рулоны</button>';
-                html += '  </div>';
-                html += '</div>';
-            });
-            container.innerHTML = html;
-        })
-        .catch(function(err) { container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>'; });
+
+        const { data, error } = await supabaseClient
+            .from('orders')
+            .select('*')
+            .eq('status', 'В подготовке');
+
+        if (error) { container.innerHTML = '<div class="empty">Ошибка: ' + error.message + '</div>'; return; }
+        if (!data || data.length === 0) { container.innerHTML = '<div class="empty">Нет заказов в подготовке</div>'; return; }
+
+        var html = '';
+        data.forEach(function(item) {
+            html += '<div class="item">';
+            html += '  <div class="head">';
+            html += '    <span class="order-num">№ ' + item.order_number + '</span>';
+            html += '    <span class="badge badge-waiting">' + (item.status || 'Ожидание') + '</span>';
+            html += '  </div>';
+            html += '  <div class="order-meta">Приоритет: ' + (item.priority || 'Обычный') + '</div>';
+            html += '  <div class="roll-row" id="rolls-' + item.order_number + '">';
+            for (var i = 1; i <= 6; i++) {
+                html += '    <div class="r">';
+                html += '      <label>Р' + i + '</label>';
+                html += '      <input type="number" min="0" value="0" id="roll-' + item.order_number + '-' + i + '">';
+                html += '    </div>';
+            }
+            html += '  </div>';
+            html += '  <div class="actions">';
+            html += '    <button class="btn btn-sm btn-success" onclick="createRolls(\'' + item.order_number + '\')">Создать рулоны</button>';
+            html += '  </div>';
+            html += '</div>';
+        });
+        container.innerHTML = html;
     }
 
-    function createRolls(orderNumber) {
+    async function createRolls(orderNumber) {
         var totalBlocks = 0; var rolls = {}; var sum = 0;
         for (var i = 1; i <= 6; i++) {
             var val = parseInt(document.getElementById('roll-' + orderNumber + '-' + i).value) || 0;
             if (val > 0) { rolls['roll_' + i] = val; sum += val; }
         }
         if (sum === 0) { showMessage('Заполните хотя бы один рулон', 'err'); return; }
-        var data = { action: 'createRolls', orderNumber: orderNumber, rolls: rolls, totalBlocks: sum };
-        // Отправка через fetch (GET параметры)
-        var url = API_URL + '?action=createRolls&orderNumber=' + encodeURIComponent(orderNumber) + '&totalBlocks=' + encodeURIComponent(sum);
-        for (var key in rolls) {
-            url += '&' + encodeURIComponent(key) + '=' + encodeURIComponent(rolls[key]);
-        }
-        var img = new Image();
-        img.src = url;
-        showMessage('Рулоны для заказа ' + orderNumber + ' созданы', 'ok');
-        setTimeout(loadPrepOrders, 1500);
+
+        // Обновляем статус и записываем историю
+        await supabaseClient
+            .from('orders')
+            .update({ status: 'На печати' })
+            .eq('order_number', orderNumber);
+
+        await supabaseClient
+            .from('order_history')
+            .insert([
+                { 
+                    order_id: orderNumber, 
+                    stage: 'Подготовка', 
+                    status: 'Завершено' 
+                }
+            ]);
+
+        showMessage('Рулоны созданы, заказ переведён на печать', 'ok');
+        loadPrepOrders();
     }
 
     document.addEventListener('DOMContentLoaded', function() { loadPrepOrders(); });
