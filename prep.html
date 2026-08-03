@@ -77,6 +77,7 @@
     </div>
 </div>
 <script>
+    // ПРАВИЛЬНАЯ ССЫЛКА И КЛЮЧ
     const SUPABASE_URL = 'https://knuqfyjdptkkdapivsnm.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_6k1bwNvlNAjNYI9NrijXtg_clTUDrOJ';
 
@@ -94,10 +95,11 @@
         var container = document.getElementById('prepList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
 
+        // Ищем заказы со статусом "Запущен" (именно такой статус при создании на главной)
         const { data, error } = await supabaseClient
             .from('orders')
             .select('*')
-            .eq('status', 'В подготовке');
+            .eq('status', 'Запущен');
 
         if (error) { container.innerHTML = '<div class="empty">Ошибка: ' + error.message + '</div>'; return; }
         if (!data || data.length === 0) { container.innerHTML = '<div class="empty">Нет заказов в подготовке</div>'; return; }
@@ -134,7 +136,7 @@
         }
         if (sum === 0) { showMessage('Заполните хотя бы один рулон', 'err'); return; }
 
-        // Обновляем статус и записываем историю
+        // Обновляем статус заказа и записываем историю
         await supabaseClient
             .from('orders')
             .update({ status: 'На печати' })
