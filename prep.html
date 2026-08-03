@@ -94,7 +94,7 @@
         var container = document.getElementById('prepList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
 
-        // Фильтруем по этапу "Подготовка"
+        // Ищем статус "Запущен"
         const { data, error } = await supabaseClient
             .from('orders')
             .select('*')
@@ -128,6 +128,9 @@
     }
 
     async function createRolls(orderNumber) {
+        console.log("=== ОТПРАВКА В БАЗУ ===");
+        console.log("Заказ:", orderNumber);
+
         var totalBlocks = 0; var rolls = {}; var sum = 0;
         for (var i = 1; i <= 6; i++) {
             var val = parseInt(document.getElementById('roll-' + orderNumber + '-' + i).value) || 0;
@@ -135,32 +138,32 @@
         }
         if (sum === 0) { showMessage('Заполните хотя бы один рулон', 'err'); return; }
 
-        // Вставляем рулоны
+        console.log("Данные рулонов:", rolls);
+
         var promises = [];
         for (var key in rolls) {
             var index = parseInt(key.replace('roll_', ''));
             var blocks = rolls[key];
+            console.log("Вставляю рулон:", index, blocks);
             promises.push(
                 supabaseClient
                     .from('rolls')
                     .insert([
                         { 
-                            { 
-    order_id: orderNumber, 
-    roll_index: index, 
-    blocks: blocks, 
-    status: 'Ожидание' 
-    }
+                            order_number: orderNumber, 
+                            roll_index: index, 
+                            blocks: blocks, 
+                            status: 'Ожидание' 
                         }
                     ])
             );
         }
         await Promise.all(promises);
 
-        // Обновляем статус и этап заказа
+        // Обновляем статус заказа
         await supabaseClient
             .from('orders')
-            .update({ status: 'На печати', stage: 'Печать' })
+            .update({ status: 'На печати' })
             .eq('order_number', orderNumber);
 
         await supabaseClient
