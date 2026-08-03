@@ -5,34 +5,115 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Смола — Планировщик</title>
     <style>
-        /* ... (стили как в предыдущей версии) ... */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f4f6f9; padding: 16px; min-height: 100vh; display: flex; justify-content: center; }
+        .container { max-width: 500px; width: 100%; }
+        .header { margin-bottom: 16px; }
+        .header h1 { font-size: 22px; font-weight: 600; color: #1a1a2e; }
+        .header p { font-size: 14px; color: #888; }
+        .nav { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; background: white; padding: 8px; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        .nav a { padding: 6px 12px; background: #eef1f4; border-radius: 16px; text-decoration: none; font-size: 12px; color: #555; font-weight: 500; }
+        .nav a:hover { background: #dce0e4; }
+        .nav a.active { background: #2c3e50; color: white; }
+        .card { background: white; border-radius: 12px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); border: 1px solid #eaeef2; }
+        .card h3 { font-size: 16px; font-weight: 600; margin-bottom: 14px; color: #1a1a2e; }
+        .field { margin-bottom: 10px; }
+        .field label { display: block; font-size: 13px; font-weight: 500; color: #555; margin-bottom: 4px; }
+        .field select, .field input { width: 100%; padding: 10px 12px; border: 1.5px solid #dce0e5; border-radius: 8px; font-size: 15px; background: #fafbfc; }
+        .btn { padding: 8px 16px; background: #2c3e50; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn:hover { background: #1a252f; }
+        .btn-sm { padding: 5px 12px; font-size: 12px; }
+        .btn-success { background: #27ae60; }
+        .btn-success:hover { background: #1e8449; }
+        .btn-danger { background: #e74c3c; }
+        .btn-danger:hover { background: #c0392b; }
+        .btn-warning { background: #f39c12; color: white; }
+        .btn-warning:hover { background: #d68910; }
+        .badge { display: inline-block; padding: 3px 12px; border-radius: 16px; font-size: 12px; font-weight: 500; }
+        .badge-waiting { background: #fff3cd; color: #856404; }
+        .badge-work { background: #cce5ff; color: #004085; }
+        .badge-shelf { background: #e8daef; color: #6c3483; }
+        .badge-done { background: #d4edda; color: #155724; }
+        .item { padding: 12px 0; border-bottom: 1px solid #f0f2f5; }
+        .item:last-child { border-bottom: none; }
+        .item .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
+        .item .order-num { font-weight: 600; font-size: 15px; color: #1a1a2e; }
+        .item .order-meta { font-size: 14px; color: #666; }
+        .item .actions { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+        .shelf-select { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+        .shelf-select select { padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
+        .shelf-select input { width: 60px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; text-align: center; }
+        .msg { padding: 12px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; display: none; }
+        .msg.show { display: block; }
+        .msg.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .msg.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .empty { text-align: center; padding: 28px 0; color: #aaa; font-size: 14px; }
+        .loading { text-align: center; padding: 16px 0; color: #999; font-size: 14px; }
+        .split-section { background: #fef9e7; border: 1px solid #f9e79f; border-radius: 8px; padding: 10px; margin-top: 6px; }
+        .split-section label { font-size: 12px; color: #666; }
+        .split-row { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; margin: 4px 0; }
+        .split-row select { padding: 3px 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; }
+        .split-row input { width: 50px; padding: 3px 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; text-align: center; }
+        @media (max-width: 480px) {
+            body { padding: 12px; }
+            .card { padding: 14px; }
+            .nav a { font-size: 11px; padding: 5px 10px; }
+            .shelf-select { flex-direction: column; align-items: stretch; }
+        }
     </style>
 </head>
 <body>
-<!-- ... (шапка и навигация как в предыдущей версии) ... -->
 
-<div class="card">
-    <h3>Заказы на смоле</h3>
-    <div id="resinList"></div>
-    <button class="btn" style="width:100%; margin-top:10px; background:#eef1f4; color:#333;" onclick="loadResinOrders()">Обновить</button>
+<div class="container">
+    <div class="header">
+        <h1>Смола</h1>
+        <p>Заказы на заливку</p>
+    </div>
+
+    <div class="nav">
+        <a href="/planner-app/">Главная</a>
+        <a href="/planner-app/prep.html">Подготовка</a>
+        <a href="/planner-app/print.html">Печать</a>
+        <a href="/planner-app/cutter.html">Каттер</a>
+        <a href="/planner-app/cutting.html">Раскрой</a>
+        <a href="/planner-app/resin.html" class="active">Смола</a>
+        <a href="/planner-app/drying.html">Сушка</a>
+        <a href="/planner-app/otk.html">ОТК</a>
+        <a href="/planner-app/packing.html">Упаковка</a>
+    </div>
+
+    <div id="message" class="msg"></div>
+
+    <div class="card">
+        <h3>Заказы на смоле</h3>
+        <div id="resinList"></div>
+        <button class="btn" style="width:100%; margin-top:10px; background:#eef1f4; color:#333;" onclick="loadResinOrders()">Обновить</button>
+    </div>
 </div>
 
 <script>
-    const API_URL = '...';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxa8Ag_VFouB9IITEXP0XlcMtVMsG-MgeheLC3f38x_TDnLqpQGy7OmvyPxTPAcueFbcw/exec';
+    var availableShelves = [];
 
-    function showMessage(text, type) { ... }
+    function showMessage(text, type) {
+        var el = document.getElementById('message');
+        el.textContent = text;
+        el.className = 'msg show ' + type;
+        setTimeout(function() { el.classList.remove('show'); }, 5000);
+    }
 
     function loadResinOrders() {
         var container = document.getElementById('resinList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
 
-        // Загружаем свободные стеллажи
+        // Сначала загружаем свободные стеллажи
         fetch(API_URL + '?action=getAvailableShelves&_=' + Date.now())
         .then(function(response) { return response.json(); })
         .then(function(shelfResult) {
             if (shelfResult.data) {
                 availableShelves = shelfResult.data;
             }
+            // Затем загружаем заказы
             return fetch(API_URL + '?action=getResinOrders&_=' + Date.now());
         })
         .then(function(response) { return response.json(); })
@@ -62,7 +143,7 @@
                 html += '  <div class="order-meta">Блоков: ' + item.blocks + ' | Стеллаж: ' + (item.shelf || '—') + '</div>';
                 html += '  <div class="actions">';
                 
-                // 1. Ожидание → "Взять в работу"
+                // 1. Ожидание → только "Взять в работу"
                 if (statusText === 'Ожидание') {
                     html += '    <button class="btn btn-sm btn-success" onclick="updateResinOrder(\'' + item.order + '\', \'В работе\')">Взять в работу</button>';
                 }
@@ -87,7 +168,24 @@
                     }
                     
                     if (item.blocks > 46 && available.length > 1) {
-                        // ... блок разделения ...
+                        html += '    <div class="split-section">';
+                        html += '      <label>Разделить на несколько стеллажей:</label>';
+                        html += '      <div id="split-container-' + item.order + '">';
+                        for (var r = 1; r <= 2; r++) {
+                            html += '        <div class="split-row" id="split-row-' + r + '-' + item.order + '">';
+                            html += '          <select id="split-shelf-' + r + '-' + item.order + '">';
+                            for (var i = 0; i < available.length; i++) {
+                                var s = available[i];
+                                html += '<option value="' + s.shelf + '">' + s.shelf + ' (своб. ' + s.free + ')' + '</option>';
+                            }
+                            html += '          </select>';
+                            html += '          <input type="number" id="split-blocks-' + r + '-' + item.order + '" value="46" min="1" max="46">';
+                            html += '        </div>';
+                        }
+                        html += '      </div>';
+                        html += '      <button class="btn btn-sm btn-warning" onclick="addSplitRow(\'' + item.order + '\')">+ Добавить</button>';
+                        html += '      <button class="btn btn-sm btn-success" onclick="splitOrder(\'' + item.order + '\')">Разделить</button>';
+                        html += '    </div>';
                     }
                 }
                 
@@ -106,7 +204,131 @@
         });
     }
 
-    // ... остальные функции (assignShelf, updateResinOrder, splitOrder, addSplitRow) ...
+    function addSplitRow(orderNumber) {
+        var container = document.getElementById('split-container-' + orderNumber);
+        var rowCount = container.children.length + 1;
+        var available = availableShelves.filter(function(s) { return s.free > 0; });
+        
+        var newRow = document.createElement('div');
+        newRow.className = 'split-row';
+        newRow.id = 'split-row-' + rowCount + '-' + orderNumber;
+        
+        var select = document.createElement('select');
+        select.id = 'split-shelf-' + rowCount + '-' + orderNumber;
+        for (var i = 0; i < available.length; i++) {
+            var s = available[i];
+            var option = document.createElement('option');
+            option.value = s.shelf;
+            option.textContent = s.shelf + ' (своб. ' + s.free + ')';
+            select.appendChild(option);
+        }
+        newRow.appendChild(select);
+        
+        var input = document.createElement('input');
+        input.type = 'number';
+        input.id = 'split-blocks-' + rowCount + '-' + orderNumber;
+        input.value = 46;
+        input.min = 1;
+        input.max = 46;
+        input.style.width = '50px';
+        input.style.padding = '3px 6px';
+        input.style.border = '1px solid #ddd';
+        input.style.borderRadius = '4px';
+        input.style.textAlign = 'center';
+        newRow.appendChild(input);
+        
+        container.appendChild(newRow);
+    }
+
+    function splitOrder(orderNumber) {
+        var totalBlocks = parseInt(document.getElementById('blocks-' + orderNumber).value) || 0;
+        if (totalBlocks <= 0) {
+            showMessage('Укажите общее количество блоков', 'err');
+            return;
+        }
+        
+        var splits = [];
+        var container = document.getElementById('split-container-' + orderNumber);
+        var rows = container.children;
+        var sum = 0;
+        
+        for (var i = 0; i < rows.length; i++) {
+            var shelf = document.getElementById('split-shelf-' + (i+1) + '-' + orderNumber).value;
+            var blocks = parseInt(document.getElementById('split-blocks-' + (i+1) + '-' + orderNumber).value) || 0;
+            if (blocks > 0) {
+                splits.push({ shelf: shelf, blocks: blocks });
+                sum += blocks;
+            }
+        }
+        
+        if (splits.length === 0) {
+            showMessage('Добавьте хотя бы один стеллаж', 'err');
+            return;
+        }
+        
+        if (sum !== totalBlocks) {
+            showMessage('Сумма (' + sum + ') не равна общему (' + totalBlocks + ')', 'err');
+            return;
+        }
+        
+        var data = { action: 'splitShelf', orderNumber: orderNumber, splits: splits };
+        
+        fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(function() {
+            showMessage('Заказ ' + orderNumber + ' разделён на ' + splits.length + ' стеллажей', 'ok');
+            loadResinOrders();
+        })
+        .catch(function(err) {
+            showMessage('Ошибка: ' + err, 'err');
+        });
+    }
+
+    function assignShelf(orderNumber) {
+        var shelf = document.getElementById('shelf-' + orderNumber).value;
+        var blocks = parseInt(document.getElementById('blocks-' + orderNumber).value) || 0;
+        var data = { action: 'assignShelf', orderNumber: orderNumber, shelf: shelf, blocks: blocks };
+
+        fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(function() {
+            showMessage('Заказ ' + orderNumber + ' назначен на стеллаж ' + shelf, 'ok');
+            loadResinOrders();
+        })
+        .catch(function(err) {
+            showMessage('Ошибка: ' + err, 'err');
+        });
+    }
+
+    function updateResinOrder(orderNumber, newStatus) {
+        var data = { action: 'updateResinStatus', orderNumber: orderNumber, status: newStatus };
+
+        fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(function() {
+            showMessage('Заказ ' + orderNumber + ' — ' + newStatus, 'ok');
+            loadResinOrders();
+        })
+        .catch(function(err) {
+            showMessage('Ошибка: ' + err, 'err');
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        loadResinOrders();
+    });
 </script>
 
 </body>
