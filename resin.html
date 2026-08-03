@@ -108,9 +108,6 @@
         }, 5000);
     }
 
-    // ============================================================
-    // АВТОМАТИЧЕСКОЕ РАЗДЕЛЕНИЕ
-    // ============================================================
     function getSuggestedSplits(totalBlocks) {
         var splits = [];
         var remaining = totalBlocks;
@@ -130,9 +127,6 @@
         return splits;
     }
 
-    // ============================================================
-    // ЗАГРУЗКА ЗАКАЗОВ
-    // ============================================================
     function loadResinOrders() {
         var container = document.getElementById('resinList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
@@ -171,12 +165,10 @@
                     html += '  <div class="order-meta">Блоков: ' + item.blocks + ' | Стеллаж: ' + (item.shelf || '—') + '</div>';
                     html += '  <div class="actions">';
                     
-                    // === ОЖИДАНИЕ ===
                     if (statusText === 'Ожидание') {
                         var showSplit = item.blocks > 46;
                         var suggestedSplits = showSplit ? getSuggestedSplits(item.blocks) : [];
                         
-                        // Обычный выбор стеллажа (для одного)
                         html += '    <div class="shelf-select">';
                         html += '      <select id="shelf-' + item.order + '">';
                         for (var s = 65; s <= 72; s++) {
@@ -188,12 +180,9 @@
                         html += '      <button class="btn btn-sm btn-success" onclick="assignShelf(\'' + item.order + '\')">Назначить</button>';
                         html += '    </div>';
                         
-                        // Разделение (если >46)
                         if (showSplit) {
                             html += '    <div class="split-section">';
                             html += '      <label>🔀 Разделить ' + item.blocks + ' блоков на стеллажи (макс. 46):</label>';
-                            
-                            // Показываем предложенный вариант
                             html += '      <div class="suggested">';
                             html += '        <strong>Предложено:</strong> ';
                             var suggestionText = '';
@@ -204,9 +193,7 @@
                             html += suggestionText;
                             html += '        <button class="btn btn-sm btn-success" onclick="applySuggestedSplit(\'' + item.order + '\', ' + item.blocks + ')">✅ Принять</button>';
                             html += '      </div>';
-                            
                             html += '      <div id="split-container-' + item.order + '">';
-                            // По умолчанию 2 строки (оператор может изменить)
                             for (var r = 1; r <= 2; r++) {
                                 var defaultBlocks = r === 1 ? Math.min(46, item.blocks) : Math.min(46, item.blocks - 46);
                                 if (defaultBlocks <= 0) defaultBlocks = 46;
@@ -231,12 +218,10 @@
                         html += '    <button class="btn btn-sm btn-success" onclick="updateResinOrder(\'' + item.order + '\', \'В работе\')">▶ Взять в работу</button>';
                     }
                     
-                    // === ГОТОВ К СУШКЕ ===
                     if (statusText === 'Готов к сушке') {
                         html += '    <button class="btn btn-sm btn-success" onclick="updateResinOrder(\'' + item.order + '\', \'В работе\')">▶ Взять в работу</button>';
                     }
                     
-                    // === В РАБОТЕ ===
                     if (statusText === 'В работе') {
                         html += '    <button class="btn btn-sm btn-danger" onclick="updateResinOrder(\'' + item.order + '\', \'Выполнено\')">✅ Завершить</button>';
                     }
@@ -251,17 +236,11 @@
             });
     }
 
-    // ============================================================
-    // ПРИНЯТЬ ПРЕДЛОЖЕННОЕ РАЗДЕЛЕНИЕ
-    // ============================================================
     function applySuggestedSplit(orderNumber, totalBlocks) {
         var suggested = getSuggestedSplits(totalBlocks);
-        
-        // Очищаем существующие строки
         var container = document.getElementById('split-container-' + orderNumber);
         container.innerHTML = '';
         
-        // Добавляем предложенные стеллажи
         for (var i = 0; i < suggested.length; i++) {
             var row = document.createElement('div');
             row.className = 'split-row';
@@ -294,13 +273,9 @@
             
             container.appendChild(row);
         }
-        
         showMessage('✅ Предложенное разделение применено', 'ok');
     }
 
-    // ============================================================
-    // ДОБАВИТЬ СТРОКУ ДЛЯ РАЗДЕЛЕНИЯ
-    // ============================================================
     function addSplitRow(orderNumber) {
         var container = document.getElementById('split-container-' + orderNumber);
         var rowCount = container.children.length + 1;
@@ -336,9 +311,6 @@
         container.appendChild(newRow);
     }
 
-    // ============================================================
-    // РАЗДЕЛИТЬ ЗАКАЗ
-    // ============================================================
     function splitOrder(orderNumber) {
         var container = document.getElementById('split-container-' + orderNumber);
         var rows = container.children;
@@ -359,7 +331,6 @@
             return;
         }
         
-        // Проверяем каждый стеллаж
         for (var i = 0; i < splits.length; i++) {
             if (splits[i].blocks > 46) {
                 showMessage('Стеллаж ' + splits[i].shelf + ' (' + splits[i].blocks + ' блоков) превышает лимит 46', 'err');
@@ -393,9 +364,6 @@
             });
     }
 
-    // ============================================================
-    // НАЗНАЧИТЬ ОДИН СТЕЛЛАЖ
-    // ============================================================
     function assignShelf(orderNumber) {
         var shelf = document.getElementById('shelf-' + orderNumber).value;
         var blocks = parseInt(document.getElementById('blocks-' + orderNumber).value) || 0;
@@ -430,9 +398,6 @@
             });
     }
 
-    // ============================================================
-    // ОБНОВИТЬ СТАТУС
-    // ============================================================
     function updateResinOrder(orderNumber, newStatus) {
         var data = { action: 'updateResinStatus', orderNumber: orderNumber, status: newStatus };
 
