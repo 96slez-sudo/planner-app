@@ -28,4 +28,150 @@
         .badge-waiting { background: #fff3cd; color: #856404; }
         .badge-work { background: #cce5ff; color: #004085; }
         .badge-done { background: #d4edda; color: #155724; }
-        .item { padding: 12px 0; border-bottom: 1px solid #f0f2f
+        .item { padding: 12px 0; border-bottom: 1px solid #f0f2f5; }
+        .item:last-child { border-bottom: none; }
+        .item .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
+        .item .order-num { font-weight: 600; font-size: 15px; color: #1a1a2e; }
+        .item .order-meta { font-size: 14px; color: #666; }
+        .item .actions { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .msg { padding: 12px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; display: none; }
+        .msg.show { display: block; }
+        .msg.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .msg.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .empty { text-align: center; padding: 28px 0; color: #aaa; font-size: 14px; }
+        .loading { text-align: center; padding: 16px 0; color: #999; font-size: 14px; }
+        @media (max-width: 480px) {
+            body { padding: 12px; }
+            .card { padding: 14px; }
+            .nav a { font-size: 11px; padding: 5px 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Сушка</h1>
+        <p>Стеллажи и сушка</p>
+    </div>
+
+    <div class="nav">
+        <a href="/planner-app/">Главная</a>
+        <a href="/planner-app/prep.html">Подготовка</a>
+        <a href="/planner-app/print.html">Печать</a>
+        <a href="/planner-app/cutter.html">Каттер</a>
+        <a href="/planner-app/cutting.html">Раскрой</a>
+        <a href="/planner-app/resin.html">Смола</a>
+        <a href="/planner-app/drying.html" class="active">Сушка</a>
+        <a href="/planner-app/otk.html">ОТК</a>
+        <a href="/planner-app/packing.html">Упаковка</a>
+    </div>
+
+    <div id="message" class="msg"></div>
+
+    <div class="card">
+        <h3>Стеллажи</h3>
+        <div id="dryingList"></div>
+        <button class="btn" style="width:100%; margin-top:10px; background:#eef1f4; color:#333;" onclick="loadDryingOrders()">Обновить</button>
+    </div>
+</div>
+
+<script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxa8Ag_VFouB9IITEXP0XlcMtVMsG-MgeheLC3f38x_TDnLqpQGy7OmvyPxTPAcueFbcw/exec';
+
+    function showMessage(text, type) {
+        var el = document.getElementById('message');
+        el.textContent = text;
+        el.className = 'msg show ' + type;
+        setTimeout(function() { el.classList.remove('show'); }, 5000);
+    }
+
+    function loadDryingOrders() {
+        var container = document.getElementById('dryingList');
+        container.innerHTML = '<div class="loading">Загрузка...</div>';
+
+        fetch(API_URL + '?action=getDryingOrders&_=' + Date.now())
+        .then(function(response) { return response.json(); })
+        .then(function(result) {
+            if (result.error) {
+                container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>';
+                return;
+            }
+            if (!result.data || result.data.length === 0) {
+                container.innerHTML = '<div class="empty">Нет стеллажей</div>';
+                return;
+            }
+            var html = '';
+            result.data.forEach(function(item) {
+                var statusText = item.packed ? 'На сушке' : 'Свободен';
+                var badgeClass = item.packed ? 'badge-work' : 'badge-waiting';
+
+                html += '<div class="item">';
+                html += '  <div class="head">';
+                html += '    <span class="order-num">Стеллаж ' + item.shelf + '</span>';
+                html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
+                html += '  </div>';
+                html += '  <div class="order-meta">Заказов: ' + item.count + ' | Зона: ' + (item.zone || '—') + '</div>';
+                if (item.orders) {
+                    html += '  <div class="order-meta">Заказы: ' + item.orders + '</div>';
+                }
+                html += '  <div class="actions">';
+                if (!item.packed && item.count > 0) {
+                    html += '    <button class="btn btn-sm btn-success" onclick="startDrying(\'' + item.shelf + '\')">Начать сушку</button>';
+                }
+                if (item.packed && !item.rolledOut) {
+                    html += '    <button class="btn btn-sm btn-danger" onclick="finishDrying(\'' + item.shelf + '\')">Выкатить</button>';
+                }
+                html += '  </div>';
+                html += '</div>';
+            });
+            container.innerHTML = html;
+        })
+        .catch(function(err) {
+            container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>';
+        });
+    }
+
+    function startDrying(shelf) {
+        var data = { action: 'startDrying', shelf: shelf };
+
+        fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(function() {
+            showMessage('Сушка для стеллажа ' + shelf + ' начата', 'ok');
+            loadDryingOrders();
+        })
+        .catch(function(err) {
+            showMessage('Ошибка: ' + err, 'err');
+        });
+    }
+
+    function finishDrying(shelf) {
+        var data = { action: 'finishDrying', shelf: shelf };
+
+        fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(function() {
+            showMessage('Стеллаж ' + shelf + ' освобождён', 'ok');
+            loadDryingOrders();
+        })
+        .catch(function(err) {
+            showMessage('Ошибка: ' + err, 'err');
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        loadDryingOrders();
+    });
+</script>
+
+</body>
+</html>
