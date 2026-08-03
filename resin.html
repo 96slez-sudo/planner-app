@@ -126,12 +126,16 @@
                 html += '  <div class="order-meta">Блоков: ' + item.blocks + ' | Стеллаж: ' + (item.shelf || '—') + '</div>';
                 html += '  <div class="actions">';
                 
-                // === ЛОГИКА: Ожидание → только "Взять в работу" ===
+                // ============================================================
+                // ЛОГИКА КНОПОК
+                // ============================================================
+                
+                // 1. Ожидание → только "Взять в работу"
                 if (statusText === 'Ожидание') {
                     html += '    <button class="btn btn-sm btn-success" onclick="updateResinOrder(\'' + item.order + '\', \'В работе\')">Взять в работу</button>';
                 }
                 
-                // === ЛОГИКА: В работе → выбор стеллажа + "Назначить" ===
+                // 2. В работе → выбор стеллажа + "Назначить стеллаж"
                 if (statusText === 'В работе') {
                     html += '    <div class="shelf-select">';
                     html += '      <select id="shelf-' + item.order + '">';
@@ -145,7 +149,7 @@
                     html += '    </div>';
                 }
                 
-                // === ЛОГИКА: Готов к сушке → только "Завершить" ===
+                // 3. Готов к сушке → только "Завершить"
                 if (statusText === 'Готов к сушке') {
                     html += '    <button class="btn btn-sm btn-danger" onclick="updateResinOrder(\'' + item.order + '\', \'Выполнено\')">Завершить</button>';
                 }
