@@ -19,7 +19,7 @@
         .card h3 { font-size: 16px; font-weight: 600; margin-bottom: 14px; color: #1a1a2e; }
         .field { margin-bottom: 10px; }
         .field label { display: block; font-size: 13px; font-weight: 500; color: #555; margin-bottom: 4px; }
-        .field select { width: 100%; padding: 10px 12px; border: 1.5px solid #dce0e5; border-radius: 8px; font-size: 15px; background: #fafbfc; }
+        .field select, .field input { width: 100%; padding: 10px 12px; border: 1.5px solid #dce0e5; border-radius: 8px; font-size: 15px; background: #fafbfc; }
         .btn { padding: 8px 16px; background: #2c3e50; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.2s; }
         .btn:hover { background: #1a252f; }
         .btn-sm { padding: 5px 12px; font-size: 12px; }
@@ -38,9 +38,9 @@
         .item .order-num { font-weight: 600; font-size: 15px; color: #1a1a2e; }
         .item .order-meta { font-size: 14px; color: #666; }
         .item .actions { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-        .item .actions .btn { margin-right: 4px; }
         .shelf-select { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
         .shelf-select select { padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
+        .shelf-select input { width: 60px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; text-align: center; }
         .msg { padding: 12px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; display: none; }
         .msg.show { display: block; }
         .msg.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
@@ -51,6 +51,7 @@
             body { padding: 12px; }
             .card { padding: 14px; }
             .nav a { font-size: 11px; padding: 5px 10px; }
+            .shelf-select { flex-direction: column; align-items: stretch; }
         }
     </style>
 </head>
@@ -125,9 +126,7 @@
                 html += '  <div class="order-meta">Блоков: ' + item.blocks + ' | Стеллаж: ' + (item.shelf || '—') + '</div>';
                 html += '  <div class="actions">';
                 
-                // --- ЛОГИКА КНОПОК ---
                 if (statusText === 'Ожидание') {
-                    // Показываем выбор стеллажа + кнопку "Назначить"
                     html += '    <div class="shelf-select">';
                     html += '      <select id="shelf-' + item.order + '">';
                     for (var s = 65; s <= 72; s++) {
@@ -135,13 +134,12 @@
                         html += '<option value="' + letter + '">' + letter + '</option>';
                     }
                     html += '      </select>';
-                    html += '      <button class="btn btn-sm btn-success" onclick="assignShelf(\'' + item.order + '\')">Назначить стеллаж</button>';
+                    html += '      <input type="number" id="blocks-' + item.order + '" value="' + item.blocks + '" min="1" max="' + item.blocks + '">';
+                    html += '      <button class="btn btn-sm btn-success" onclick="assignShelf(\'' + item.order + '\')">Назначить</button>';
                     html += '    </div>';
                 } else if (statusText === 'Готов к сушке') {
-                    // Показываем только "Взять в работу"
                     html += '    <button class="btn btn-sm btn-success" onclick="updateResinOrder(\'' + item.order + '\', \'В работе\')">Взять в работу</button>';
                 } else if (statusText === 'В работе') {
-                    // Показываем только "Завершить"
                     html += '    <button class="btn btn-sm btn-danger" onclick="updateResinOrder(\'' + item.order + '\', \'Выполнено\')">Завершить</button>';
                 }
                 
@@ -157,7 +155,8 @@
 
     function assignShelf(orderNumber) {
         var shelf = document.getElementById('shelf-' + orderNumber).value;
-        var data = { action: 'assignShelf', orderNumber: orderNumber, shelf: shelf };
+        var blocks = parseInt(document.getElementById('blocks-' + orderNumber).value) || 0;
+        var data = { action: 'assignShelf', orderNumber: orderNumber, shelf: shelf, blocks: blocks };
 
         fetch(API_URL, {
             method: 'POST',
