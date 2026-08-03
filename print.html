@@ -43,18 +43,15 @@
         @media (max-width: 480px) {
             body { padding: 12px; }
             .card { padding: 14px; }
-            .nav a { font-size: 11px; padding: 5px 10px; }
         }
     </style>
 </head>
 <body>
-
 <div class="container">
     <div class="header">
         <h1>Печать</h1>
         <p>Очередь рулонов</p>
     </div>
-
     <div class="nav">
         <a href="/planner-app/">Главная</a>
         <a href="/planner-app/prep.html">Подготовка</a>
@@ -66,93 +63,70 @@
         <a href="/planner-app/otk.html">ОТК</a>
         <a href="/planner-app/packing.html">Упаковка</a>
     </div>
-
     <div id="message" class="msg"></div>
-
     <div class="card">
         <h3>Очередь рулонов</h3>
         <div id="printList"></div>
         <button class="btn" style="width:100%; margin-top:10px; background:#eef1f4; color:#333;" onclick="loadPrintRolls()">Обновить</button>
     </div>
 </div>
-
 <script>
-    // ВАША НОВАЯ ССЫЛКА
-    var API_URL = 'https://script.google.com/macros/s/AKfycbzE6lYDThsV4ULe9Ea4e_zwt7N34H6vnpSM-i5015RkVLT8ew3TaOYx56Nhp-P6InIevQ/exec';
+    var API_URL = 'https://script.google.com/macros/s/AKfycbylukQfen66524Qr5EHGb5C3ZV2qL6Dilf15GOu12Ltpn65hVgHPeRMBni1yBJFg9BwzQ/exec';
 
     function showMessage(text, type) {
         var el = document.getElementById('message');
         el.textContent = text;
         el.className = 'msg show ' + type;
-        setTimeout(function() {
-            el.classList.remove('show');
-        }, 5000);
+        setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
     function loadPrintRolls() {
         var container = document.getElementById('printList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
-
         fetch(API_URL + '?action=getRolls&_=' + Date.now())
-            .then(function(response) {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
+        .then(function(response) { return response.json(); })
+        .then(function(result) {
+            if (result.error) { container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>'; return; }
+            if (!result.data || result.data.length === 0) { container.innerHTML = '<div class="empty">Нет рулонов на печати</div>'; return; }
+            var rolls = result.data.filter(function(r) { return r.stage === 'Печать' && r.status !== 'Выполнено'; });
+            if (rolls.length === 0) { container.innerHTML = '<div class="empty">Все рулоны выполнены</div>'; return; }
+            var html = '';
+            for (var i = 0; i < rolls.length; i++) {
+                var item = rolls[i];
+                var badgeClass = '';
+                var statusText = item.status || 'Ожидание';
+                if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
+                else if (statusText === 'В работе') badgeClass = 'badge-work';
+                else if (statusText === 'Выполнено') badgeClass = 'badge-done';
+                html += '<div class="item">';
+                html += '  <div class="head">';
+                html += '    <span class="order-num">№ ' + item.order + ' — ' + item.rollId + '</span>';
+                html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
+                html += '  </div>';
+                html += '  <div class="order-meta">Блоков: ' + item.blocks + '</div>';
+                html += '  <div class="actions">';
+                if (statusText === 'Ожидание') {
+                    html += '    <button class="btn btn-sm btn-success" onclick="updatePrintRoll(\'' + item.rollId + '\', \'В работе\')">Взять в работу</button>';
+                } else if (statusText === 'В работе') {
+                    html += '    <button class="btn btn-sm btn-danger" onclick="updatePrintRoll(\'' + item.rollId + '\', \'Выполнено\')">Завершить</button>';
                 }
-                return response.json();
-            })
-            .then(function(result) {
-                if (result.error) {
-                    container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>';
-                    return;
-                }
-                if (!result.data || result.data.length === 0) {
-                    container.innerHTML = '<div class="empty">Нет рулонов на печати</div>';
-                    return;
-                }
-                var rolls = result.data.filter(function(r) { return r.stage === 'Печать' && r.status !== 'Выполнено'; });
-                if (rolls.length === 0) {
-                    container.innerHTML = '<div class="empty">Все рулоны выполнены</div>';
-                    return;
-                }
-                var html = '';
-                for (var i = 0; i < rolls.length; i++) {
-                    var item = rolls[i];
-                    var badgeClass = '';
-                    var statusText = item.status || 'Ожидание';
-                    if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
-                    else if (statusText === 'В работе') badgeClass = 'badge-work';
-                    else if (statusText === 'Выполнено') badgeClass = 'badge-done';
-
-                    html += '<div class="item">';
-                    html += '  <div class="head">';
-                    html += '    <span class="order-num">№ ' + item.order + ' — ' + item.rollId + '</span>';
-                    html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
-                    html += '  </div>';
-                    html += '  <div class="order-meta">Блоков: ' + item.blocks + '</div>';
-                    html += '  <div class="actions">';
-                    
-                    // ЗАМЕНА КНОПОК НА ССЫЛКИ (обход CSP и CORB)
-                    if (statusText === 'Ожидание') {
-                        var url = API_URL + '?action=updateRoll&rollId=' + encodeURIComponent(item.rollId) + '&status=' + encodeURIComponent('В работе');
-                        html += '    <a href="' + url + '" target="_blank" class="btn btn-sm btn-success" onclick="setTimeout(loadPrintRolls, 2000)">Взять в работу</a>';
-                    } else if (statusText === 'В работе') {
-                        var url = API_URL + '?action=updateRoll&rollId=' + encodeURIComponent(item.rollId) + '&status=' + encodeURIComponent('Выполнено');
-                        html += '    <a href="' + url + '" target="_blank" class="btn btn-sm btn-danger" onclick="setTimeout(loadPrintRolls, 2000)">Завершить</a>';
-                    }
-                    html += '  </div>';
-                    html += '</div>';
-                }
-                container.innerHTML = html;
-            })
-            .catch(function(err) {
-                container.innerHTML = '<div class="empty">Ошибка: ' + err.message + '</div>';
-            });
+                html += '  </div>';
+                html += '</div>';
+            }
+            container.innerHTML = html;
+        })
+        .catch(function(err) { container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>'; });
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
-        loadPrintRolls();
-    });
-</script>
+    function updatePrintRoll(rollId, newStatus) {
+        var url = API_URL + '?action=updateRoll&rollId=' + encodeURIComponent(rollId) + '&status=' + encodeURIComponent(newStatus);
+        var img = new Image();
+        img.src = url;
+        showMessage('Рулон ' + rollId + ' — ' + newStatus, 'ok');
+        setTimeout(loadPrintRolls, 1500);
+    }
 
+    document.addEventListener('DOMContentLoaded', function() { loadPrintRolls(); });
+</script>
 </body>
 </html>
