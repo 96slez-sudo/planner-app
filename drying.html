@@ -121,7 +121,7 @@
                     var statusText = 'Свободен';
                     var freeSpace = 46;
                     
-                    // === ПРАВИЛЬНЫЙ РАСЧЁТ СВОБОДНОГО МЕСТА ===
+                    // Безопасное преобразование orders в строку
                     var ordersStr = '';
                     if (item.orders !== undefined && item.orders !== null) {
                         ordersStr = String(item.orders);
@@ -134,22 +134,13 @@
                         var orderList = ordersStr.split(',').map(function(s) { return s.trim(); });
                         orderCount = orderList.length;
                         
-                        // Получаем количество блоков для каждого заказа из Базы
-                        var dbSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Заказы");
-                        if (dbSheet) {
-                            var dbData = dbSheet.getDataRange().getValues();
-                            var dbHeaders = dbData[0];
-                            for (var j = 0; j < orderList.length; j++) {
-                                var orderNumber = orderList[j];
-                                if (orderNumber) {
-                                    for (var k = 1; k < dbData.length; k++) {
-                                        if (String(dbData[k][dbHeaders.indexOf("№ заказа")]) === orderNumber) {
-                                            usedBlocks += Number(dbData[k][dbHeaders.indexOf("Кол-во блоков")] || 0);
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
+                        // Получаем количество блоков из item (сервер должен вернуть blocksCount)
+                        // Если сервер не вернул blocksCount, используем приблизительный расчёт
+                        if (item.blocksCount) {
+                            usedBlocks = Number(item.blocksCount);
+                        } else {
+                            // Приблизительный расчёт: 46 блоков на заказ
+                            usedBlocks = orderCount * 46;
                         }
                         freeSpace = Math.max(0, 46 - usedBlocks);
                     }
