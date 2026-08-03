@@ -29,6 +29,8 @@
         .btn-danger:hover { background: #c0392b; }
         .btn-warning { background: #f39c12; color: white; }
         .btn-warning:hover { background: #d68910; }
+        .btn-outline { background: transparent; color: #2c3e50; border: 1.5px solid #2c3e50; }
+        .btn-outline:hover { background: #2c3e50; color: white; }
         .badge { display: inline-block; padding: 3px 12px; border-radius: 16px; font-size: 12px; font-weight: 500; }
         .badge-waiting { background: #fff3cd; color: #856404; }
         .badge-work { background: #cce5ff; color: #004085; }
@@ -54,11 +56,14 @@
         .split-row { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; margin: 4px 0; }
         .split-row select { padding: 3px 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; }
         .split-row input { width: 50px; padding: 3px 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; text-align: center; }
+        .split-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+        .suggested { background: #eafaf1; border-left: 3px solid #27ae60; padding: 4px 8px; border-radius: 4px; font-size: 12px; color: #1a7a42; }
         @media (max-width: 480px) {
             body { padding: 12px; }
             .card { padding: 14px; }
             .nav a { font-size: 11px; padding: 5px 10px; }
             .shelf-select { flex-direction: column; align-items: stretch; }
+            .split-row { flex-direction: column; align-items: stretch; }
         }
     </style>
 </head>
@@ -103,6 +108,31 @@
         }, 5000);
     }
 
+    // ============================================================
+    // АВТОМАТИЧЕСКОЕ РАЗДЕЛЕНИЕ
+    // ============================================================
+    function getSuggestedSplits(totalBlocks) {
+        var splits = [];
+        var remaining = totalBlocks;
+        var maxPerShelf = 46;
+        var shelves = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+        var shelfIndex = 0;
+        
+        while (remaining > 0) {
+            var blocks = Math.min(remaining, maxPerShelf);
+            splits.push({
+                shelf: shelves[shelfIndex % shelves.length],
+                blocks: blocks
+            });
+            remaining -= blocks;
+            shelfIndex++;
+        }
+        return splits;
+    }
+
+    // ============================================================
+    // ЗАГРУЗКА ЗАКАЗОВ
+    // ============================================================
     function loadResinOrders() {
         var container = document.getElementById('resinList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
@@ -141,12 +171,12 @@
                     html += '  <div class="order-meta">Блоков: ' + item.blocks + ' | Стеллаж: ' + (item.shelf || '—') + '</div>';
                     html += '  <div class="actions">';
                     
-                    // === ОЖИДАНИЕ: выбор стеллажа + кнопки ===
+                    // === ОЖИДАНИЕ ===
                     if (statusText === 'Ожидание') {
-                        // Проверяем, нужно ли разделение
                         var showSplit = item.blocks > 46;
+                        var suggestedSplits = showSplit ? getSuggestedSplits(item.blocks) : [];
                         
-                        // Обычный выбор стеллажа
+                        // Обычный выбор стеллажа (для одного)
                         html += '    <div class="shelf-select">';
                         html += '      <select id="shelf-' + item.order + '">';
                         for (var s = 65; s <= 72; s++) {
@@ -158,13 +188,28 @@
                         html += '      <button class="btn btn-sm btn-success" onclick="assignShelf(\'' + item.order + '\')">Назначить</button>';
                         html += '    </div>';
                         
-                        // Если блоков > 46 — показываем разделение
+                        // Разделение (если >46)
                         if (showSplit) {
                             html += '    <div class="split-section">';
-                            html += '      <label>🔀 Разделить заказ (' + item.blocks + ' блоков) на несколько стеллажей (макс. 46):</label>';
+                            html += '      <label>🔀 Разделить ' + item.blocks + ' блоков на стеллажи (макс. 46):</label>';
+                            
+                            // Показываем предложенный вариант
+                            html += '      <div class="suggested">';
+                            html += '        <strong>Предложено:</strong> ';
+                            var suggestionText = '';
+                            for (var j = 0; j < suggestedSplits.length; j++) {
+                                suggestionText += suggestedSplits[j].shelf + ' (' + suggestedSplits[j].blocks + ')';
+                                if (j < suggestedSplits.length - 1) suggestionText += ' + ';
+                            }
+                            html += suggestionText;
+                            html += '        <button class="btn btn-sm btn-success" onclick="applySuggestedSplit(\'' + item.order + '\', ' + item.blocks + ')">✅ Принять</button>';
+                            html += '      </div>';
+                            
                             html += '      <div id="split-container-' + item.order + '">';
-                            // По умолчанию 2 строки
+                            // По умолчанию 2 строки (оператор может изменить)
                             for (var r = 1; r <= 2; r++) {
+                                var defaultBlocks = r === 1 ? Math.min(46, item.blocks) : Math.min(46, item.blocks - 46);
+                                if (defaultBlocks <= 0) defaultBlocks = 46;
                                 html += '        <div class="split-row" id="split-row-' + r + '-' + item.order + '">';
                                 html += '          <select id="split-shelf-' + r + '-' + item.order + '">';
                                 for (var s = 65; s <= 72; s++) {
@@ -172,25 +217,26 @@
                                     html += '<option value="' + letter + '">' + letter + '</option>';
                                 }
                                 html += '          </select>';
-                                html += '          <input type="number" id="split-blocks-' + r + '-' + item.order + '" value="46" min="1" max="46">';
+                                html += '          <input type="number" id="split-blocks-' + r + '-' + item.order + '" value="' + defaultBlocks + '" min="1" max="46">';
                                 html += '        </div>';
                             }
                             html += '      </div>';
-                            html += '      <button class="btn btn-sm btn-warning" onclick="addSplitRow(\'' + item.order + '\')">➕ Добавить стеллаж</button>';
-                            html += '      <button class="btn btn-sm btn-success" onclick="splitOrder(\'' + item.order + '\')">✅ Разделить и назначить</button>';
+                            html += '      <div class="split-actions">';
+                            html += '        <button class="btn btn-sm btn-warning" onclick="addSplitRow(\'' + item.order + '\')">➕ Добавить стеллаж</button>';
+                            html += '        <button class="btn btn-sm btn-success" onclick="splitOrder(\'' + item.order + '\')">✅ Разделить</button>';
+                            html += '      </div>';
                             html += '    </div>';
                         }
                         
-                        // Кнопка "Взять в работу" (переводит в статус "В работе")
                         html += '    <button class="btn btn-sm btn-success" onclick="updateResinOrder(\'' + item.order + '\', \'В работе\')">▶ Взять в работу</button>';
                     }
                     
-                    // === ГОТОВ К СУШКЕ: только "Взять в работу" ===
+                    // === ГОТОВ К СУШКЕ ===
                     if (statusText === 'Готов к сушке') {
                         html += '    <button class="btn btn-sm btn-success" onclick="updateResinOrder(\'' + item.order + '\', \'В работе\')">▶ Взять в работу</button>';
                     }
                     
-                    // === В РАБОТЕ: только "Завершить" ===
+                    // === В РАБОТЕ ===
                     if (statusText === 'В работе') {
                         html += '    <button class="btn btn-sm btn-danger" onclick="updateResinOrder(\'' + item.order + '\', \'Выполнено\')">✅ Завершить</button>';
                     }
@@ -203,6 +249,53 @@
             .catch(function(err) {
                 container.innerHTML = '<div class="empty">Ошибка: ' + err.message + '</div>';
             });
+    }
+
+    // ============================================================
+    // ПРИНЯТЬ ПРЕДЛОЖЕННОЕ РАЗДЕЛЕНИЕ
+    // ============================================================
+    function applySuggestedSplit(orderNumber, totalBlocks) {
+        var suggested = getSuggestedSplits(totalBlocks);
+        
+        // Очищаем существующие строки
+        var container = document.getElementById('split-container-' + orderNumber);
+        container.innerHTML = '';
+        
+        // Добавляем предложенные стеллажи
+        for (var i = 0; i < suggested.length; i++) {
+            var row = document.createElement('div');
+            row.className = 'split-row';
+            row.id = 'split-row-' + (i+1) + '-' + orderNumber;
+            
+            var select = document.createElement('select');
+            select.id = 'split-shelf-' + (i+1) + '-' + orderNumber;
+            for (var s = 65; s <= 72; s++) {
+                var letter = String.fromCharCode(s);
+                var option = document.createElement('option');
+                option.value = letter;
+                option.textContent = letter;
+                if (letter === suggested[i].shelf) option.selected = true;
+                select.appendChild(option);
+            }
+            row.appendChild(select);
+            
+            var input = document.createElement('input');
+            input.type = 'number';
+            input.id = 'split-blocks-' + (i+1) + '-' + orderNumber;
+            input.value = suggested[i].blocks;
+            input.min = 1;
+            input.max = 46;
+            input.style.width = '50px';
+            input.style.padding = '3px 6px';
+            input.style.border = '1px solid #ddd';
+            input.style.borderRadius = '4px';
+            input.style.textAlign = 'center';
+            row.appendChild(input);
+            
+            container.appendChild(row);
+        }
+        
+        showMessage('✅ Предложенное разделение применено', 'ok');
     }
 
     // ============================================================
@@ -244,15 +337,9 @@
     }
 
     // ============================================================
-    // РАЗДЕЛИТЬ ЗАКАЗ НА НЕСКОЛЬКО СТЕЛЛАЖЕЙ
+    // РАЗДЕЛИТЬ ЗАКАЗ
     // ============================================================
     function splitOrder(orderNumber) {
-        var totalBlocks = parseInt(document.getElementById('blocks-' + orderNumber).value) || 0;
-        if (totalBlocks <= 0) {
-            showMessage('Укажите общее количество блоков', 'err');
-            return;
-        }
-        
         var container = document.getElementById('split-container-' + orderNumber);
         var rows = container.children;
         var splits = [];
@@ -272,12 +359,7 @@
             return;
         }
         
-        if (sum !== totalBlocks) {
-            showMessage('Сумма блоков (' + sum + ') не равна общему количеству (' + totalBlocks + ')', 'err');
-            return;
-        }
-        
-        // Проверяем, что каждый стеллаж не превышает 46 блоков
+        // Проверяем каждый стеллаж
         for (var i = 0; i < splits.length; i++) {
             if (splits[i].blocks > 46) {
                 showMessage('Стеллаж ' + splits[i].shelf + ' (' + splits[i].blocks + ' блоков) превышает лимит 46', 'err');
@@ -312,12 +394,17 @@
     }
 
     // ============================================================
-    // НАЗНАЧИТЬ СТЕЛЛАЖ (один)
+    // НАЗНАЧИТЬ ОДИН СТЕЛЛАЖ
     // ============================================================
     function assignShelf(orderNumber) {
         var shelf = document.getElementById('shelf-' + orderNumber).value;
         var blocks = parseInt(document.getElementById('blocks-' + orderNumber).value) || 0;
         var data = { action: 'assignShelf', orderNumber: orderNumber, shelf: shelf, blocks: blocks };
+
+        if (blocks > 46) {
+            showMessage('На один стеллаж максимум 46 блоков', 'err');
+            return;
+        }
 
         fetch(API_URL, {
             method: 'POST',
@@ -344,7 +431,7 @@
     }
 
     // ============================================================
-    // ОБНОВИТЬ СТАТУС ЗАКАЗА
+    // ОБНОВИТЬ СТАТУС
     // ============================================================
     function updateResinOrder(orderNumber, newStatus) {
         var data = { action: 'updateResinStatus', orderNumber: orderNumber, status: newStatus };
