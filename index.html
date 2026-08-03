@@ -123,7 +123,6 @@
         </div>
         <div class="check-group">
             <label><input type="checkbox" id="r1" /> Раскрой 1</label>
-            <label><input type="checkbox" id="selection" /> Выборка</label>
             <label><input type="checkbox" id="resin" /> Смола</label>
             <label><input type="checkbox" id="r2" /> Раскрой 2</label>
         </div>
@@ -164,7 +163,6 @@
             planDate: planDate,
             priority: priority,
             r1: document.getElementById('r1').checked,
-            selection: document.getElementById('selection').checked,
             resin: document.getElementById('resin').checked,
             r2: document.getElementById('r2').checked
         };
@@ -187,7 +185,6 @@
             document.getElementById('creationDate').value = '';
             document.getElementById('planDate').value = '';
             document.getElementById('r1').checked = false;
-            document.getElementById('selection').checked = false;
             document.getElementById('resin').checked = false;
             document.getElementById('r2').checked = false;
             loadOrders();
