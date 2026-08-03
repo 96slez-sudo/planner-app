@@ -77,6 +77,7 @@
 </div>
 
 <script>
+    // ВАША НОВАЯ ССЫЛКА
     var API_URL = 'https://script.google.com/macros/s/AKfycbzE6lYDThsV4ULe9Ea4e_zwt7N34H6vnpSM-i5015RkVLT8ew3TaOYx56Nhp-P6InIevQ/exec';
 
     function showMessage(text, type) {
@@ -129,10 +130,14 @@
                     html += '  </div>';
                     html += '  <div class="order-meta">Блоков: ' + item.blocks + '</div>';
                     html += '  <div class="actions">';
+                    
+                    // ЗАМЕНА КНОПОК НА ССЫЛКИ (обход CSP и CORB)
                     if (statusText === 'Ожидание') {
-                        html += '    <button class="btn btn-sm btn-success" onclick="updatePrintRoll(\'' + item.rollId + '\', \'В работе\')">Взять в работу</button>';
+                        var url = API_URL + '?action=updateRoll&rollId=' + encodeURIComponent(item.rollId) + '&status=' + encodeURIComponent('В работе');
+                        html += '    <a href="' + url + '" target="_blank" class="btn btn-sm btn-success" onclick="setTimeout(loadPrintRolls, 2000)">Взять в работу</a>';
                     } else if (statusText === 'В работе') {
-                        html += '    <button class="btn btn-sm btn-danger" onclick="updatePrintRoll(\'' + item.rollId + '\', \'Выполнено\')">Завершить</button>';
+                        var url = API_URL + '?action=updateRoll&rollId=' + encodeURIComponent(item.rollId) + '&status=' + encodeURIComponent('Выполнено');
+                        html += '    <a href="' + url + '" target="_blank" class="btn btn-sm btn-danger" onclick="setTimeout(loadPrintRolls, 2000)">Завершить</a>';
                     }
                     html += '  </div>';
                     html += '</div>';
@@ -142,38 +147,6 @@
             .catch(function(err) {
                 container.innerHTML = '<div class="empty">Ошибка: ' + err.message + '</div>';
             });
-    }
-
-               function updatePrintRoll(rollId, newStatus) {
-        // Создаем скрытую форму
-        var form = document.createElement('form');
-        form.method = 'GET';
-        form.action = API_URL;
-        form.target = '_blank'; // Открываем в новой пустой вкладке, чтобы не ломать приложение
-        form.style.display = 'none';
-
-        // Добавляем параметры в форму
-        var params = {
-            action: 'updateRoll',
-            rollId: rollId,
-            status: newStatus
-        };
-        for (var key in params) {
-            var input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = params[key];
-            form.appendChild(input);
-        }
-
-        // Вставляем форму, отправляем и сразу удаляем
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
-
-        // Показываем сообщение и перезагружаем список через 2 секунды
-        showMessage('Рулон ' + rollId + ' — ' + newStatus, 'ok');
-        setTimeout(loadPrintRolls, 2000);
     }
 
     document.addEventListener('DOMContentLoaded', function() {
