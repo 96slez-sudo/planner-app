@@ -89,7 +89,7 @@
         }, 5000);
     }
 
-    function loadCuttingOrders() {
+        function loadCuttingOrders() {
         var container = document.getElementById('cuttingList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
 
@@ -106,9 +106,18 @@
                     container.innerHTML = '<div class="empty">Нет заказов на раскрое</div>';
                     return;
                 }
+                
                 var html = '';
+                var seenIds = {}; // Чтобы убрать дубликаты по ID рулона и стеллажу
+
                 for (var i = 0; i < result.data.length; i++) {
                     var item = result.data[i];
+                    
+                    // Создаем уникальный ключ: Заказ + Тип + Стеллаж (чтобы не было дублей A, A, A)
+                    var uniqueKey = item.order + '_' + item.type + '_' + item.shelf;
+                    if (seenIds[uniqueKey]) continue; // Пропускаем, если такой уже есть
+                    seenIds[uniqueKey] = true;
+
                     var badgeClass = '';
                     var statusText = item.status || 'Ожидание';
                     if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
@@ -120,6 +129,7 @@
                         typeBadge = ' <span class="badge badge-type">' + item.type + '</span>';
                     }
 
+                    // ОТОБРАЖАЕМ БЛОКИ ИЗ ТАБЛИЦЫ ЭТАПОВ, а не из Базы Заказов
                     var infoText = '';
                     if (item.type === 'Р1') {
                         infoText = item.rollId || 'Рулон';
@@ -132,7 +142,7 @@
                     html += '    <span class="order-num">№ ' + item.order + ' — ' + infoText + typeBadge + '</span>';
                     html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
                     html += '  </div>';
-                    html += '  <div class="order-meta">' + (item.shelf ? 'Стеллаж: ' + item.shelf : '') + '</div>';
+                    html += '  <div class="order-meta">Стеллаж: ' + (item.shelf || '—') + '</div>';
                     html += '  <div class="actions">';
                     if (statusText === 'Ожидание') {
                         html += '    <button class="btn btn-sm btn-success" onclick="updateCuttingOrder(\'' + item.order + '\', \'В работе\', \'' + item.type + '\', \'' + (item.rollId || '') + '\')">Взять в работу</button>';
