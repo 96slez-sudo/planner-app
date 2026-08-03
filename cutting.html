@@ -28,12 +28,13 @@
         .badge-waiting { background: #fff3cd; color: #856404; }
         .badge-work { background: #cce5ff; color: #004085; }
         .badge-done { background: #d4edda; color: #155724; }
+        .badge-type { background: #e8daef; color: #6c3483; }
         .item { padding: 12px 0; border-bottom: 1px solid #f0f2f5; }
         .item:last-child { border-bottom: none; }
         .item .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
         .item .order-num { font-weight: 600; font-size: 15px; color: #1a1a2e; }
         .item .order-meta { font-size: 14px; color: #666; }
-        .item .actions { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .item .actions { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
         .msg { padding: 12px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; display: none; }
         .msg.show { display: block; }
         .msg.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
@@ -52,7 +53,7 @@
 <div class="container">
     <div class="header">
         <h1>Раскрой</h1>
-        <p>Очередь рулонов (Р1)</p>
+        <p>Очередь рулонов</p>
     </div>
 
     <div class="nav">
@@ -114,9 +115,13 @@
                 else if (statusText === 'В работе') badgeClass = 'badge-work';
                 else if (statusText === 'Выполнено') badgeClass = 'badge-done';
 
+                // Определяем тип раскроя
+                var cuttingType = item.cuttingType || 'Р1';
+                var typeBadge = ' <span class="badge badge-type">' + cuttingType + '</span>';
+
                 html += '<div class="item">';
                 html += '  <div class="head">';
-                html += '    <span class="order-num">№ ' + item.order + ' — ' + item.rollId + '</span>';
+                html += '    <span class="order-num">№ ' + item.order + ' — ' + item.rollId + typeBadge + '</span>';
                 html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
                 html += '  </div>';
                 html += '  <div class="order-meta">Блоков: ' + item.blocks + '</div>';
