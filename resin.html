@@ -126,7 +126,13 @@
                 html += '  <div class="order-meta">Блоков: ' + item.blocks + ' | Стеллаж: ' + (item.shelf || '—') + '</div>';
                 html += '  <div class="actions">';
                 
+                // === ЛОГИКА: Ожидание → только "Взять в работу" ===
                 if (statusText === 'Ожидание') {
+                    html += '    <button class="btn btn-sm btn-success" onclick="updateResinOrder(\'' + item.order + '\', \'В работе\')">Взять в работу</button>';
+                }
+                
+                // === ЛОГИКА: В работе → выбор стеллажа + "Назначить" ===
+                if (statusText === 'В работе') {
                     html += '    <div class="shelf-select">';
                     html += '      <select id="shelf-' + item.order + '">';
                     for (var s = 65; s <= 72; s++) {
@@ -135,11 +141,12 @@
                     }
                     html += '      </select>';
                     html += '      <input type="number" id="blocks-' + item.order + '" value="' + item.blocks + '" min="1" max="' + item.blocks + '">';
-                    html += '      <button class="btn btn-sm btn-success" onclick="assignShelf(\'' + item.order + '\')">Назначить</button>';
+                    html += '      <button class="btn btn-sm btn-success" onclick="assignShelf(\'' + item.order + '\')">Назначить стеллаж</button>';
                     html += '    </div>';
-                } else if (statusText === 'Готов к сушке') {
-                    html += '    <button class="btn btn-sm btn-success" onclick="updateResinOrder(\'' + item.order + '\', \'В работе\')">Взять в работу</button>';
-                } else if (statusText === 'В работе') {
+                }
+                
+                // === ЛОГИКА: Готов к сушке → только "Завершить" ===
+                if (statusText === 'Готов к сушке') {
                     html += '    <button class="btn btn-sm btn-danger" onclick="updateResinOrder(\'' + item.order + '\', \'Выполнено\')">Завершить</button>';
                 }
                 
