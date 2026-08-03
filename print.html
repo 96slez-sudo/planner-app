@@ -144,31 +144,35 @@
             });
     }
 
-    function updatePrintRoll(rollId, newStatus) {
-        var data = { action: 'updateRoll', rollId: rollId, status: newStatus };
+        function updatePrintRoll(rollId, newStatus) {
+        // 1. Создаем скрытую HTML-форму
+        var form = document.createElement('form');
+        form.method = 'GET'; // Используем GET, чтобы обойти CORS
+        form.action = API_URL;
+        form.style.display = 'none';
 
-        fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        })
-            .then(function(response) {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(function(result) {
-                if (result.success) {
-                    showMessage(result.message, 'ok');
-                    loadPrintRolls();
-                } else {
-                    showMessage(result.error || 'Ошибка', 'err');
-                }
-            })
-            .catch(function(err) {
-                showMessage('Ошибка: ' + err.message, 'err');
-            });
+        // 2. Добавляем параметры как скрытые инпуты
+        var params = {
+            action: 'updateRoll',
+            rollId: rollId,
+            status: newStatus
+        };
+        for (var key in params) {
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = params[key];
+            form.appendChild(input);
+        }
+
+        // 3. Отправляем форму и сразу удаляем её
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+
+        // 4. Показываем сообщение и перезагружаем список через 1.5 секунды
+        showMessage('Рулон ' + rollId + ' — ' + newStatus, 'ok');
+        setTimeout(loadPrintRolls, 1500);
     }
 
     document.addEventListener('DOMContentLoaded', function() {
