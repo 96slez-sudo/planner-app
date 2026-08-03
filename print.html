@@ -144,35 +144,35 @@
             });
     }
 
-        function updatePrintRoll(rollId, newStatus) {
-        // 1. Создаем скрытую HTML-форму
-        var form = document.createElement('form');
-        form.method = 'GET'; // Используем GET, чтобы обойти CORS
-        form.action = API_URL;
-        form.style.display = 'none';
-
-        // 2. Добавляем параметры как скрытые инпуты
-        var params = {
-            action: 'updateRoll',
-            rollId: rollId,
-            status: newStatus
+            function updatePrintRoll(rollId, newStatus) {
+        // Генерируем уникальное имя для функции-обработчика, чтобы не было конфликтов
+        var callbackName = 'callback_' + Date.now();
+        
+        // Строим URL с параметрами и добавляем &callback=...
+        var url = API_URL + '?action=updateRoll&rollId=' + encodeURIComponent(rollId) + 
+                  '&status=' + encodeURIComponent(newStatus) + 
+                  '&callback=' + callbackName;
+        
+        // Создаем функцию, которую вызовет Google, когда вернет ответ
+        window[callbackName] = function(result) {
+            // Удаляем тег скрипта и очищаем память
+            document.body.removeChild(script);
+            delete window[callbackName];
+            
+            // Обрабатываем ответ
+            if (result && result.success) {
+                showMessage(result.message || 'Статус обновлён', 'ok');
+            } else {
+                showMessage((result && result.error) || 'Ошибка', 'err');
+            }
+            // Обновляем список
+            loadPrintRolls();
         };
-        for (var key in params) {
-            var input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = params[key];
-            form.appendChild(input);
-        }
-
-        // 3. Отправляем форму и сразу удаляем её
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
-
-        // 4. Показываем сообщение и перезагружаем список через 1.5 секунды
-        showMessage('Рулон ' + rollId + ' — ' + newStatus, 'ok');
-        setTimeout(loadPrintRolls, 1500);
+        
+        // Создаем тег <script> с этим URL и вставляем в страницу
+        var script = document.createElement('script');
+        script.src = url;
+        document.body.appendChild(script);
     }
 
     document.addEventListener('DOMContentLoaded', function() {
