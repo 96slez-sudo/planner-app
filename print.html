@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Печать — Планировщик</title>
+    <title>Упаковка — Планировщик</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f4f6f9; padding: 16px; min-height: 100vh; display: flex; justify-content: center; }
@@ -43,31 +43,32 @@
         @media (max-width: 480px) {
             body { padding: 12px; }
             .card { padding: 14px; }
+            .nav a { font-size: 11px; padding: 5px 10px; }
         }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
-        <h1>Печать</h1>
-        <p>Очередь рулонов</p>
+        <h1>Упаковка</h1>
+        <p>Очередь заказов</p>
     </div>
     <div class="nav">
         <a href="/planner-app/">Главная</a>
         <a href="/planner-app/prep.html">Подготовка</a>
-        <a href="/planner-app/print.html" class="active">Печать</a>
+        <a href="/planner-app/print.html">Печать</a>
         <a href="/planner-app/cutter.html">Каттер</a>
         <a href="/planner-app/cutting.html">Раскрой</a>
         <a href="/planner-app/resin.html">Смола</a>
         <a href="/planner-app/drying.html">Сушка</a>
         <a href="/planner-app/otk.html">ОТК</a>
-        <a href="/planner-app/packing.html">Упаковка</a>
+        <a href="/planner-app/packing.html" class="active">Упаковка</a>
     </div>
     <div id="message" class="msg"></div>
     <div class="card">
-        <h3>Очередь рулонов</h3>
-        <div id="printList"></div>
-        <button class="btn" style="width:100%; margin-top:10px; background:#eef1f4; color:#333;" onclick="loadPrintRolls()">Обновить</button>
+        <h3>Заказы на упаковке</h3>
+        <div id="packingList"></div>
+        <button class="btn" style="width:100%; margin-top:10px; background:#eef1f4; color:#333;" onclick="loadPackingOrders()">Обновить</button>
     </div>
 </div>
 <script>
@@ -80,19 +81,18 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
-    function loadPrintRolls() {
-        var container = document.getElementById('printList');
+    function loadPackingOrders() {
+        var container = document.getElementById('packingList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
-        fetch(API_URL + '?action=getRolls&_=' + Date.now())
+        fetch(API_URL + '?action=getStageOrders&stage=Упаковка&_=' + Date.now())
         .then(function(response) { return response.json(); })
         .then(function(result) {
             if (result.error) { container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>'; return; }
-            if (!result.data || result.data.length === 0) { container.innerHTML = '<div class="empty">Нет рулонов на печати</div>'; return; }
-            var rolls = result.data.filter(function(r) { return r.stage === 'Печать' && r.status !== 'Выполнено'; });
-            if (rolls.length === 0) { container.innerHTML = '<div class="empty">Все рулоны выполнены</div>'; return; }
+            if (!result.data || result.data.length === 0) { container.innerHTML = '<div class="empty">Нет заказов на упаковке</div>'; return; }
             var html = '';
-            for (var i = 0; i < rolls.length; i++) {
-                var item = rolls[i];
+            for (var i = 0; i < result.data.length; i++) {
+                var item = result.data[i];
+                if (item.stage !== 'Упаковка') continue;
                 var badgeClass = '';
                 var statusText = item.status || 'Ожидание';
                 if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
@@ -100,33 +100,38 @@
                 else if (statusText === 'Выполнено') badgeClass = 'badge-done';
                 html += '<div class="item">';
                 html += '  <div class="head">';
-                html += '    <span class="order-num">№ ' + item.order + ' — ' + item.rollId + '</span>';
+                html += '    <span class="order-num">№ ' + item.order + '</span>';
                 html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
                 html += '  </div>';
-                html += '  <div class="order-meta">Блоков: ' + item.blocks + '</div>';
+                html += '  <div class="order-meta">Этап: ' + item.stage + '</div>';
                 html += '  <div class="actions">';
                 if (statusText === 'Ожидание') {
-                    html += '    <button class="btn btn-sm btn-success" onclick="updatePrintRoll(\'' + item.rollId + '\', \'В работе\')">Взять в работу</button>';
+                    html += '    <button class="btn btn-sm btn-success" onclick="updatePackingOrder(\'' + item.order + '\', \'В работе\')">Взять в работу</button>';
                 } else if (statusText === 'В работе') {
-                    html += '    <button class="btn btn-sm btn-danger" onclick="updatePrintRoll(\'' + item.rollId + '\', \'Выполнено\')">Завершить</button>';
+                    html += '    <button class="btn btn-sm btn-danger" onclick="updatePackingOrder(\'' + item.order + '\', \'Выполнено\')">Завершить</button>';
                 }
                 html += '  </div>';
                 html += '</div>';
             }
-            container.innerHTML = html;
+            if (html === '') { container.innerHTML = '<div class="empty">Нет заказов на упаковке</div>'; }
+            else { container.innerHTML = html; }
         })
         .catch(function(err) { container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>'; });
     }
 
-    function updatePrintRoll(rollId, newStatus) {
-        var url = API_URL + '?action=updateRoll&rollId=' + encodeURIComponent(rollId) + '&status=' + encodeURIComponent(newStatus);
-        var img = new Image();
-        img.src = url;
-        showMessage('Рулон ' + rollId + ' — ' + newStatus, 'ok');
-        setTimeout(loadPrintRolls, 1500);
+    function updatePackingOrder(orderNumber, newStatus) {
+        var data = { action: 'updateStageStatus', orderNumber: orderNumber, status: newStatus, stage: 'Упаковка' };
+        fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+            .then(function(response) { return response.json(); })
+            .then(function(result) {
+                if (result.error) { showMessage(result.error, 'err'); return; }
+                showMessage('Заказ ' + orderNumber + ' — ' + newStatus, 'ok');
+                loadPackingOrders();
+            })
+            .catch(function(err) { showMessage('Ошибка: ' + err, 'err'); });
     }
 
-    document.addEventListener('DOMContentLoaded', function() { loadPrintRolls(); });
+    document.addEventListener('DOMContentLoaded', function() { loadPackingOrders(); });
 </script>
 </body>
 </html>
