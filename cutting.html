@@ -44,18 +44,15 @@
         @media (max-width: 480px) {
             body { padding: 12px; }
             .card { padding: 14px; }
-            .nav a { font-size: 11px; padding: 5px 10px; }
         }
     </style>
 </head>
 <body>
-
 <div class="container">
     <div class="header">
         <h1>Раскрой</h1>
         <p>Очередь рулонов (Р1) и заказов (Р2)</p>
     </div>
-
     <div class="nav">
         <a href="/planner-app/">Главная</a>
         <a href="/planner-app/prep.html">Подготовка</a>
@@ -67,133 +64,73 @@
         <a href="/planner-app/otk.html">ОТК</a>
         <a href="/planner-app/packing.html">Упаковка</a>
     </div>
-
     <div id="message" class="msg"></div>
-
     <div class="card">
         <h3>Очередь на раскрое</h3>
         <div id="cuttingList"></div>
         <button class="btn" style="width:100%; margin-top:10px; background:#eef1f4; color:#333;" onclick="loadCuttingOrders()">Обновить</button>
     </div>
 </div>
-
 <script>
-    var API_URL = 'https://script.google.com/macros/s/AKfycbxa8Ag_VFouB9IITEXP0XlcMtVMsG-MgeheLC3f38x_TDnLqpQGy7OmvyPxTPAcueFbcw/exec';
+    var API_URL = 'https://script.google.com/macros/s/AKfycbylukQfen66524Qr5EHGb5C3ZV2qL6Dilf15GOu12Ltpn65hVgHPeRMBni1yBJFg9BwzQ/exec';
 
     function showMessage(text, type) {
         var el = document.getElementById('message');
         el.textContent = text;
         el.className = 'msg show ' + type;
-        setTimeout(function() {
-            el.classList.remove('show');
-        }, 5000);
+        setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
-                function loadCuttingOrders() {
+    function loadCuttingOrders() {
         var container = document.getElementById('cuttingList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
-
         fetch(API_URL + '?action=getCuttingOrders&_=' + Date.now())
-            .then(function(response) {
-                return response.json();
-            })
-            .then(function(result) {
-                if (result.error) {
-                    container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>';
-                    return;
+        .then(function(response) { return response.json(); })
+        .then(function(result) {
+            if (result.error) { container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>'; return; }
+            if (!result.data || result.data.length === 0) { container.innerHTML = '<div class="empty">Нет заказов на раскрое</div>'; return; }
+            var html = '';
+            for (var i = 0; i < result.data.length; i++) {
+                var item = result.data[i];
+                var badgeClass = '';
+                var statusText = item.status || 'Ожидание';
+                if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
+                else if (statusText === 'В работе') badgeClass = 'badge-work';
+                else if (statusText === 'Выполнено') badgeClass = 'badge-done';
+                var typeBadge = '';
+                if (item.type) { typeBadge = ' <span class="badge badge-type">' + item.type + '</span>'; }
+                var infoText = '';
+                if (item.type === 'Р1') { infoText = item.rollId || 'Рулон'; }
+                else if (item.type === 'Р2') { infoText = 'Заказ (блоки: ' + item.blocks + ')'; }
+                html += '<div class="item">';
+                html += '  <div class="head">';
+                html += '    <span class="order-num">№ ' + item.order + ' — ' + infoText + typeBadge + '</span>';
+                html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
+                html += '  </div>';
+                html += '  <div class="order-meta">' + (item.shelf ? 'Стеллаж: ' + item.shelf : '') + '</div>';
+                html += '  <div class="actions">';
+                if (statusText === 'Ожидание') {
+                    html += '    <button class="btn btn-sm btn-success" onclick="updateCuttingOrder(\'' + item.order + '\', \'В работе\', \'' + item.type + '\', \'' + (item.rollId || '') + '\')">Взять в работу</button>';
+                } else if (statusText === 'В работе') {
+                    html += '    <button class="btn btn-sm btn-danger" onclick="updateCuttingOrder(\'' + item.order + '\', \'Выполнено\', \'' + item.type + '\', \'' + (item.rollId || '') + '\')">Завершить</button>';
                 }
-                if (!result.data || result.data.length === 0) {
-                    container.innerHTML = '<div class="empty">Нет заказов на раскрое</div>';
-                    return;
-                }
-                
-                var html = '';
-                // Просто перебираем все строки, не группируя их
-                for (var i = 0; i < result.data.length; i++) {
-                    var item = result.data[i];
-                    var badgeClass = '';
-                    var statusText = item.status || 'Ожидание';
-                    if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
-                    else if (statusText === 'В работе') badgeClass = 'badge-work';
-                    else if (statusText === 'Выполнено') badgeClass = 'badge-done';
-
-                    var typeBadge = '';
-                    if (item.type) {
-                        typeBadge = ' <span class="badge badge-type">' + item.type + '</span>';
-                    }
-
-                    var infoText = '';
-                    if (item.type === 'Р1') {
-                        infoText = item.rollId || 'Рулон';
-                    } else if (item.type === 'Р2') {
-                        infoText = 'Заказ (блоки: ' + item.blocks + ')';
-                    }
-
-                    html += '<div class="item">';
-                    html += '  <div class="head">';
-                    html += '    <span class="order-num">№ ' + item.order + ' — ' + infoText + typeBadge + '</span>';
-                    html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
-                    html += '  </div>';
-                    html += '  <div class="order-meta">Стеллаж: ' + (item.shelf || '—') + '</div>';
-                    html += '  <div class="actions">';
-                    
-                    // Формируем кнопки в зависимости от статуса
-                    if (statusText === 'Ожидание') {
-                        html += '    <button class="btn btn-sm btn-success" onclick="updateCuttingOrder(\'' + item.order + '\', \'В работе\', \'' + item.type + '\', \'' + (item.rollId || '') + '\')">Взять в работу</button>';
-                    } else if (statusText === 'В работе') {
-                        html += '    <button class="btn btn-sm btn-danger" onclick="updateCuttingOrder(\'' + item.order + '\', \'Выполнено\', \'' + item.type + '\', \'' + (item.rollId || '') + '\')">Завершить</button>';
-                    }
-                    html += '  </div>';
-                    html += '</div>';
-                }
-                container.innerHTML = html;
-            })
-            ['catch'](function(err) {
-                container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>';
-            });
-    }
-
-        function updateCuttingOrder(orderNumber, newStatus, type, rollId) {
-        // Берем стеллаж прямо из элемента, над которым нажали
-        // Для этого мы ищем родительский div с классом .item
-        var shelf = "";
-        var buttons = document.querySelectorAll('.item .actions .btn');
-        // Это небольшой хак, чтобы найти стеллаж в текущей карточке
-        var parentItem = event.target.closest('.item');
-        if (parentItem) {
-            var metaDiv = parentItem.querySelector('.order-meta');
-            if (metaDiv) {
-                var metaText = metaDiv.textContent;
-                if (metaText.indexOf('Стеллаж: ') !== -1) {
-                    shelf = metaText.replace('Стеллаж: ', '').trim();
-                }
+                html += '  </div>';
+                html += '</div>';
             }
-        }
-
-        var data = {
-            action: 'updateCuttingOrder',
-            orderNumber: orderNumber,
-            status: newStatus,
-            type: type,
-            rollId: rollId,
-            shelf: shelf // Передаем стеллаж на сервер!
-        };
-
-        fetch(API_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+            container.innerHTML = html;
         })
-            .then(function() {
-                showMessage('Заказ ' + orderNumber + ' — ' + newStatus + ' (Стеллаж ' + shelf + ')', 'ok');
-                loadCuttingOrders();
-            })
-            ['catch'](function(err) {
-                showMessage('Ошибка: ' + err, 'err');
-            });
+        .catch(function(err) { container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>'; });
     }
-</script>
 
+    function updateCuttingOrder(orderNumber, newStatus, type, rollId) {
+        var url = API_URL + '?action=updateCuttingOrder&orderNumber=' + encodeURIComponent(orderNumber) + '&status=' + encodeURIComponent(newStatus) + '&type=' + encodeURIComponent(type) + '&rollId=' + encodeURIComponent(rollId || '');
+        var img = new Image();
+        img.src = url;
+        showMessage('Заказ ' + orderNumber + ' — ' + newStatus, 'ok');
+        setTimeout(loadCuttingOrders, 1500);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() { loadCuttingOrders(); });
+</script>
 </body>
 </html>
