@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>ОТК — Планировщик</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f4f6f9; padding: 16px; min-height: 100vh; display: flex; justify-content: center; }
@@ -72,7 +73,11 @@
     </div>
 </div>
 <script>
-    var API_URL = 'https://script.google.com/macros/s/AKfycbylukQfen66524Qr5EHGb5C3ZV2qL6Dilf15GOu12Ltpn65hVgHPeRMBni1yBJFg9BwzQ/exec';
+    const SUPABASE_URL = 'https://knuqfydp6kkdapivsnm.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_ваш_длинный_ключ_из_api_keys';
+
+    const { createClient } = supabase;
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     function showMessage(text, type) {
         var el = document.getElementById('message');
@@ -81,54 +86,54 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
-    function loadOtkOrders() {
+    async function loadOtkOrders() {
         var container = document.getElementById('otkList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
-        fetch(API_URL + '?action=getStageOrders&stage=ОТК&_=' + Date.now())
-        .then(function(response) { return response.json(); })
-        .then(function(result) {
-            if (result.error) { container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>'; return; }
-            if (!result.data || result.data.length === 0) { container.innerHTML = '<div class="empty">Нет заказов на ОТК</div>'; return; }
-            var html = '';
-            for (var i = 0; i < result.data.length; i++) {
-                var item = result.data[i];
-                if (item.stage !== 'ОТК') continue;
-                var badgeClass = '';
-                var statusText = item.status || 'Ожидание';
-                if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
-                else if (statusText === 'В работе') badgeClass = 'badge-work';
-                else if (statusText === 'Выполнено') badgeClass = 'badge-done';
-                html += '<div class="item">';
-                html += '  <div class="head">';
-                html += '    <span class="order-num">№ ' + item.order + '</span>';
-                html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
-                html += '  </div>';
-                html += '  <div class="order-meta">Этап: ' + item.stage + '</div>';
-                html += '  <div class="actions">';
-                if (statusText === 'Ожидание') {
-                    html += '    <button class="btn btn-sm btn-success" onclick="updateOtkOrder(\'' + item.order + '\', \'В работе\')">Взять в работу</button>';
-                } else if (statusText === 'В работе') {
-                    html += '    <button class="btn btn-sm btn-danger" onclick="updateOtkOrder(\'' + item.order + '\', \'Выполнено\')">Завершить</button>';
-                }
-                html += '  </div>';
-                html += '</div>';
-            }
-            if (html === '') { container.innerHTML = '<div class="empty">Нет заказов на ОТК</div>'; }
-            else { container.innerHTML = html; }
-        })
-        .catch(function(err) { container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>'; });
+
+        const { data, error } = await supabaseClient
+            .from('orders')
+            .select('*')
+            .eq('status', 'На ОТК');
+
+        if (error) { container.innerHTML = '<div class="empty">Ошибка: ' + error.message + '</div>'; return; }
+        if (!data || data.length === 0) { container.innerHTML = '<div class="empty">Нет заказов на ОТК</div>'; return; }
+
+        var html = '';
+        data.forEach(function(item) {
+            var badgeClass = '';
+            var statusText = item.status || 'Ожидание';
+            if (statusText === 'На ОТК') badgeClass = 'badge-work';
+            html += '<div class="item">';
+            html += '  <div class="head">';
+            html += '    <span class="order-num">№ ' + item.order_number + '</span>';
+            html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
+            html += '  </div>';
+            html += '  <div class="actions">';
+            html += '    <button class="btn btn-sm btn-danger" onclick="updateOtkOrder(\'' + item.order_number + '\')">Завершить</button>';
+            html += '  </div>';
+            html += '</div>';
+        });
+        container.innerHTML = html;
     }
 
-    function updateOtkOrder(orderNumber, newStatus) {
-        var data = { action: 'updateStageStatus', orderNumber: orderNumber, status: newStatus, stage: 'ОТК' };
-        fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
-            .then(function(response) { return response.json(); })
-            .then(function(result) {
-                if (result.error) { showMessage(result.error, 'err'); return; }
-                showMessage('Заказ ' + orderNumber + ' — ' + newStatus, 'ok');
-                loadOtkOrders();
-            })
-            .catch(function(err) { showMessage('Ошибка: ' + err, 'err'); });
+    async function updateOtkOrder(orderNumber) {
+        await supabaseClient
+            .from('orders')
+            .update({ status: 'На упаковке' })
+            .eq('order_number', orderNumber);
+
+        await supabaseClient
+            .from('order_history')
+            .insert([
+                { 
+                    order_id: orderNumber, 
+                    stage: 'ОТК', 
+                    status: 'Завершено' 
+                }
+            ]);
+
+        showMessage('Заказ отправлен на упаковку', 'ok');
+        loadOtkOrders();
     }
 
     document.addEventListener('DOMContentLoaded', function() { loadOtkOrders(); });
