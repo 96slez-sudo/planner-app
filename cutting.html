@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Раскрой — Планировщик</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f4f6f9; padding: 16px; min-height: 100vh; display: flex; justify-content: center; }
@@ -72,7 +73,11 @@
     </div>
 </div>
 <script>
-    var API_URL = 'https://script.google.com/macros/s/AKfycbylukQfen66524Qr5EHGb5C3ZV2qL6Dilf15GOu12Ltpn65hVgHPeRMBni1yBJFg9BwzQ/exec';
+    const SUPABASE_URL = 'https://knuqfydp6kkdapivsnm.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_ваш_длинный_ключ_из_api_keys';
+
+    const { createClient } = supabase;
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     function showMessage(text, type) {
         var el = document.getElementById('message');
@@ -81,53 +86,55 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
-    function loadCuttingOrders() {
+    async function loadCuttingOrders() {
         var container = document.getElementById('cuttingList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
-        fetch(API_URL + '?action=getCuttingOrders&_=' + Date.now())
-        .then(function(response) { return response.json(); })
-        .then(function(result) {
-            if (result.error) { container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>'; return; }
-            if (!result.data || result.data.length === 0) { container.innerHTML = '<div class="empty">Нет заказов на раскрое</div>'; return; }
-            var html = '';
-            for (var i = 0; i < result.data.length; i++) {
-                var item = result.data[i];
-                var badgeClass = '';
-                var statusText = item.status || 'Ожидание';
-                if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
-                else if (statusText === 'В работе') badgeClass = 'badge-work';
-                else if (statusText === 'Выполнено') badgeClass = 'badge-done';
-                var typeBadge = '';
-                if (item.type) { typeBadge = ' <span class="badge badge-type">' + item.type + '</span>'; }
-                var infoText = '';
-                if (item.type === 'Р1') { infoText = item.rollId || 'Рулон'; }
-                else if (item.type === 'Р2') { infoText = 'Заказ (блоки: ' + item.blocks + ')'; }
-                html += '<div class="item">';
-                html += '  <div class="head">';
-                html += '    <span class="order-num">№ ' + item.order + ' — ' + infoText + typeBadge + '</span>';
-                html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
-                html += '  </div>';
-                html += '  <div class="order-meta">' + (item.shelf ? 'Стеллаж: ' + item.shelf : '') + '</div>';
-                html += '  <div class="actions">';
-                if (statusText === 'Ожидание') {
-                    html += '    <button class="btn btn-sm btn-success" onclick="updateCuttingOrder(\'' + item.order + '\', \'В работе\', \'' + item.type + '\', \'' + (item.rollId || '') + '\')">Взять в работу</button>';
-                } else if (statusText === 'В работе') {
-                    html += '    <button class="btn btn-sm btn-danger" onclick="updateCuttingOrder(\'' + item.order + '\', \'Выполнено\', \'' + item.type + '\', \'' + (item.rollId || '') + '\')">Завершить</button>';
-                }
-                html += '  </div>';
-                html += '</div>';
-            }
-            container.innerHTML = html;
-        })
-        .catch(function(err) { container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>'; });
+
+        const { data, error } = await supabaseClient
+            .from('orders')
+            .select('*')
+            .eq('status', 'На раскрое');
+
+        if (error) { container.innerHTML = '<div class="empty">Ошибка: ' + error.message + '</div>'; return; }
+        if (!data || data.length === 0) { container.innerHTML = '<div class="empty">Нет заказов на раскрое</div>'; return; }
+
+        var html = '';
+        data.forEach(function(item) {
+            var badgeClass = '';
+            var statusText = item.status || 'Ожидание';
+            if (statusText === 'На раскрое') badgeClass = 'badge-waiting';
+            var typeBadge = ' <span class="badge badge-type">Р2</span>';
+            html += '<div class="item">';
+            html += '  <div class="head">';
+            html += '    <span class="order-num">№ ' + item.order_number + ' — Заказ ' + typeBadge + '</span>';
+            html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
+            html += '  </div>';
+            html += '  <div class="actions">';
+            html += '    <button class="btn btn-sm btn-success" onclick="updateCuttingOrder(\'' + item.order_number + '\')">Взять в работу</button>';
+            html += '  </div>';
+            html += '</div>';
+        });
+        container.innerHTML = html;
     }
 
-    function updateCuttingOrder(orderNumber, newStatus, type, rollId) {
-        var url = API_URL + '?action=updateCuttingOrder&orderNumber=' + encodeURIComponent(orderNumber) + '&status=' + encodeURIComponent(newStatus) + '&type=' + encodeURIComponent(type) + '&rollId=' + encodeURIComponent(rollId || '');
-        var img = new Image();
-        img.src = url;
-        showMessage('Заказ ' + orderNumber + ' — ' + newStatus, 'ok');
-        setTimeout(loadCuttingOrders, 1500);
+    async function updateCuttingOrder(orderNumber) {
+        await supabaseClient
+            .from('orders')
+            .update({ status: 'На смоле' })
+            .eq('order_number', orderNumber);
+
+        await supabaseClient
+            .from('order_history')
+            .insert([
+                { 
+                    order_id: orderNumber, 
+                    stage: 'Раскрой', 
+                    status: 'Завершено' 
+                }
+            ]);
+
+        showMessage('Заказ отправлен на смолу', 'ok');
+        loadCuttingOrders();
     }
 
     document.addEventListener('DOMContentLoaded', function() { loadCuttingOrders(); });
