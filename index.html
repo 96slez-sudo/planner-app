@@ -119,8 +119,9 @@
     </div>
 </div>
 <script>
-    const SUPABASE_URL = 'https://knuqfydp6kkdapivsnm.supabase.co'; // ЗАМЕНИТЬ НА ССЫЛКУ ИЗ НАСТРОЕК
-    const SUPABASE_ANON_KEY = 'sb_publishable_6k1bwNvlNAjNYI9NrijXtg_clTUDrOJ'; // ЗАМЕНИТЬ НА КЛЮЧ ИЗ НАСТРОЕК
+    // ВСТАВЬТЕ СВОИ ДАННЫЕ ИЗ НАСТРОЕК SUPABASE (Settings -> API)
+    const SUPABASE_URL = 'https://knuqfydp6kkdapivsnm.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_6k1bwNvlNAjNYI9NrijXtg_clTUDrOJ';
 
     const { createClient } = supabase;
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -229,7 +230,6 @@
             html += '  <div class="order-stage">Приоритет: ' + item.priority + '</div>';
             html += '  <div class="order-meta">Дата создания: ' + item.creation_date + '</div>';
             html += '  <div class="actions">';
-            // Здесь можно добавить кнопки управления этапами позже
             html += '  </div>';
             html += '</div>';
         });
