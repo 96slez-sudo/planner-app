@@ -6,36 +6,53 @@
     <title>ОТК — Планировщик</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f0f2f5; padding: 16px; min-height: 100vh; display: flex; justify-content: center; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f4f6f9; padding: 16px; min-height: 100vh; display: flex; justify-content: center; }
         .container { max-width: 500px; width: 100%; }
-        .nav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; background: white; padding: 8px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .nav a { padding: 8px 14px; background: #e8ecf0; border-radius: 20px; text-decoration: none; font-size: 13px; color: #555; font-weight: 500; }
+        .header { margin-bottom: 16px; }
+        .header h1 { font-size: 22px; font-weight: 600; color: #1a1a2e; }
+        .header p { font-size: 14px; color: #888; }
+        .nav { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; background: white; padding: 8px; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        .nav a { padding: 6px 12px; background: #eef1f4; border-radius: 16px; text-decoration: none; font-size: 12px; color: #555; font-weight: 500; }
+        .nav a:hover { background: #dce0e4; }
         .nav a.active { background: #2c3e50; color: white; }
-        .card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .card h3 { margin-bottom: 12px; font-size: 18px; }
-        .btn { padding: 10px 20px; background: #2c3e50; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
-        .btn:active { transform: scale(0.98); }
+        .card { background: white; border-radius: 12px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); border: 1px solid #eaeef2; }
+        .card h3 { font-size: 16px; font-weight: 600; margin-bottom: 14px; color: #1a1a2e; }
+        .btn { padding: 8px 16px; background: #2c3e50; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn:hover { background: #1a252f; }
+        .btn-sm { padding: 5px 12px; font-size: 12px; }
         .btn-success { background: #27ae60; }
-        .btn-sm { padding: 6px 14px; font-size: 13px; }
-        .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+        .btn-success:hover { background: #1e8449; }
+        .badge { display: inline-block; padding: 3px 12px; border-radius: 16px; font-size: 12px; font-weight: 500; }
         .badge-waiting { background: #fff3cd; color: #856404; }
         .badge-work { background: #cce5ff; color: #004085; }
         .badge-done { background: #d4edda; color: #155724; }
-        .item { padding: 10px 0; border-bottom: 1px solid #eee; }
+        .item { padding: 12px 0; border-bottom: 1px solid #f0f2f5; }
         .item:last-child { border-bottom: none; }
-        .item .head { display: flex; justify-content: space-between; align-items: center; }
-        .msg { padding: 12px; border-radius: 8px; margin-bottom: 12px; display: none; font-size: 14px; }
+        .item .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
+        .item .order-num { font-weight: 600; font-size: 15px; color: #1a1a2e; }
+        .item .order-meta { font-size: 14px; color: #666; }
+        .item .actions { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .msg { padding: 12px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; display: none; }
         .msg.show { display: block; }
-        .msg.ok { background: #d4edda; color: #155724; }
-        .msg.err { background: #f8d7da; color: #721c24; }
-        .empty { text-align: center; padding: 32px 0; color: #999; font-size: 14px; }
-        .loading { text-align: center; padding: 20px 0; color: #999; font-size: 14px; }
-        .actions { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+        .msg.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .msg.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .empty { text-align: center; padding: 28px 0; color: #aaa; font-size: 14px; }
+        .loading { text-align: center; padding: 16px 0; color: #999; font-size: 14px; }
+        @media (max-width: 480px) {
+            body { padding: 12px; }
+            .card { padding: 14px; }
+            .nav a { font-size: 11px; padding: 5px 10px; }
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <div class="header">
+        <h1>ОТК</h1>
+        <p>Очередь заказов</p>
+    </div>
+
     <div class="nav">
         <a href="/planner-app/">Главная</a>
         <a href="/planner-app/prep.html">Подготовка</a>
@@ -51,9 +68,9 @@
     <div id="message" class="msg"></div>
 
     <div class="card">
-        <h3>🔍 ОТК — очередь заказов</h3>
-        <div id="ordersList"></div>
-        <button class="btn" style="width:100%; margin-top:12px; font-size:14px; padding:10px;" onclick="loadOrders()">Обновить</button>
+        <h3>Заказы на ОТК</h3>
+        <div id="otkList"></div>
+        <button class="btn" style="width:100%; margin-top:10px; background:#eef1f4; color:#333;" onclick="loadOtkOrders()">Обновить</button>
     </div>
 </div>
 
@@ -67,75 +84,71 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
-    function loadOrders() {
-        var container = document.getElementById('ordersList');
+    function loadOtkOrders() {
+        var container = document.getElementById('otkList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
 
-        fetch(API_URL + '?action=getOrders&_=' + Date.now())
-            .then(function(response) { return response.json(); })
-            .then(function(result) {
-                if (result.error) {
-                    container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>';
-                    return;
-                }
-                if (!result.data || result.data.length === 0) {
-                    container.innerHTML = '<div class="empty">Нет заказов на ОТК</div>';
-                    return;
-                }
-                var orders = result.data.filter(function(r) { return r.stage === 'ОТК' && r.status !== 'Завершено'; });
-                if (orders.length === 0) {
-                    container.innerHTML = '<div class="empty">Нет заказов на ОТК</div>';
-                    return;
-                }
-                var html = '';
-                orders.forEach(function(item) {
-                    var badgeClass = '';
-                    var statusText = item.status || 'Ожидание';
-                    if (statusText === 'Ожидание' || statusText === 'Запущен') badgeClass = 'badge-waiting';
-                    else if (statusText === 'В работе') badgeClass = 'badge-work';
-                    else if (statusText === 'Выполнено') badgeClass = 'badge-done';
+        fetch(API_URL + '?action=getStageOrders&stage=ОТК&_=' + Date.now())
+        .then(function(response) { return response.json(); })
+        .then(function(result) {
+            if (result.error) {
+                container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>';
+                return;
+            }
+            if (!result.data || result.data.length === 0) {
+                container.innerHTML = '<div class="empty">Нет заказов на ОТК</div>';
+                return;
+            }
+            var html = '';
+            result.data.forEach(function(item) {
+                var badgeClass = '';
+                var statusText = item.status || 'Ожидание';
+                if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
+                else if (statusText === 'В работе') badgeClass = 'badge-work';
+                else if (statusText === 'Выполнено') badgeClass = 'badge-done';
 
-                    html += '<div class="item">';
-                    html += '  <div class="head">';
-                    html += '    <span><strong>№ ' + item.order + '</strong> (' + item.blocks + ' блоков)</span>';
-                    html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
-                    html += '  </div>';
-                    html += '  <div class="actions">';
-                    if (statusText === 'Ожидание' || statusText === 'Запущен') {
-                        html += '    <button class="btn btn-sm btn-success" onclick="nextStage(\'' + item.order + '\')">Взять в работу</button>';
-                    } else if (statusText === 'В работе') {
-                        html += '    <button class="btn btn-sm btn-success" onclick="nextStage(\'' + item.order + '\')">Завершить</button>';
-                    }
-                    html += '  </div>';
-                    html += '</div>';
-                });
-                container.innerHTML = html;
-            })
-            .catch(function(err) {
-                container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>';
+                html += '<div class="item">';
+                html += '  <div class="head">';
+                html += '    <span class="order-num">№ ' + item.order + '</span>';
+                html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
+                html += '  </div>';
+                html += '  <div class="order-meta">Этап: ' + item.stage + '</div>';
+                html += '  <div class="actions">';
+                if (statusText === 'Ожидание') {
+                    html += '    <button class="btn btn-sm btn-success" onclick="updateStageOrder(\'' + item.order + '\', \'В работе\', \'ОТК\')">Взять в работу</button>';
+                } else if (statusText === 'В работе') {
+                    html += '    <button class="btn btn-sm btn-success" onclick="updateStageOrder(\'' + item.order + '\', \'Выполнено\', \'ОТК\')">Завершить</button>';
+                }
+                html += '  </div>';
+                html += '</div>';
             });
+            container.innerHTML = html;
+        })
+        .catch(function(err) {
+            container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>';
+        });
     }
 
-    function nextStage(orderNumber) {
-        var data = { action: 'nextStage', orderNumber: orderNumber };
+    function updateStageOrder(orderNumber, newStatus, stage) {
+        var data = { action: 'updateStageStatus', orderNumber: orderNumber, status: newStatus, stage: stage };
 
         fetch(API_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            })
-            .then(function() {
-                showMessage('Заказ ' + orderNumber + ' переведён', 'ok');
-                loadOrders();
-            })
-            .catch(function(err) {
-                showMessage('Ошибка: ' + err, 'err');
-            });
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(function() {
+            showMessage('Заказ ' + orderNumber + ' — ' + newStatus, 'ok');
+            loadOtkOrders();
+        })
+        .catch(function(err) {
+            showMessage('Ошибка: ' + err, 'err');
+        });
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-        loadOrders();
+        loadOtkOrders();
     });
 </script>
 
