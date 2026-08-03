@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Раскрой — Планировщик</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f0f2f5; padding: 16px; min-height: 100vh; display: flex; justify-content: center; }
+        .container { max-width: 500px; width: 100%; }
+        .nav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; background: white; padding: 8px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .nav a { padding: 8px 14px; background: #e8ecf0; border-radius: 20px; text-decoration: none; font-size: 13px; color: #555; font-weight: 500; }
+        .nav a.active { background: #2c3e50; color: white; }
+        .card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .card h3 { margin-bottom: 12px; font-size: 18px; }
+        .btn { padding: 10px 20px; background: #2c3e50; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .btn:active { transform: scale(0.98); }
+        .btn-success { background: #27ae60; }
+        .btn-danger { background: #e74c3c; }
+        .btn-sm { padding: 6px 14px; font-size: 13px; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+        .badge-waiting { background: #fff3cd; color: #856404; }
+        .badge-work { background: #cce5ff; color: #004085; }
+        .badge-done { background: #d4edda; color: #155724; }
+        .item { padding: 10px 0; border-bottom: 1px solid #eee; }
+        .item:last-child { border-bottom: none; }
+        .item .head { display: flex; justify-content: space-between; align-items: center; }
+        .msg { padding: 12px; border-radius: 8px; margin-bottom: 12px; display: none; font-size: 14px; }
+        .msg.show { display: block; }
+        .msg.ok { background: #d4edda; color: #155724; }
+        .msg.err { background: #f8d7da; color: #721c24; }
+        .empty { text-align: center; padding: 32px 0; color: #999; font-size: 14px; }
+        .loading { text-align: center; padding: 20px 0; color: #999; font-size: 14px; }
+        .actions { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="nav">
+        <a href="/planner-app/">Главная</a>
+        <a href="/planner-app/prep.html">Подготовка</a>
+        <a href="/planner-app/print.html">Печать</a>
+        <a href="/planner-app/cutter.html">Каттер</a>
+        <a href="/planner-app/cutting.html" class="active">Раскрой</a>
+        <a href="/planner-app/resin.html">Смола</a>
+        <a href="/planner-app/drying.html">Сушка</a>
+        <a href="/planner-app/otk.html">ОТК</a>
+        <a href="/planner-app/packing.html">Упаковка</a>
+    </div>
+
+    <div id="message" class="msg"></div>
+
+    <div class="card">
+        <h3>📐 Раскрой — очередь рулонов</h3>
+        <div id="rollsList"></div>
+        <button class="btn" style="width:100%; margin-top:12px; font-size:14px; padding:10px;" onclick="loadRolls()">Обновить</button>
+    </div>
+</div>
+
+<script>
+    const API_URL = 'https://script.google.com/macros/s/ВАШ_ID/exec';
+
+    function showMessage(text, type) {
+        var el = document.getElementById('message');
+        el.textContent = text;
+        el.className = 'msg show ' + type;
+        setTimeout(function() { el.classList.remove('show'); }, 5000);
+    }
+
+    function loadRolls() {
+        var container = document.getElementById('rollsList');
+        container.innerHTML = '<div class="loading">Загрузка...</div>';
+
+        fetch(API_URL + '?action=getRolls&_=' + Date.now())
+            .then(function(response) { return response.json(); })
+            .then(function(result) {
+                if (result.error) {
+                    container.innerHTML = '<div class="empty">Ошибка: ' + result.error + '</div>';
+                    return;
+                }
+                if (!result.data || result.data.length === 0) {
+                    container.innerHTML = '<div class="empty">Нет рулонов на раскрое</div>';
+                    return;
+                }
+                var rolls = result.data.filter(function(r) { return r.stage === 'Раскрой' && r.status !== 'Выполнено'; });
+                if (rolls.length === 0) {
+                    container.innerHTML = '<div class="empty">Нет рулонов на раскрое</div>';
+                    return;
+                }
+                var html = '';
+                rolls.forEach(function(item) {
+                    var badgeClass = '';
+                    var statusText = item.status || 'Ожидание';
+                    if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
+                    else if (statusText === 'В работе') badgeClass = 'badge-work';
+                    else if (statusText === 'Выполнено') badgeClass = 'badge-done';
+
+                    html += '<div class="item">';
+                    html += '  <div class="head">';
+                    html += '    <span><strong>№ ' + item.order + '</
