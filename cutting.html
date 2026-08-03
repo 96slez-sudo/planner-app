@@ -89,7 +89,7 @@
         }, 5000);
     }
 
-            function loadCuttingOrders() {
+                function loadCuttingOrders() {
         var container = document.getElementById('cuttingList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
 
@@ -107,24 +107,10 @@
                     return;
                 }
                 
-                // Убираем дубликаты по уникальной связке (Заказ + Стеллаж)
-                var uniqueItems = {};
+                var html = '';
+                // Просто перебираем все строки, не группируя их
                 for (var i = 0; i < result.data.length; i++) {
                     var item = result.data[i];
-                    var key = item.order + '_' + item.type + '_' + item.shelf;
-                    // Если это Р2 (у них есть стеллаж) и такой ключ уже есть — пропускаем
-                    if (item.type === 'Р2') {
-                         if (!uniqueItems[key]) uniqueItems[key] = item;
-                    } else {
-                         // Для Р1 используем обычный ключ
-                         var rKey = item.order + '_' + item.rollId;
-                         if (!uniqueItems[rKey]) uniqueItems[rKey] = item;
-                    }
-                }
-
-                var html = '';
-                for (var key in uniqueItems) {
-                    var item = uniqueItems[key];
                     var badgeClass = '';
                     var statusText = item.status || 'Ожидание';
                     if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
@@ -150,6 +136,8 @@
                     html += '  </div>';
                     html += '  <div class="order-meta">Стеллаж: ' + (item.shelf || '—') + '</div>';
                     html += '  <div class="actions">';
+                    
+                    // Формируем кнопки в зависимости от статуса
                     if (statusText === 'Ожидание') {
                         html += '    <button class="btn btn-sm btn-success" onclick="updateCuttingOrder(\'' + item.order + '\', \'В работе\', \'' + item.type + '\', \'' + (item.rollId || '') + '\')">Взять в работу</button>';
                     } else if (statusText === 'В работе') {
@@ -165,13 +153,30 @@
             });
     }
 
-    function updateCuttingOrder(orderNumber, newStatus, type, rollId) {
+        function updateCuttingOrder(orderNumber, newStatus, type, rollId) {
+        // Берем стеллаж прямо из элемента, над которым нажали
+        // Для этого мы ищем родительский div с классом .item
+        var shelf = "";
+        var buttons = document.querySelectorAll('.item .actions .btn');
+        // Это небольшой хак, чтобы найти стеллаж в текущей карточке
+        var parentItem = event.target.closest('.item');
+        if (parentItem) {
+            var metaDiv = parentItem.querySelector('.order-meta');
+            if (metaDiv) {
+                var metaText = metaDiv.textContent;
+                if (metaText.indexOf('Стеллаж: ') !== -1) {
+                    shelf = metaText.replace('Стеллаж: ', '').trim();
+                }
+            }
+        }
+
         var data = {
             action: 'updateCuttingOrder',
             orderNumber: orderNumber,
             status: newStatus,
             type: type,
-            rollId: rollId
+            rollId: rollId,
+            shelf: shelf // Передаем стеллаж на сервер!
         };
 
         fetch(API_URL, {
@@ -181,17 +186,13 @@
             body: JSON.stringify(data)
         })
             .then(function() {
-                showMessage('Заказ ' + orderNumber + ' — ' + newStatus, 'ok');
+                showMessage('Заказ ' + orderNumber + ' — ' + newStatus + ' (Стеллаж ' + shelf + ')', 'ok');
                 loadCuttingOrders();
             })
             ['catch'](function(err) {
                 showMessage('Ошибка: ' + err, 'err');
             });
     }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        loadCuttingOrders();
-    });
 </script>
 
 </body>
