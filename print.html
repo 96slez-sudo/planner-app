@@ -144,35 +144,36 @@
             });
     }
 
-            function updatePrintRoll(rollId, newStatus) {
-        // Генерируем уникальное имя для функции-обработчика, чтобы не было конфликтов
-        var callbackName = 'callback_' + Date.now();
-        
-        // Строим URL с параметрами и добавляем &callback=...
-        var url = API_URL + '?action=updateRoll&rollId=' + encodeURIComponent(rollId) + 
-                  '&status=' + encodeURIComponent(newStatus) + 
-                  '&callback=' + callbackName;
-        
-        // Создаем функцию, которую вызовет Google, когда вернет ответ
-        window[callbackName] = function(result) {
-            // Удаляем тег скрипта и очищаем память
-            document.body.removeChild(script);
-            delete window[callbackName];
-            
-            // Обрабатываем ответ
-            if (result && result.success) {
-                showMessage(result.message || 'Статус обновлён', 'ok');
-            } else {
-                showMessage((result && result.error) || 'Ошибка', 'err');
-            }
-            // Обновляем список
-            loadPrintRolls();
+               function updatePrintRoll(rollId, newStatus) {
+        // Создаем скрытую форму
+        var form = document.createElement('form');
+        form.method = 'GET';
+        form.action = API_URL;
+        form.target = '_blank'; // Открываем в новой пустой вкладке, чтобы не ломать приложение
+        form.style.display = 'none';
+
+        // Добавляем параметры в форму
+        var params = {
+            action: 'updateRoll',
+            rollId: rollId,
+            status: newStatus
         };
-        
-        // Создаем тег <script> с этим URL и вставляем в страницу
-        var script = document.createElement('script');
-        script.src = url;
-        document.body.appendChild(script);
+        for (var key in params) {
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = params[key];
+            form.appendChild(input);
+        }
+
+        // Вставляем форму, отправляем и сразу удаляем
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+
+        // Показываем сообщение и перезагружаем список через 2 секунды
+        showMessage('Рулон ' + rollId + ' — ' + newStatus, 'ok');
+        setTimeout(loadPrintRolls, 2000);
     }
 
     document.addEventListener('DOMContentLoaded', function() {
