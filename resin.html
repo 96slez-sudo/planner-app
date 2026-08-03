@@ -17,14 +17,13 @@
         .nav a.active { background: #2c3e50; color: white; }
         .card { background: white; border-radius: 12px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); border: 1px solid #eaeef2; }
         .card h3 { font-size: 16px; font-weight: 600; margin-bottom: 14px; color: #1a1a2e; }
-        .field { margin-bottom: 10px; }
-        .field label { display: block; font-size: 13px; font-weight: 500; color: #555; margin-bottom: 4px; }
-        .field select { width: 100%; padding: 10px 12px; border: 1.5px solid #dce0e5; border-radius: 8px; font-size: 15px; background: #fafbfc; }
         .btn { padding: 8px 16px; background: #2c3e50; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.2s; }
         .btn:hover { background: #1a252f; }
         .btn-sm { padding: 5px 12px; font-size: 12px; }
         .btn-success { background: #27ae60; }
         .btn-success:hover { background: #1e8449; }
+        .btn-danger { background: #e74c3c; }
+        .btn-danger:hover { background: #c0392b; }
         .badge { display: inline-block; padding: 3px 12px; border-radius: 16px; font-size: 12px; font-weight: 500; }
         .badge-waiting { background: #fff3cd; color: #856404; }
         .badge-work { background: #cce5ff; color: #004085; }
@@ -35,6 +34,9 @@
         .item .order-num { font-weight: 600; font-size: 15px; color: #1a1a2e; }
         .item .order-meta { font-size: 14px; color: #666; }
         .item .actions { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .field { margin-bottom: 10px; }
+        .field label { display: block; font-size: 13px; font-weight: 500; color: #555; margin-bottom: 4px; }
+        .field select { width: 100%; padding: 10px 12px; border: 1.5px solid #dce0e5; border-radius: 8px; font-size: 15px; background: #fafbfc; }
         .msg { padding: 12px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; display: none; }
         .msg.show { display: block; }
         .msg.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
@@ -108,8 +110,7 @@
                 var statusText = item.status || 'Ожидание';
                 if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
                 else if (statusText === 'В работе') badgeClass = 'badge-work';
-                else if (statusText === 'Выполнено') badgeClass = 'badge-done';
-                else if (statusText === 'Готов к сушке') badgeClass = 'badge-done';
+                else if (statusText === 'Выполнено' || statusText === 'Готов к сушке') badgeClass = 'badge-done';
 
                 html += '<div class="item">';
                 html += '  <div class="head">';
@@ -118,17 +119,10 @@
                 html += '  </div>';
                 html += '  <div class="order-meta">Блоков: ' + item.blocks + ' | Стеллаж: ' + (item.shelf || '—') + '</div>';
                 html += '  <div class="actions">';
-                if (item.status === 'Ожидание') {
-                    html += '    <div class="field" style="margin:6px 0;">';
-                    html += '      <label>Выберите стеллаж (A-H)</label>';
-                    html += '      <select id="shelf-' + item.order + '">';
-                    for (var s = 65; s <= 72; s++) {
-                        var letter = String.fromCharCode(s);
-                        html += '<option value="' + letter + '">' + letter + '</option>';
-                    }
-                    html += '      </select>';
-                    html += '    </div>';
-                    html += '    <button class="btn btn-sm btn-success" onclick="assignShelf(\'' + item.order + '\')">Назначить стеллаж</button>';
+                if (statusText === 'Ожидание') {
+                    html += '    <button class="btn btn-sm btn-success" onclick="updateResinOrder(\'' + item.order + '\', \'В работе\')">Взять в работу</button>';
+                } else if (statusText === 'В работе') {
+                    html += '    <button class="btn btn-sm btn-danger" onclick="updateResinOrder(\'' + item.order + '\', \'Выполнено\')">Завершить</button>';
                 }
                 html += '  </div>';
                 html += '</div>';
@@ -140,9 +134,8 @@
         });
     }
 
-    function assignShelf(orderNumber) {
-        var shelf = document.getElementById('shelf-' + orderNumber).value;
-        var data = { action: 'assignShelf', orderNumber: orderNumber, shelf: shelf };
+    function updateResinOrder(orderNumber, newStatus) {
+        var data = { action: 'updateResinStatus', orderNumber: orderNumber, status: newStatus };
 
         fetch(API_URL, {
             method: 'POST',
@@ -151,7 +144,7 @@
             body: JSON.stringify(data)
         })
         .then(function() {
-            showMessage('Заказ ' + orderNumber + ' назначен на стеллаж ' + shelf, 'ok');
+            showMessage('Заказ ' + orderNumber + ' — ' + newStatus, 'ok');
             loadResinOrders();
         })
         .catch(function(err) {
