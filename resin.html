@@ -103,11 +103,24 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
+    // Глобальная переменная для хранения свободных стеллажей
+    var availableShelves = [];
+
     function loadResinOrders() {
         var container = document.getElementById('resinList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
 
-        fetch(API_URL + '?action=getResinOrders&_=' + Date.now())
+        // Сначала получаем свободные стеллажи
+        fetch(API_URL + '?action=getAvailableShelves&_=' + Date.now())
+        .then(function(response) { return response.json(); })
+        .then(function(shelfResult) {
+            if (shelfResult.data) {
+                availableShelves = shelfResult.data;
+            }
+            
+            // Затем загружаем заказы
+            return fetch(API_URL + '?action=getResinOrders&_=' + Date.now());
+        })
         .then(function(response) { return response.json(); })
         .then(function(result) {
             if (result.error) {
@@ -140,33 +153,43 @@
                     html += '    <button class="btn btn-sm btn-success" onclick="updateResinOrder(\'' + item.order + '\', \'В работе\')">Взять в работу</button>';
                 }
                 
-                // 2. В работе → выбор стеллажа
+                // 2. В работе → выбор стеллажа (только из свободных)
                 if (statusText === 'В работе') {
-                    html += '    <div class="shelf-select">';
-                    html += '      <select id="shelf-' + item.order + '">';
-                    for (var s = 65; s <= 72; s++) {
-                        var letter = String.fromCharCode(s);
-                        html += '<option value="' + letter + '">' + letter + '</option>';
-                    }
-                    html += '      </select>';
-                    html += '      <input type="number" id="blocks-' + item.order + '" value="' + item.blocks + '" min="1" max="' + item.blocks + '">';
-                    html += '      <button class="btn btn-sm btn-success" onclick="assignShelf(\'' + item.order + '\')">Назначить</button>';
-                    html += '    </div>';
+                    // Проверяем, есть ли свободные стеллажи
+                    var available = availableShelves.filter(function(s) { return s.free > 0; });
                     
-                    // Если блоков больше 46 — показываем предупреждение и кнопку разделения
-                    if (item.blocks > 46) {
-                        html += '    <div class="split-section">';
-                        html += '      <label>Заказ больше 46 блоков. Разделить на несколько стеллажей:</label>';
-                        html += '      <div id="split-container-' + item.order + '">';
-                        html += '        <div class="split-row" id="split-row-1-' + item.order + '">';
-                        html += '          <select id="split-shelf-1-' + item.order + '">';
-                        for (var s = 65; s <= 72; s++) {
-                            var letter = String.fromCharCode(s);
-                            html += '<option value="' + letter + '">' + letter + '</option>';
+                    if (available.length === 0) {
+                        html += '    <div style="color:#e74c3c; font-size:13px; padding:4px 0;">Нет свободных стеллажей!</div>';
+                    } else {
+                        html += '    <div class="shelf-select">';
+                        html += '      <select id="shelf-' + item.order + '">';
+                        for (var i = 0; i < available.length; i++) {
+                            var s = available[i];
+                            html += '<option value="' + s.shelf + '">' + s.shelf + ' (свободно ' + s.free + ')' + '</option>';
                         }
-                        html += '          </select>';
-                        html += '          <input type="number" id="split-blocks-1-' + item.order + '" value="46" min="1" max="46">';
-                        html += '        </div>';
+                        html += '      </select>';
+                        html += '      <input type="number" id="blocks-' + item.order + '" value="' + Math.min(item.blocks, 46) + '" min="1" max="' + Math.min(item.blocks, 46) + '">';
+                        html += '      <button class="btn btn-sm btn-success" onclick="assignShelf(\'' + item.order + '\')">Назначить</button>';
+                        html += '    </div>';
+                    }
+                    
+                    // Если блоков больше 46 — показываем разделение
+                    if (item.blocks > 46 && available.length > 1) {
+                        html += '    <div class="split-section">';
+                        html += '      <label>Разделить на несколько стеллажей (доступно ' + available.length + '):</label>';
+                        html += '      <div id="split-container-' + item.order + '">';
+                        // По умолчанию добавляем 2 строки
+                        for (var r = 1; r <= 2; r++) {
+                            html += '        <div class="split-row" id="split-row-' + r + '-' + item.order + '">';
+                            html += '          <select id="split-shelf-' + r + '-' + item.order + '">';
+                            for (var i = 0; i < available.length; i++) {
+                                var s = available[i];
+                                html += '<option value="' + s.shelf + '">' + s.shelf + ' (своб. ' + s.free + ')' + '</option>';
+                            }
+                            html += '          </select>';
+                            html += '          <input type="number" id="split-blocks-' + r + '-' + item.order + '" value="46" min="1" max="46">';
+                            html += '        </div>';
+                        }
                         html += '      </div>';
                         html += '      <button class="btn btn-sm btn-warning" onclick="addSplitRow(\'' + item.order + '\')">+ Добавить стеллаж</button>';
                         html += '      <button class="btn btn-sm btn-success" onclick="splitOrder(\'' + item.order + '\')">Разделить и назначить</button>';
@@ -193,17 +216,19 @@
     function addSplitRow(orderNumber) {
         var container = document.getElementById('split-container-' + orderNumber);
         var rowCount = container.children.length + 1;
+        var available = availableShelves.filter(function(s) { return s.free > 0; });
+        
         var newRow = document.createElement('div');
         newRow.className = 'split-row';
         newRow.id = 'split-row-' + rowCount + '-' + orderNumber;
         
         var select = document.createElement('select');
         select.id = 'split-shelf-' + rowCount + '-' + orderNumber;
-        for (var s = 65; s <= 72; s++) {
-            var letter = String.fromCharCode(s);
+        for (var i = 0; i < available.length; i++) {
+            var s = available[i];
             var option = document.createElement('option');
-            option.value = letter;
-            option.textContent = letter;
+            option.value = s.shelf;
+            option.textContent = s.shelf + ' (своб. ' + s.free + ')';
             select.appendChild(option);
         }
         newRow.appendChild(select);
@@ -256,7 +281,6 @@
             return;
         }
         
-        // Проверяем каждый стеллаж
         var data = { action: 'splitShelf', orderNumber: orderNumber, splits: splits };
         
         fetch(API_URL, {
