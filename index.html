@@ -127,7 +127,7 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
-    function createOrder() {
+        function createOrder() {
         var orderNumber = document.getElementById('orderNumber').value.trim();
         var creationDate = document.getElementById('creationDate').value;
         var planDate = document.getElementById('planDate').value;
@@ -137,40 +137,36 @@
         if (!creationDate) { showMessage('Выберите дату создания', 'err'); return; }
         if (!planDate) { showMessage('Выберите плановую дату', 'err'); return; }
 
-        var data = {
-            action: 'createOrder',
-            orderNumber: orderNumber,
-            creationDate: creationDate,
-            planDate: planDate,
-            priority: priority,
-            r1: document.getElementById('r1').checked,
-            resin: document.getElementById('resin').checked,
-            r2: document.getElementById('r2').checked
-        };
         var btn = document.querySelector('.card .btn');
         btn.disabled = true;
         btn.textContent = 'Запуск...';
 
-        fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        })
-        .then(function(response) { return response.json(); })
-        .then(function(result) {
-            btn.disabled = false;
-            btn.textContent = 'Запустить заказ';
-            if (result.error) { showMessage(result.error, 'err'); return; }
-            showMessage('Заказ ' + orderNumber + ' создан', 'ok');
-            document.getElementById('orderNumber').value = '';
-            document.getElementById('creationDate').value = '';
-            document.getElementById('planDate').value = '';
-            document.getElementById('r1').checked = false;
-            document.getElementById('resin').checked = false;
-            document.getElementById('r2').checked = false;
-            loadOrders();
-        })
-        .catch(function(err) { btn.disabled = false; btn.textContent = 'Запустить заказ'; showMessage('Ошибка: ' + err, 'err'); });
+        // Формируем URL с параметрами
+        var url = API_URL 
+            + '?action=createOrder'
+            + '&orderNumber=' + encodeURIComponent(orderNumber)
+            + '&creationDate=' + encodeURIComponent(creationDate)
+            + '&planDate=' + encodeURIComponent(planDate)
+            + '&priority=' + encodeURIComponent(priority)
+            + '&r1=' + (document.getElementById('r1').checked ? 'true' : 'false')
+            + '&resin=' + (document.getElementById('resin').checked ? 'true' : 'false')
+            + '&r2=' + (document.getElementById('r2').checked ? 'true' : 'false');
+
+        // Отправка через new Image() — полностью обходит CORS
+        var img = new Image();
+        img.src = url;
+
+        btn.disabled = false;
+        btn.textContent = 'Запустить заказ';
+        
+        showMessage('Заказ ' + orderNumber + ' создан', 'ok');
+        document.getElementById('orderNumber').value = '';
+        document.getElementById('creationDate').value = '';
+        document.getElementById('planDate').value = '';
+        document.getElementById('r1').checked = false;
+        document.getElementById('resin').checked = false;
+        document.getElementById('r2').checked = false;
+        setTimeout(loadOrders, 1500);
     }
 
     function loadOrders() {
