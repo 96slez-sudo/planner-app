@@ -17,6 +17,9 @@
         .nav a.active { background: #2c3e50; color: white; }
         .card { background: white; border-radius: 12px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); border: 1px solid #eaeef2; }
         .card h3 { font-size: 16px; font-weight: 600; margin-bottom: 14px; color: #1a1a2e; }
+        .field { margin-bottom: 10px; }
+        .field label { display: block; font-size: 13px; font-weight: 500; color: #555; margin-bottom: 4px; }
+        .field select { width: 100%; padding: 10px 12px; border: 1.5px solid #dce0e5; border-radius: 8px; font-size: 15px; background: #fafbfc; }
         .btn { padding: 8px 16px; background: #2c3e50; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.2s; }
         .btn:hover { background: #1a252f; }
         .btn-sm { padding: 5px 12px; font-size: 12px; }
@@ -24,16 +27,22 @@
         .btn-success:hover { background: #1e8449; }
         .btn-danger { background: #e74c3c; }
         .btn-danger:hover { background: #c0392b; }
+        .btn-warning { background: #f39c12; color: white; }
+        .btn-warning:hover { background: #d68910; }
         .badge { display: inline-block; padding: 3px 12px; border-radius: 16px; font-size: 12px; font-weight: 500; }
         .badge-waiting { background: #fff3cd; color: #856404; }
         .badge-work { background: #cce5ff; color: #004085; }
         .badge-done { background: #d4edda; color: #155724; }
+        .badge-drying { background: #fdebd0; color: #935e38; }
         .item { padding: 12px 0; border-bottom: 1px solid #f0f2f5; }
         .item:last-child { border-bottom: none; }
         .item .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
         .item .order-num { font-weight: 600; font-size: 15px; color: #1a1a2e; }
         .item .order-meta { font-size: 14px; color: #666; }
-        .item .actions { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .item .actions { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+        .item .actions .btn { margin-right: 4px; }
+        .shelf-select { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+        .shelf-select select { padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
         .msg { padding: 12px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; display: none; }
         .msg.show { display: block; }
         .msg.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
@@ -103,8 +112,21 @@
             }
             var html = '';
             result.data.forEach(function(item) {
-                var statusText = item.packed ? 'На сушке' : 'Свободен';
-                var badgeClass = item.packed ? 'badge-work' : 'badge-waiting';
+                var badgeClass = '';
+                var statusText = 'Свободен';
+                
+                if (item.packed && !item.rolledOut) {
+                    statusText = 'На сушке';
+                    badgeClass = 'badge-drying';
+                } else if (item.packed && item.rolledOut) {
+                    statusText = 'Готов к выкату';
+                    badgeClass = 'badge-done';
+                } else if (!item.packed && item.count > 0) {
+                    statusText = 'Укомплектован';
+                    badgeClass = 'badge-work';
+                } else {
+                    badgeClass = 'badge-waiting';
+                }
 
                 html += '<div class="item">';
                 html += '  <div class="head">';
@@ -116,12 +138,28 @@
                     html += '  <div class="order-meta">Заказы: ' + item.orders + '</div>';
                 }
                 html += '  <div class="actions">';
-                if (!item.packed && item.count > 0) {
-                    html += '    <button class="btn btn-sm btn-success" onclick="startDrying(\'' + item.shelf + '\')">Начать сушку</button>';
+                
+                // --- ЛОГИКА КНОПОК ---
+                // 1. Если стеллаж собран (есть заказы, но не укомплектован)
+                if (item.count > 0 && !item.packed && !item.rolledOut) {
+                    // Выбор зоны + кнопка "Укомплектовать"
+                    html += '    <div class="shelf-select">';
+                    html += '      <select id="zone-' + item.shelf + '">';
+                    for (var z = 1; z <= 5; z++) {
+                        html += '<option value="Зона ' + z + '">Зона ' + z + '</option>';
+                    }
+                    html += '      </select>';
+                    html += '      <button class="btn btn-sm btn-success" onclick="packShelf(\'' + item.shelf + '\')">Укомплектовать</button>';
+                    html += '    </div>';
                 }
+                
+                // 2. Если стеллаж на сушке
                 if (item.packed && !item.rolledOut) {
-                    html += '    <button class="btn btn-sm btn-danger" onclick="finishDrying(\'' + item.shelf + '\')">Выкатить</button>';
+                    html += '    <button class="btn btn-sm btn-danger" onclick="rollOutShelf(\'' + item.shelf + '\')">Выкатить</button>';
                 }
+                
+                // 3. Если стеллаж уже выкатили — ничего не показываем
+                
                 html += '  </div>';
                 html += '</div>';
             });
@@ -132,8 +170,9 @@
         });
     }
 
-    function startDrying(shelf) {
-        var data = { action: 'startDrying', shelf: shelf };
+    function packShelf(shelf) {
+        var zone = document.getElementById('zone-' + shelf).value;
+        var data = { action: 'packShelf', shelf: shelf, zone: zone };
 
         fetch(API_URL, {
             method: 'POST',
@@ -142,7 +181,7 @@
             body: JSON.stringify(data)
         })
         .then(function() {
-            showMessage('Сушка для стеллажа ' + shelf + ' начата', 'ok');
+            showMessage('Стеллаж ' + shelf + ' укомплектован, зона ' + zone, 'ok');
             loadDryingOrders();
         })
         .catch(function(err) {
@@ -150,8 +189,8 @@
         });
     }
 
-    function finishDrying(shelf) {
-        var data = { action: 'finishDrying', shelf: shelf };
+    function rollOutShelf(shelf) {
+        var data = { action: 'rollOutShelf', shelf: shelf };
 
         fetch(API_URL, {
             method: 'POST',
@@ -160,7 +199,7 @@
             body: JSON.stringify(data)
         })
         .then(function() {
-            showMessage('Стеллаж ' + shelf + ' освобождён', 'ok');
+            showMessage('Стеллаж ' + shelf + ' выкатили', 'ok');
             loadDryingOrders();
         })
         .catch(function(err) {
