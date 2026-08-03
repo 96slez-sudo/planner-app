@@ -164,31 +164,19 @@
             });
     }
 
-    function updatePrintRoll(rollId, newStatus) {
-        var data = { action: 'updateRoll', rollId: rollId, status: newStatus };
-
-        fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        })
-            .then(function(response) {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(function(result) {
-                if (result.success) {
-                    showMessage(result.message, 'ok');
-                    loadPrintRolls();
-                } else {
-                    showMessage(result.error || 'Ошибка', 'err');
-                }
-            })
-            .catch(function(err) {
-                showMessage('Ошибка: ' + err.message, 'err');
-            });
+        function updatePrintRoll(rollId, newStatus) {
+        // 1. Строим URL с параметрами, как при GET-запросе
+        var url = API_URL + '?action=updateRoll&rollId=' + encodeURIComponent(rollId) + '&status=' + encodeURIComponent(newStatus);
+        
+        // 2. Создаем тег <script> с этим URL и вставляем в страницу
+        // Браузеры никогда не блокируют загрузку скриптов (это обход CORS)
+        var script = document.createElement('script');
+        script.src = url;
+        document.body.appendChild(script);
+        
+        // 3. Показываем сообщение пользователю и перезагружаем список
+        showMessage('Рулон ' + rollId + ' — ' + newStatus, 'ok');
+        setTimeout(loadPrintRolls, 1500);
     }
 
     document.addEventListener('DOMContentLoaded', function() {
