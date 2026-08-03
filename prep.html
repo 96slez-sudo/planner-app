@@ -134,12 +134,12 @@
         }
         if (sum === 0) { showMessage('Заполните хотя бы один рулон', 'err'); return; }
 
-        // 1. Сохраняем каждый рулон в таблицу rolls
-        var rollPromises = [];
+        // Сохраняем каждый рулон в таблицу rolls
+        var promises = [];
         for (var key in rolls) {
             var index = parseInt(key.replace('roll_', ''));
             var blocks = rolls[key];
-            rollPromises.push(
+            promises.push(
                 supabaseClient
                     .from('rolls')
                     .insert([
@@ -152,9 +152,9 @@
                     ])
             );
         }
-        await Promise.all(rollPromises);
+        await Promise.all(promises);
 
-        // 2. Обновляем статус заказа и пишем историю
+        // Обновляем статус заказа
         await supabaseClient
             .from('orders')
             .update({ status: 'На печати' })
