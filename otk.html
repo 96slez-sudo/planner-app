@@ -92,6 +92,7 @@
         var container = document.getElementById('otkList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
 
+        // ЯВНО ПЕРЕДАЁМ stage=ОТК
         fetch(API_URL + '?action=getStageOrders&stage=ОТК&_=' + Date.now())
             .then(function(response) {
                 return response.json();
@@ -108,6 +109,9 @@
                 var html = '';
                 for (var i = 0; i < result.data.length; i++) {
                     var item = result.data[i];
+                    // Дополнительная проверка: если этап не ОТК — пропускаем
+                    if (item.stage !== 'ОТК') continue;
+                    
                     var badgeClass = '';
                     var statusText = item.status || 'Ожидание';
                     if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
@@ -129,7 +133,11 @@
                     html += '  </div>';
                     html += '</div>';
                 }
-                container.innerHTML = html;
+                if (html === '') {
+                    container.innerHTML = '<div class="empty">Нет заказов на ОТК</div>';
+                } else {
+                    container.innerHTML = html;
+                }
             })
             ['catch'](function(err) {
                 container.innerHTML = '<div class="empty">Ошибка: ' + err + '</div>';
