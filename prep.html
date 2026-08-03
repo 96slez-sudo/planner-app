@@ -94,10 +94,11 @@
         var container = document.getElementById('prepList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
 
+        // Фильтруем по этапу "Подготовка"
         const { data, error } = await supabaseClient
             .from('orders')
             .select('*')
-            .eq('status', 'Запущен');
+            .eq('stage', 'Подготовка');
 
         if (error) { container.innerHTML = '<div class="empty">Ошибка: ' + error.message + '</div>'; return; }
         if (!data || data.length === 0) { container.innerHTML = '<div class="empty">Нет заказов в подготовке</div>'; return; }
@@ -154,10 +155,10 @@
         }
         await Promise.all(promises);
 
-        // Обновляем статус заказа
+        // Обновляем статус и этап заказа
         await supabaseClient
             .from('orders')
-            .update({ status: 'На печати' })
+            .update({ status: 'На печати', stage: 'Печать' })
             .eq('order_number', orderNumber);
 
         await supabaseClient
