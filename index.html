@@ -146,6 +146,13 @@
         btn.disabled = true;
         btn.textContent = 'Запуск...';
 
+        // Определяем путь заказа
+        var path = '';
+        if (document.getElementById('r1').checked && document.getElementById('r2').checked) path = 'Р1+Р2';
+        else if (document.getElementById('r1').checked) path = 'Р1';
+        else if (document.getElementById('r2').checked) path = 'Р2';
+        else path = 'Нет';
+
         const { data, error } = await supabaseClient
             .from('orders')
             .insert([
@@ -158,11 +165,13 @@
                     resin: document.getElementById('resin').checked,
                     r2: document.getElementById('r2').checked,
                     status: 'Запущен',
-                    stage: 'Подготовка'
+                    stage: 'Подготовка',
+                    path: path
                 }
             ]);
 
         if (!error) {
+            // Записываем в историю
             await supabaseClient
                 .from('order_history')
                 .insert([
@@ -170,6 +179,17 @@
                         order_id: orderNumber, 
                         stage: 'Создание', 
                         status: 'Запущен' 
+                    }
+                ]);
+
+            // Создаём запись в таблице этапов (stages)
+            await supabaseClient
+                .from('stages')
+                .insert([
+                    {
+                        order_number: orderNumber,
+                        stage: 'Подготовка',
+                        status: 'Ожидание'
                     }
                 ]);
         }
