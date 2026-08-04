@@ -126,7 +126,7 @@
         }
         .btn-red:hover { opacity: 0.8; }
 
-        /* ===== Панель стеллажей ===== */
+        /* ===== ПАНЕЛЬ СТЕЛЛАЖЕЙ ===== */
         .shelf-panel {
             margin-top: 20px;
             padding-top: 16px;
@@ -160,39 +160,60 @@
         .shelf-item {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 6px 12px;
-            border: 2px solid #6c6c6c;
-            border-radius: 8px;
+            gap: 6px;
+            padding: 4px 8px;
+            border: 1px solid #6c6c6c;
+            border-radius: 6px;
             background: #ffffff;
-            cursor: pointer;
-            transition: 0.2s;
             min-height: 48px;
         }
-        .shelf-item:hover { border-color: #0f8653; }
-        .shelf-item.selected {
-            border-color: #0f8653;
-            background-color: #e6f8e6;
-        }
-        .shelf-item .letter { font-weight: 600; font-size: 18px; width: 24px; color: #161616; }
-        
-        /* Красивые состояния стеллажей */
-        .shelf-item .state {
-            flex: 1;
-            font-size: 15px;
-        }
-        .shelf-item .state.free { color: #0f8653; }      /* Свободен — зелёный текст */
-        .shelf-item .state.free-busy { color: #d4b300; }  /* Частично занят — жёлтый текст */
-        .shelf-item .state.taken { color: #999; }         /* Занят — серый текст */
-        
-        /* Занятый стеллаж — серый фон */
-        .shelf-item.taken-bg {
-            background-color: #cdcdcd;
-            border-color: #b0b0b0;
-            cursor: not-allowed;
+
+        /* Стили для состояния Занят (серый) */
+        .shelf-item.occupied {
+            background-color: #a0a0a0;
+            border-color: #888;
             opacity: 0.6;
         }
-        
+        .shelf-item.occupied .letter { background: #777; color: #fff; }
+        .shelf-item.occupied .state-text { color: #444; }
+
+        /* Стили для состояния Свободно частично (жёлтый) */
+        .shelf-item.partial {
+            background-color: #ffe066;
+            border-color: #d4b300;
+        }
+        .shelf-item.partial .state-text { color: #7d6608; }
+
+        /* Буква стеллажа — кнопка */
+        .letter {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            background: #cdcdcd;
+            color: #161616;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.2s;
+            flex-shrink: 0;
+        }
+        .letter:hover { background: #b0b0b0; }
+        .letter.selected {
+            background: #0f8653;
+            color: #ffffff;
+        }
+
+        /* Текст состояния */
+        .state-text {
+            flex: 1;
+            font-size: 15px;
+            color: #161616;
+        }
+
+        /* Поле ввода кол-ва блоков */
         .shelf-item .input-blocks {
             width: 50px;
             padding: 4px;
@@ -201,10 +222,8 @@
             text-align: center;
             font-size: 15px;
             font-family: 'Science Gothic', sans-serif;
-            display: none;
+            background: #fff;
         }
-        .shelf-item.selected .input-blocks { display: block; }
-        .shelf-item.selected .state { display: none; }
 
         .assign-btn-wrap { margin-top: 16px; }
         .btn-assign {
@@ -253,10 +272,10 @@
             .stage-btn { font-size: 14px; padding: 6px 12px; }
             .page-title { font-size: 26px; }
             .shelf-title-row h4 { font-size: 18px; }
+            .shelf-grid { grid-template-columns: 1fr; }
         }
         @media (max-width: 480px) {
             .header { flex-direction: column; align-items: flex-start; gap: 4px; }
-            .shelf-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -301,6 +320,7 @@
     }
 
     async function renderShelfPanel(orderNumber, totalBlocks) {
+        // Получаем текущее состояние сушки
         const { data: drying } = await supabaseClient
             .from('stages')
             .select('*')
@@ -320,22 +340,22 @@
         for (let l of letters) {
             const occupied = drying?.find(d => d.shelf === l);
             let stateText = 'Свободен';
-            let stateClass = 'free';
+            let mainClass = '';
             let taken = false;
-            let bgClass = '';
 
             if (occupied) {
                 stateText = 'Занят';
-                stateClass = 'taken';
+                mainClass = 'occupied';
                 taken = true;
-                bgClass = 'taken-bg';
             }
 
             html += `
-                <div class="shelf-item ${bgClass}" id="shelf-${orderNumber}-${l}" data-order="${orderNumber}" data-shelf="${l}" data-taken="${taken}" onclick="${taken ? '' : `selectShelf('${orderNumber}', '${l}')`}">
-                    <span class="letter">${l}</span>
-                    <span class="state ${stateClass}">${stateText}</span>
-                    <input type="number" class="input-blocks" id="input-${orderNumber}-${l}" min="1" max="46" placeholder="0" />
+                <div class="shelf-item ${mainClass}" id="shelf-${orderNumber}-${l}">
+                    <div class="letter" id="letter-${orderNumber}-${l}" data-order="${orderNumber}" data-shelf="${l}" data-taken="${taken}" onclick="${taken ? '' : `selectShelf('${orderNumber}', '${l}')`}" style="${taken ? 'cursor:not-allowed;' : ''}">
+                        ${l}
+                    </div>
+                    <span class="state-text">${stateText}</span>
+                    <input type="number" class="input-blocks" id="input-${orderNumber}-${l}" min="1" max="46" placeholder="0" ${taken ? 'disabled' : ''} />
                 </div>
             `;
         }
@@ -352,38 +372,32 @@
 
     function selectShelf(orderNumber, shelf) {
         const panel = document.getElementById(`panel-${orderNumber}`);
-        const items = panel.querySelectorAll('.shelf-item');
-        items.forEach(el => {
-            if (el.dataset.taken === 'true') return;
-            if (el.dataset.shelf === shelf) {
-                el.classList.toggle('selected');
-            } else {
-                el.classList.remove('selected');
-            }
-        });
+        const letter = panel.querySelector(`#letter-${orderNumber}-${shelf}`);
+        if (!letter) return;
+        letter.classList.toggle('selected');
     }
 
     async function autoAssign(orderNumber, totalBlocks) {
         const panel = document.getElementById(`panel-${orderNumber}`);
-        const items = panel.querySelectorAll('.shelf-item');
-        items.forEach(el => {
-            if (el.dataset.taken === 'true') return;
-            el.classList.remove('selected');
-            const input = el.querySelector('.input-blocks');
-            if (input) input.value = '';
-        });
+        const letters = panel.querySelectorAll('.letter');
+        
+        letters.forEach(el => el.classList.remove('selected'));
+        const inputs = panel.querySelectorAll('.input-blocks');
+        inputs.forEach(inp => inp.value = '');
 
         let remaining = totalBlocks;
         const selected = [];
 
-        for (let el of items) {
+        for (let el of letters) {
             if (el.dataset.taken === 'true') continue;
             if (remaining <= 0) break;
+            
             const shelf = el.dataset.shelf;
             const take = Math.min(remaining, 46);
             selected.push({ shelf, blocks: take });
+            
             el.classList.add('selected');
-            const input = el.querySelector('.input-blocks');
+            const input = panel.querySelector(`#input-${orderNumber}-${shelf}`);
             if (input) input.value = take;
             remaining -= take;
         }
@@ -398,13 +412,13 @@
 
     async function manualAssignAndFinish(orderNumber) {
         const panel = document.getElementById(`panel-${orderNumber}`);
-        const items = panel.querySelectorAll('.shelf-item.selected');
+        const letters = panel.querySelectorAll('.letter.selected');
         const assignments = [];
 
         let totalAssigned = 0;
-        for (let el of items) {
+        for (let el of letters) {
             const shelf = el.dataset.shelf;
-            const input = el.querySelector('.input-blocks');
+            const input = panel.querySelector(`#input-${orderNumber}-${shelf}`);
             const blocks = parseInt(input?.value) || 0;
             if (blocks > 0 && blocks <= 46) {
                 assignments.push({ shelf, blocks });
