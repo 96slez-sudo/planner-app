@@ -88,8 +88,7 @@
             font-family: 'Science Gothic', sans-serif;
             font-size: 15px;
             background: #fff;
-            height: 40px; /* ЕДИНАЯ ВЫСОТА 40px */
-            min-width: 70px;
+            height: 40px;
         }
 
         /* Ширина колонок */
@@ -99,9 +98,17 @@
         .col-status { width: 200px; }
         .col-actions { width: 160px; }
 
-        /* СТАТУСЫ: ФОН (плашки) */
-        .status-wait { background-color: #e0e0e0; border-color: #b0b0b0; color: #555; }
-        .status-work { background-color: #ffe066; border-color: #d4b300; color: #1a1a1a; }
+        /* ЦВЕТНЫЕ ПЛАШКИ (с !important как на главной) */
+        .status-wait { 
+            background: #e0e0e0 !important; 
+            border-color: #b0b0b0 !important; 
+            color: #555 !important; 
+        }
+        .status-work { 
+            background: #ffe066 !important; 
+            border-color: #d4b300 !important; 
+            color: #1a1a1a !important; 
+        }
 
         .btn-green {
             display: inline-flex;
