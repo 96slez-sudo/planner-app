@@ -335,8 +335,8 @@
                     <div class="col col-actions">
                         <div class="label">&nbsp;</div>
                         ${item.status === 'Ожидание' 
-                            ? `<button class="btn-green" onclick="updateCuttingItem('${item.id}', '${item.type}', 'В работе')">Взять в работу</button>` 
-                            : `<button class="btn-red" onclick="updateCuttingItem('${item.id}', '${item.type}', 'Выполнено')">Завершить</button>`
+                            ? `<button class="btn-green" onclick="updateCuttingItem('${item.id}', '${item.type}')">Взять в работу</button>` 
+                            : `<button class="btn-red" onclick="updateCuttingItem('${item.id}', '${item.type}')">Завершить</button>`
                         }
                     </div>
                 </div>
@@ -345,11 +345,11 @@
         container.innerHTML = html;
     }
 
-    async function updateCuttingItem(id, type, newStatus) {
+    async function updateCuttingItem(id, type) {
         let orderNumber = null;
 
         if (type === 'Р1') {
-            // Получаем номер заказа перед обновлением
+            // Получаем номер заказа из рулона
             const { data: rollData } = await supabaseClient
                 .from('rolls')
                 .select('order_number')
@@ -357,16 +357,17 @@
                 .single();
             if (rollData) orderNumber = rollData.order_number;
 
+            // Обновляем статус рулона
             const { error } = await supabaseClient
                 .from('rolls')
-                .update({ status: newStatus })
+                .update({ status: 'Выполнено' })
                 .eq('id', id);
             if (error) {
                 showMessage('Ошибка обновления рулона', 'err');
                 return;
             }
         } else if (type === 'Р2') {
-            // Получаем номер заказа перед обновлением
+            // Получаем номер заказа из этапа
             const { data: stageData } = await supabaseClient
                 .from('stages')
                 .select('order_number')
@@ -374,9 +375,10 @@
                 .single();
             if (stageData) orderNumber = stageData.order_number;
 
+            // Обновляем статус этапа
             const { error } = await supabaseClient
                 .from('stages')
-                .update({ status: newStatus })
+                .update({ status: 'Выполнено' })
                 .eq('id', id);
             if (error) {
                 showMessage('Ошибка обновления этапа', 'err');
@@ -384,15 +386,16 @@
             }
         }
 
-        // Если завершили и есть номер заказа — проверяем, не последний ли это
-        if (newStatus === 'Выполнено' && orderNumber) {
-            // Считаем оставшиеся рулоны или стеллажи
+        // Если есть номер заказа — проверяем, все ли завершены
+        if (orderNumber) {
+            // Считаем оставшиеся рулоны Р1 (они в rolls)
             const { count: rollCount } = await supabaseClient
                 .from('rolls')
                 .select('*', { count: 'exact', head: true })
                 .eq('order_number', orderNumber)
                 .neq('status', 'Выполнено');
 
+            // Считаем оставшиеся этапы Р2 (они в stages)
             const { count: stageCount } = await supabaseClient
                 .from('stages')
                 .select('*', { count: 'exact', head: true })
@@ -402,8 +405,16 @@
 
             const remaining = (rollCount || 0) + (stageCount || 0);
 
+            // Если ничего не осталось — переходим на следующий этап
             if (remaining === 0) {
-                // Загружаем данные заказа
+                // Закрываем текущий этап в stages
+                await supabaseClient
+                    .from('stages')
+                    .update({ status: 'Выполнено' })
+                    .eq('order_number', orderNumber)
+                    .eq('stage', 'Раскрой');
+
+                // Получаем данные заказа для маршрута
                 const { data: order } = await supabaseClient
                     .from('orders')
                     .select('r1, resin, r2')
@@ -422,14 +433,7 @@
                     nextStageName = 'Раскрой Р2';
                 }
 
-                // Закрываем этап
-                await supabaseClient
-                    .from('stages')
-                    .update({ status: 'Выполнено' })
-                    .eq('order_number', orderNumber)
-                    .eq('stage', 'Раскрой');
-
-                // Создаём следующий этап
+                // Создаём следующий этап в stages
                 await supabaseClient
                     .from('stages')
                     .insert([
@@ -443,15 +447,13 @@
                 // Обновляем заказ
                 await supabaseClient
                     .from('orders')
-                    .update({ stage: nextStage })
+                    .update({ stage: nextStage, status: 'Ожидание' })
                     .eq('order_number', orderNumber);
 
-                showMessage(`Все рулоны завершены! Заказ переведён на ${nextStageName}`, 'ok');
+                showMessage(`Все завершены! Заказ переведён на ${nextStageName}`, 'ok');
             } else {
-                showMessage('Рулон/стеллаж завершён. Осталось: ' + remaining, 'ok');
+                showMessage(`Осталось выполнить: ${remaining}`, 'ok');
             }
-        } else {
-            showMessage('Статус обновлён', 'ok');
         }
 
         loadCuttingOrders();
