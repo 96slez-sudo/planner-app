@@ -97,20 +97,19 @@
         .col-roll { width: 180px; }
         .col-blocks { width: 180px; }
         .col-status { width: 200px; }
-        .col-actions { width: 160px; /* ФИКСИРОВАННАЯ ДЛИНА, КАК У ПОЛЕЙ */ }
+        .col-actions { width: 160px; }
 
-        /* СТАТУСЫ: СЕРЫЙ = ОЖИДАНИЕ, ЖЁЛТЫЙ = В РАБОТЕ */
-        .status-wait { background: #e0e0e0; border-color: #b0b0b0; color: #555; }
-        .status-work { background: #ffe066; border-color: #d4b300; color: #1a1a1a; }
+        /* СТАТУСЫ: ФОН (плашки) */
+        .status-wait { background-color: #e0e0e0; border-color: #b0b0b0; color: #555; }
+        .status-work { background-color: #ffe066; border-color: #d4b300; color: #1a1a1a; }
 
-        /* КНОПКИ (Теперь они 40px высотой и 160px шириной, как поле) */
         .btn-green {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             padding: 0;
             height: 40px;
-            width: 160px; /* ФИКСИРОВАННАЯ ШИРИНА, ЧТОБЫ НЕ ПРЫГАЛИ */
+            width: 160px;
             background-color: #0f8653;
             border-radius: 8px;
             color: #ffffff;
@@ -127,7 +126,7 @@
             justify-content: center;
             padding: 0;
             height: 40px;
-            width: 160px; /* ФИКСИРОВАННАЯ ШИРИНА */
+            width: 160px;
             background-color: #e74c3c;
             border-radius: 8px;
             color: #ffffff;
