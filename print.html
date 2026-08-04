@@ -281,10 +281,10 @@
     }
 
     async function updatePrintRoll(rollId, newStatus) {
-        // ДОБАВИЛИ ПОЛЕ blocks В ЗАПРОС
+        // 1. Получаем данные рулона вместе с blocks!
         const { data: rollData, error: getError } = await supabaseClient
             .from('rolls')
-            .select('order_number, roll_index, blocks') 
+            .select('order_number, roll_index, blocks')
             .eq('id', rollId)
             .single();
         if (getError || !rollData) {
@@ -317,7 +317,7 @@
                     }
                 ]);
 
-            // 2. Создаём запись в таблице STAGES
+            // 2. Создаём запись в таблице STAGES с блоками!
             await supabaseClient
                 .from('stages')
                 .insert([
@@ -326,7 +326,7 @@
                         stage: 'Каттер', 
                         status: 'Ожидание',
                         shelf: rollIdFormatted,
-                        blocks: rollData.blocks // ТЕПЕРЬ СЮДА ПРИДЁТ ПРАВИЛЬНОЕ ЧИСЛО
+                        blocks: rollData.blocks // <--- именно эта строчка передаёт блоки
                     }
                 ]);
 
