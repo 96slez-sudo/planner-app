@@ -100,7 +100,7 @@
         }
         .roll-input {
             width: 42px;
-            flex-shrink: 0; /* Жёстко запрещаем сжиматься */
+            flex-shrink: 0;
             height: 42px;
             padding: 0 4px;
             border: 1px solid #6c6c6c;
@@ -108,7 +108,6 @@
             text-align: center;
             font-size: 15px;
             font-family: 'Science Gothic', sans-serif;
-            /* Убираем стрелочки в Chrome/Safari/Edge */
             -moz-appearance: textfield;
         }
         .roll-input::-webkit-outer-spin-button,
@@ -178,11 +177,11 @@
             .stage-btn { font-size: 14px; padding: 6px 12px; }
             .page-title { font-size: 26px; }
             .btn-green { width: 100%; height: 36px; }
-            .roll-input { width: 36px; height: 36px; }
+            .roll-input { height: 36px; width: 36px; }
         }
         @media (max-width: 480px) {
             .header { flex-direction: column; align-items: flex-start; gap: 4px; }
-            .roll-input { width: 32px; height: 32px; }
+            .roll-input { height: 32px; width: 32px; }
             .btn-green { height: 32px; }
         }
     </style>
@@ -301,6 +300,14 @@
             );
         }
         await Promise.all(promises);
+
+        // Сначала ОБНОВЛЯЕМ СТАТУС В ORDERS (чтобы он точно успел)
+        await supabaseClient
+            .from('orders')
+            .update({ status: 'В работе' })
+            .eq('order_number', orderNumber);
+
+        // Затем закрываем этап и создаём новый
         await supabaseClient
             .from('stages')
             .update({ status: 'Выполнено' })
@@ -311,6 +318,7 @@
             .insert([
                 { order_number: orderNumber, stage: 'Печать', status: 'Ожидание' }
             ]);
+
         showMessage('Рулоны созданы', 'ok');
         loadPrepOrders();
     }
