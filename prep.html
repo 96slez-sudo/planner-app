@@ -99,14 +99,16 @@
             align-items: center;
         }
         .roll-input {
-            width: 42px; height: 42px;
-            padding: 0 4px;
-            border: 1px solid #6c6c6c;
-            border-radius: 6px;
-            text-align: center;
-            font-size: 15px;
-            font-family: 'Science Gothic', sans-serif;
-        }
+    width: auto;          /* Разрешаем ширине расти */
+    min-width: 42px;      /* Минимальная ширина, как сейчас */
+    height: 42px;
+    padding: 0 6px;       /* Чуть больше отступов по бокам */
+    border: 1px solid #6c6c6c;
+    border-radius: 6px;
+    text-align: center;
+    font-size: 15px;
+    font-family: 'Science Gothic', sans-serif;
+}
         
         .add-roll-btn {
             display: flex;
