@@ -54,15 +54,15 @@
         <p>Очередь рулонов</p>
     </div>
     <div class="nav">
-        <a href="/planner-app/">Главная</a>
-        <a href="/planner-app/prep.html">Подготовка</a>
-        <a href="/planner-app/print.html">Печать</a>
-        <a href="/planner-app/cutter.html" class="active">Каттер</a>
-        <a href="/planner-app/cutting.html">Раскрой</a>
-        <a href="/planner-app/resin.html">Смола</a>
-        <a href="/planner-app/drying.html">Сушка</a>
-        <a href="/planner-app/otk.html">ОТК</a>
-        <a href="/planner-app/packing.html">Упаковка</a>
+        <a href="/">Главная</a>
+        <a href="/prep.html">Подготовка</a>
+        <a href="/print.html">Печать</a>
+        <a href="/cutter.html" class="active">Каттер</a>
+        <a href="/cutting.html">Раскрой</a>
+        <a href="/resin.html">Смола</a>
+        <a href="/drying.html">Сушка</a>
+        <a href="/otk.html">ОТК</a>
+        <a href="/packing.html">Упаковка</a>
     </div>
     <div id="message" class="msg"></div>
     <div class="card">
@@ -74,7 +74,6 @@
 <script>
     const SUPABASE_URL = 'https://knuqfyjdptkkdapivsnm.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_6k1bwNvlNAjNYI9NrijXtg_clTUDrOJ';
-
     const { createClient } = supabase;
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -89,18 +88,41 @@
         var container = document.getElementById('rollsList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
 
-        // Загружаем рулоны, которые закончили печать (их статус 'Выполнено')
-        // и теперь ждут на Каттере (для каттера мы используем статус 'Ожидание')
-        const { data, error } = await supabaseClient
-            .from('rolls')
+        const { data: stages, error: stageError } = await supabaseClient
+            .from('stages')
             .select('*')
+            .eq('stage', 'Каттер')
             .eq('status', 'Ожидание');
 
-        if (error) { container.innerHTML = '<div class="empty">Ошибка: ' + error.message + '</div>'; return; }
-        if (!data || data.length === 0) { container.innerHTML = '<div class="empty">Нет рулонов на каттере</div>'; return; }
+        if (stageError) {
+            container.innerHTML = '<div class="empty">Ошибка этапов: ' + stageError.message + '</div>';
+            return;
+        }
+        if (!stages || stages.length === 0) {
+            container.innerHTML = '<div class="empty">Нет заказов на каттере</div>';
+            return;
+        }
+
+        var allRolls = [];
+        for (var s of stages) {
+            const { data: rolls, error: rollError } = await supabaseClient
+                .from('rolls')
+                .select('*')
+                .eq('order_number', s.order_number)
+                .neq('status', 'Выполнено');
+
+            if (!rollError && rolls) {
+                allRolls = allRolls.concat(rolls);
+            }
+        }
+
+        if (allRolls.length === 0) {
+            container.innerHTML = '<div class="empty">Все рулоны завершены</div>';
+            return;
+        }
 
         var html = '';
-        data.forEach(function(item) {
+        allRolls.forEach(function(item) {
             var badgeClass = '';
             var statusText = item.status || 'Ожидание';
             if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
@@ -109,15 +131,15 @@
 
             html += '<div class="item">';
             html += '  <div class="head">';
-            html += '    <span class="order-num">№ ' + item.order_id + ' — Р' + item.roll_index + '</span>';
+            html += '    <span class="order-num">№ ' + item.order_number + ' — Р' + item.roll_index + '</span>';
             html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
             html += '  </div>';
             html += '  <div class="order-meta">Блоков: ' + item.blocks + '</div>';
             html += '  <div class="actions">';
             if (statusText === 'Ожидание') {
-                html += '    <button class="btn btn-sm btn-success" onclick="updateCutterRoll(\'' + item.id + '\', \'В работе\')">Взять в работу</button>';
+                html += '    <button class="btn btn-sm btn-success" onclick="updateRoll(\'' + item.id + '\', \'В работе\')">Взять в работу</button>';
             } else if (statusText === 'В работе') {
-                html += '    <button class="btn btn-sm btn-danger" onclick="updateCutterRoll(\'' + item.id + '\', \'Выполнено\')">Завершить</button>';
+                html += '    <button class="btn btn-sm btn-danger" onclick="updateRoll(\'' + item.id + '\', \'Выполнено\')">Завершить</button>';
             }
             html += '  </div>';
             html += '</div>';
@@ -125,13 +147,61 @@
         container.innerHTML = html;
     }
 
-    async function updateCutterRoll(rollId, newStatus) {
-        await supabaseClient
+    async function updateRoll(rollId, newStatus) {
+        const { data: rollData, error: getError } = await supabaseClient
+            .from('rolls')
+            .select('order_number')
+            .eq('id', rollId)
+            .single();
+        if (getError || !rollData) {
+            showMessage('Ошибка получения заказа', 'err');
+            return;
+        }
+        var orderNumber = rollData.order_number;
+
+        const { error: updateError } = await supabaseClient
             .from('rolls')
             .update({ status: newStatus })
             .eq('id', rollId);
+        if (updateError) {
+            showMessage('Ошибка обновления рулона', 'err');
+            return;
+        }
 
-        showMessage('Рулон на каттере обновлён', 'ok');
+        const { data: remaining, error: countError } = await supabaseClient
+            .from('rolls')
+            .select('id', { count: 'exact' })
+            .eq('order_number', orderNumber)
+            .neq('status', 'Выполнено');
+
+        if (countError) {
+            showMessage('Ошибка подсчёта рулонов', 'err');
+            return;
+        }
+
+        if (remaining.length === 0) {
+            await supabaseClient
+                .from('stages')
+                .update({ status: 'Выполнено' })
+                .eq('order_number', orderNumber)
+                .eq('stage', 'Каттер');
+
+            await supabaseClient
+                .from('stages')
+                .insert([
+                    { order_number: orderNumber, stage: 'Раскрой', status: 'Ожидание' }
+                ]);
+
+            await supabaseClient
+                .from('orders')
+                .update({ stage: 'Раскрой', status: 'В работе' })
+                .eq('order_number', orderNumber);
+
+            showMessage('Все рулоны завершены! Заказ переведён на Раскрой', 'ok');
+        } else {
+            showMessage('Рулон обновлён. Осталось ещё ' + remaining.length + ' рулонов', 'ok');
+        }
+
         loadRolls();
     }
 
