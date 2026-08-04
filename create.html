@@ -125,7 +125,6 @@
         .btn-green:hover { opacity: 0.8; }
         .btn-green:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* ЗАГОЛОВОК СПИСКА ТЕПЕРЬ 36px */
         .order-list-title { 
             font-size: 36px; 
             margin-bottom: 24px; 
@@ -263,11 +262,13 @@
         el.className = 'msg show ' + type;
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
+
     async function createOrder() {
         var orderNumber = document.getElementById('orderNumber').value.trim();
         var creationDate = document.getElementById('creationDate').value;
         var planDate = document.getElementById('planDate').value;
         var priority = document.getElementById('priority').value;
+
         if (!orderNumber) { showMessage('Введите номер заказа', 'err'); return; }
         if (!creationDate) { showMessage('Выберите дату создания', 'err'); return; }
         if (!planDate) { showMessage('Выберите плановую дату', 'err'); return; }
@@ -289,6 +290,7 @@
         else if (r2) path = 'Р2';
         else path = '';
 
+        // 1. Запись в orders (для Главной и Создания заказа)
         const { data, error } = await supabaseClient
             .from('orders')
             .insert([
@@ -299,18 +301,30 @@
                     priority: priority,
                     r1: r1, resin: resin, r2: r2,
                     path: path,
-                    status: 'Ожидание', stage: 'Подготовка'
+                    status: 'Ожидает', 
+                    stage: 'Подготовка'
                 }
             ]);
+
         if (!error) {
+            // 2. Запись в stages (чтобы Подготовка/Печать видели переходы)
             await supabaseClient
                 .from('stages')
                 .insert([
-                    { order_number: orderNumber, stage: 'Подготовка', status: 'Ожидание' }
+                    { order_number: orderNumber, stage: 'Подготовка', status: 'Ожидает' }
+                ]);
+
+            // 3. Запись в order_history (для истории)
+            await supabaseClient
+                .from('order_history')
+                .insert([
+                    { order_id: orderNumber, stage: 'Создание', status: 'Запущен', timestamp: new Date().toISOString() }
                 ]);
         }
+
         btn.disabled = false;
         btn.textContent = 'Создать заказ';
+
         if (error) {
             showMessage('Ошибка: ' + error.message, 'err');
         } else {
@@ -324,14 +338,18 @@
             loadOrders();
         }
     }
+
     async function loadOrders() {
         var container = document.getElementById('orderList');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
+
+        // ВАЖНО: Главная смотрит в orders, поэтому берём статус и этап оттуда
         const { data, error } = await supabaseClient
             .from('orders')
             .select('*')
             .neq('status', 'Завершено')
             .order('creation_date', { ascending: false });
+
         if (error) {
             container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #c0392b;">Ошибка загрузки</div>';
             return;
@@ -347,7 +365,7 @@
             if (item.status === 'В работе') { 
                 statusClass = 'status-work'; 
                 statusText = 'В работе'; 
-            } else if (item.status === 'Ожидание') { 
+            } else if (item.status === 'Ожидает') { 
                 statusClass = 'status-wait'; 
                 statusText = 'Ожидает'; 
             }
@@ -361,6 +379,7 @@
         });
         container.innerHTML = html;
     }
+
     document.addEventListener('DOMContentLoaded', loadOrders);
 </script>
 </body>
