@@ -273,11 +273,11 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
-        async function loadResinOrders() {
+           async function loadResinOrders() {
         const container = document.getElementById('resinList');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
-        // Загружаем заказы ТОЛЬКО из таблицы stages, без лишних запросов в orders
+        // Загружаем все строки, относящиеся к заказу на этапе Смола
         const { data: stages, error: stageError } = await supabaseClient
             .from('stages')
             .select('*')
@@ -293,13 +293,27 @@
             return;
         }
 
-        let html = '';
-
+        // ГРУППИРУЕМ ПО НОМЕРУ ЗАКАЗА И СУММИРУЕМ БЛОКИ
+        let orderMap = {};
         for (let s of stages) {
             const orderNumber = s.order_number;
-            // Блоки теперь хранятся прямо в stages.blocks!
-            const blocks = s.blocks || 0;
-            const status = s.status || 'Ожидает';
+            if (!orderMap[orderNumber]) {
+                orderMap[orderNumber] = {
+                    order_number: orderNumber,
+                    status: s.status,
+                    blocks: 0
+                };
+            }
+            // Добавляем блоки из этой строки к общей сумме
+            orderMap[orderNumber].blocks += (s.blocks || 0);
+        }
+
+        let html = '';
+        for (let key in orderMap) {
+            const item = orderMap[key];
+            const orderNumber = item.order_number;
+            const blocks = item.blocks;
+            const status = item.status || 'Ожидает';
 
             let statusClass = 'status-wait';
             let statusText = 'Ожидает';
@@ -335,10 +349,9 @@
                 </div>
             `;
 
-            // Если заказ в работе — добавляем панель стеллажей
+            // Если заказ в работе — добавляем панель стеллажей (можно реализовать позже)
             if (status === 'В работе') {
-                // Пока без панели, но она тебе и не нужна на первом этапе.
-                // Ты просто нажимаешь "Распределить автоматически".
+                // Место для рендера стеллажей
             }
         }
         container.innerHTML = html;
