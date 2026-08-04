@@ -282,17 +282,19 @@
     }
 
     async function updateCuttingOrder(stageId, newStatus) {
-        const { data: itemData, error: getError } = await supabaseClient
+        // 1. Получаем номер заказа из stages
+        const { data: stageData, error: getError } = await supabaseClient
             .from('stages')
-            .select('order_number, shelf, blocks, r1, resin, r2')
+            .select('order_number, shelf, blocks')
             .eq('id', stageId)
             .single();
 
-        if (getError || !itemData) {
-            showMessage('Ошибка получения данных', 'err');
+        if (getError || !stageData) {
+            showMessage('Ошибка получения данных этапа', 'err');
             return;
         }
 
+        // 2. Обновляем статус текущего этапа
         const { error } = await supabaseClient
             .from('stages')
             .update({ status: newStatus })
@@ -303,40 +305,70 @@
             return;
         }
 
-        // Если статус стал "Выполнено" — переходим на следующий этап
+        // 3. Если статус стал "Выполнено" — определяем следующий этап
         if (newStatus === 'Выполнено') {
-            // 1. Обновляем orders (этап на следующий)
-            let nextStage = 'ОТК';
-            let nextStageName = 'ОТК';
+            // Проверяем, есть ли ещё рулоны на Раскрое для этого заказа
+            const { count, error: countError } = await supabaseClient
+                .from('stages')
+                .select('*', { count: 'exact', head: true })
+                .eq('order_number', stageData.order_number)
+                .eq('stage', 'Раскрой')
+                .neq('status', 'Выполнено');
 
-            // Смотрим на чекбоксы заказа
-            if (itemData.r1 === true) {
-                nextStage = 'Смола';
-                nextStageName = 'Смола';
-            } else if (itemData.r2 === true) {
-                nextStage = 'Раскрой Р2';
-                nextStageName = 'Раскрой Р2';
+            if (countError) {
+                showMessage('Ошибка подсчёта рулонов', 'err');
+                return;
             }
 
-            await supabaseClient
-                .from('orders')
-                .update({ stage: nextStage })
-                .eq('order_number', itemData.order_number);
+            // Если это был последний рулон — переходим на следующий этап
+            if (count === 0) {
+                // Загружаем чекбоксы из таблицы orders
+                const { data: orderData, error: orderError } = await supabaseClient
+                    .from('orders')
+                    .select('r1, resin, r2')
+                    .eq('order_number', stageData.order_number)
+                    .single();
 
-            // 2. Создаём запись на следующий этап в stages
-            await supabaseClient
-                .from('stages')
-                .insert([
-                    { 
-                        order_number: itemData.order_number, 
-                        stage: nextStage, 
-                        status: 'Ожидание',
-                        shelf: itemData.shelf,
-                        blocks: itemData.blocks
-                    }
-                ]);
+                if (orderError || !orderData) {
+                    showMessage('Ошибка получения данных заказа', 'err');
+                    return;
+                }
 
-            showMessage(`Заказ переведён на ${nextStageName}`, 'ok');
+                let nextStage = 'ОТК';
+                let nextStageName = 'ОТК';
+
+                // ЛОГИКА: если R1 = true, идём на Смолу
+                if (orderData.r1 === true) {
+                    nextStage = 'Смола';
+                    nextStageName = 'Смола';
+                } else if (orderData.r2 === true) {
+                    nextStage = 'Раскрой Р2';
+                    nextStageName = 'Раскрой Р2';
+                }
+
+                // Обновляем orders (этап на следующий)
+                await supabaseClient
+                    .from('orders')
+                    .update({ stage: nextStage })
+                    .eq('order_number', stageData.order_number);
+
+                // Создаём запись в stages для следующего этапа
+                await supabaseClient
+                    .from('stages')
+                    .insert([
+                        { 
+                            order_number: stageData.order_number, 
+                            stage: nextStage, 
+                            status: 'Ожидание',
+                            shelf: stageData.shelf,
+                            blocks: stageData.blocks
+                        }
+                    ]);
+
+                showMessage(`Все рулоны завершены! Заказ переведён на ${nextStageName}`, 'ok');
+            } else {
+                showMessage(`Рулон ${stageData.shelf} завершён. Осталось ещё ${count} рулонов на раскрое`, 'ok');
+            }
         } else {
             showMessage('Статус обновлён', 'ok');
         }
