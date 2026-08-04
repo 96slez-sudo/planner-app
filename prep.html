@@ -94,21 +94,28 @@
         .col-rolls label { font-size: 18px; color: #161616; }
         .rolls-container {
             display: flex;
-            flex-wrap: nowrap;
-            gap: 6px;
+            flex-wrap: wrap;
             align-items: center;
+            gap: 6px;
         }
         .roll-input {
-    width: auto;          /* Разрешаем ширине расти */
-    min-width: 42px;      /* Минимальная ширина, как сейчас */
-    height: 42px;
-    padding: 0 6px;       /* Чуть больше отступов по бокам */
-    border: 1px solid #6c6c6c;
-    border-radius: 6px;
-    text-align: center;
-    font-size: 15px;
-    font-family: 'Science Gothic', sans-serif;
-}
+            width: 42px;
+            flex-shrink: 0; /* Жёстко запрещаем сжиматься */
+            height: 42px;
+            padding: 0 4px;
+            border: 1px solid #6c6c6c;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 15px;
+            font-family: 'Science Gothic', sans-serif;
+            /* Убираем стрелочки в Chrome/Safari/Edge */
+            -moz-appearance: textfield;
+        }
+        .roll-input::-webkit-outer-spin-button,
+        .roll-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
         
         .add-roll-btn {
             display: flex;
@@ -224,7 +231,6 @@
         const container = document.getElementById('prepList');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
-        // Ищем в stages и 'Ожидание', и 'Ожидает'
         const { data, error } = await supabaseClient
             .from('stages')
             .select('*')
