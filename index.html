@@ -160,6 +160,16 @@
         el.className = 'msg show ' + type;
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
+
+    // Форматирование даты для отображения
+    function formatDate(dateStr) {
+        if (!dateStr) return '—';
+        try {
+            var d = new Date(dateStr);
+            return d.toLocaleDateString('ru-RU');
+        } catch (e) { return dateStr; }
+    }
+
     async function loadOrders() {
         const grid = document.getElementById('ordersGrid');
         grid.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
@@ -180,12 +190,21 @@
         data.forEach(item => {
             let statusClass = 'status-wait';
             let statusText = 'Ожидает';
-            if (item.status === 'В работе') { statusClass = 'status-work'; statusText = 'В работе'; }
+            if (item.status === 'В работе') { 
+                statusClass = 'status-work'; 
+                statusText = 'В работе'; 
+            } else if (item.status === 'Ожидание') { 
+                statusClass = 'status-wait'; 
+                statusText = 'Ожидает'; 
+            }
+
             html += `
                 <div class="order-row">
                     <div class="order-col"><div class="label">№ заказа</div><div class="value">${item.order_number}</div></div>
                     <div class="order-col"><div class="label">Этап</div><div class="value">${item.stage || '—'}</div></div>
                     <div class="order-col"><div class="label">Статус</div><div class="value ${statusClass}">${statusText}</div></div>
+                    <div class="order-col"><div class="label">Дата запуска</div><div class="value">${formatDate(item.creation_date)}</div></div>
+                    <div class="order-col"><div class="label">Плановая дата</div><div class="value">${formatDate(item.plan_date)}</div></div>
                 </div>
             `;
         });
