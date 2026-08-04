@@ -6,121 +6,166 @@
     <title>Планировщик производства</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
+        /* ===== Базовые сбросы ===== */
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f4f6f9; padding: 16px; min-height: 100vh; display: flex; justify-content: center; }
-        .container { max-width: 500px; width: 100%; }
-        .header { margin-bottom: 16px; }
-        .header h1 { font-size: 22px; font-weight: 600; color: #1a1a2e; }
-        .header p { font-size: 14px; color: #888; }
-        .nav { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; background: white; padding: 8px; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-        .nav a { padding: 6px 12px; background: #eef1f4; border-radius: 16px; text-decoration: none; font-size: 12px; color: #555; font-weight: 500; }
-        .nav a:hover { background: #dce0e4; }
-        .nav a.active { background: #2c3e50; color: white; }
-        .card { background: white; border-radius: 12px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); border: 1px solid #eaeef2; }
-        .card h3 { font-size: 16px; font-weight: 600; margin-bottom: 14px; color: #1a1a2e; }
-        .field { margin-bottom: 12px; }
-        .field label { display: block; font-size: 13px; font-weight: 500; color: #555; margin-bottom: 4px; }
-        .field input, .field select { width: 100%; padding: 10px 12px; border: 1.5px solid #dce0e5; border-radius: 8px; font-size: 15px; background: #fafbfc; }
-        .field input:focus, .field select:focus { outline: none; border-color: #2c3e50; background: white; }
-        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .row .field { margin-bottom: 0; }
-        .check-group { display: flex; flex-wrap: wrap; gap: 10px 16px; margin: 2px 0 10px 0; }
-        .check-group label { display: flex; align-items: center; gap: 5px; font-size: 14px; color: #333; cursor: pointer; }
-        .check-group input[type="checkbox"] { width: 16px; height: 16px; accent-color: #2c3e50; cursor: pointer; }
-        .btn { width: 100%; padding: 12px; background: #2c3e50; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; transition: 0.2s; }
-        .btn:hover { background: #1a252f; }
-        .btn:disabled { background: #95a5a6; cursor: not-allowed; }
-        .btn-sm { padding: 6px 14px; width: auto; font-size: 13px; }
-        .btn-success { background: #27ae60; }
-        .btn-success:hover { background: #1e8449; }
-        .btn-danger { background: #e74c3c; }
-        .btn-danger:hover { background: #c0392b; }
-        .badge { display: inline-block; padding: 3px 12px; border-radius: 16px; font-size: 12px; font-weight: 500; }
-        .badge-waiting { background: #fff3cd; color: #856404; }
-        .badge-work { background: #cce5ff; color: #004085; }
-        .badge-done { background: #d4edda; color: #155724; }
-        .badge-launched { background: #e8daef; color: #6c3483; }
-        .order-item { padding: 12px 0; border-bottom: 1px solid #f0f2f5; }
-        .order-item:last-child { border-bottom: none; }
-        .order-item .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
-        .order-item .order-num { font-weight: 600; font-size: 15px; color: #1a1a2e; }
-        .order-item .order-stage { font-size: 14px; color: #666; }
-        .order-item .order-meta { font-size: 13px; color: #999; }
-        .order-item .actions { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
-        .msg { padding: 12px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; display: none; }
+        body { font-family: 'Science Gothic', 'Asta Sans-Regular', sans-serif; background: #ffffff; color: #161616; padding: 16px; min-height: 100vh; display: flex; justify-content: center; }
+        a { text-decoration: none; }
+
+        /* ===== Контейнер ===== */
+        .container { max-width: 1520px; width: 100%; }
+
+        /* ===== Шапка ===== */
+        .header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 16px;
+            margin-bottom: 32px;
+            border-bottom: 1px solid #eeeeee;
+        }
+        .header .title { font-size: 20px; letter-spacing: 0.5px; font-weight: 400; }
+        .header .subtitle { font-size: 16px; font-weight: 400; }
+
+        /* ===== Заголовки и блоки ===== */
+        .section-title { font-size: 32px; font-weight: 400; margin-bottom: 24px; }
+        .stage-block { margin-bottom: 40px; }
+        .stages {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .stage-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 18px;
+            background: #cdcdcd;
+            border-radius: 8px;
+            color: #141414;
+            font-size: 18px;
+            transition: 0.2s;
+        }
+        .stage-btn:hover { background: #b0b0b0; }
+        .stage-btn.active {
+            background: #1e1e1e;
+            color: #ffffff;
+        }
+
+        /* ===== Таблица заказов ===== */
+        .orders-block { margin-top: 16px; }
+        
+        /* Адаптивная сетка для карточек заказов */
+        .orders-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .order-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            gap: 16px 20px;
+            padding: 16px;
+            border: 1px solid #eeeeee;
+            border-radius: 12px;
+        }
+        .order-col {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1 1 120px;
+            min-width: 100px;
+        }
+        .order-col .label {
+            font-size: 18px;
+            font-weight: 400;
+        }
+        .order-col .value {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border: 1px solid #6c6c6c;
+            border-radius: 8px;
+            font-family: 'Asta Sans-Regular', sans-serif;
+            font-size: 15px;
+            min-height: 40px;
+        }
+
+        /* Цвета статусов */
+        .status-work { background-color: #ffe26f; border-color: #ffe26f; }
+        .status-wait { background-color: #cdcdcd; border-color: #cdcdcd; }
+
+        /* ===== Сообщения ===== */
+        .msg { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; display: none; }
         .msg.show { display: block; }
         .msg.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .msg.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .empty { text-align: center; padding: 28px 0; color: #aaa; font-size: 14px; }
-        .loading { text-align: center; padding: 16px 0; color: #999; font-size: 14px; }
+
+        /* ===== Мобильная адаптация (переопределения для маленьких экранов) ===== */
+        @media (max-width: 768px) {
+            .header .title { font-size: 16px; }
+            .header .subtitle { font-size: 14px; }
+            .section-title { font-size: 26px; }
+            .stage-btn { font-size: 15px; padding: 8px 14px; }
+            .order-col { min-width: 80px; flex: 1 1 80px; }
+            .order-col .label { font-size: 15px; }
+            .order-col .value { font-size: 13px; padding: 6px 10px; min-height: 34px; }
+            .order-row { padding: 12px; }
+        }
         @media (max-width: 480px) {
-            body { padding: 12px; }
-            .card { padding: 14px; }
-            .row { grid-template-columns: 1fr; gap: 0; }
-            .row .field { margin-bottom: 12px; }
-            .row .field:last-child { margin-bottom: 0; }
+            .header { flex-direction: column; align-items: flex-start; gap: 4px; }
+            .section-title { font-size: 24px; }
+            .stage-btn { font-size: 14px; padding: 6px 12px; }
+            .order-row { gap: 8px 12px; }
+            .order-col { flex: 1 1 45%; min-width: 40%; }
         }
     </style>
 </head>
 <body>
 <div class="container">
+    
+    <!-- Шапка -->
     <div class="header">
-        <h1>Планировщик производства</h1>
-        <p>Управление заказами</p>
+        <div class="title">//ПЛАНИРОВЩИК ПРОИЗВОДСТВА</div>
+        <div class="subtitle">ГЛАВНАЯ//</div>
     </div>
-    <div class="nav">
-        <a href="/planner-app/" class="active">Главная</a>
-        <a href="/planner-app/prep.html">Подготовка</a>
-        <a href="/planner-app/print.html">Печать</a>
-        <a href="/planner-app/cutter.html">Каттер</a>
-        <a href="/planner-app/cutting.html">Раскрой</a>
-        <a href="/planner-app/resin.html">Смола</a>
-        <a href="/planner-app/drying.html">Сушка</a>
-        <a href="/planner-app/otk.html">ОТК</a>
-        <a href="/planner-app/packing.html">Упаковка</a>
-    </div>
+
+    <!-- Сообщение -->
     <div id="message" class="msg"></div>
-    <div class="card">
-        <h3>Создать заказ</h3>
-        <div class="field">
-            <label>Номер заказа</label>
-            <input type="text" id="orderNumber" placeholder="Например: 1001" />
+
+    <!-- Выбор этапа -->
+    <div class="stage-block">
+        <div class="section-title">Выберите свой этап</div>
+        <div class="stages">
+            <a href="/" class="stage-btn">Создание заказа</a>
+            <a href="/prep.html" class="stage-btn">Подготовка</a>
+            <a href="/print.html" class="stage-btn active">Печать</a>
+            <a href="/cutter.html" class="stage-btn">Каттер</a>
+            <a href="/cutting.html" class="stage-btn">Раскрой</a>
+            <a href="/resin.html" class="stage-btn">Смола</a>
+            <a href="/drying.html" class="stage-btn">Сушка</a>
+            <a href="/otk.html" class="stage-btn">ОТК</a>
+            <a href="/packing.html" class="stage-btn">Упаковка</a>
         </div>
-        <div class="row">
-            <div class="field">
-                <label>Дата создания</label>
-                <input type="date" id="creationDate" />
-            </div>
-            <div class="field">
-                <label>Плановая дата</label>
-                <input type="date" id="planDate" />
-            </div>
-        </div>
-        <div class="field">
-            <label>Приоритет</label>
-            <select id="priority">
-                <option value="Срочный">Срочный</option>
-                <option value="Высокий">Высокий</option>
-                <option value="Обычный" selected>Обычный</option>
-                <option value="Не срочный">Не срочный</option>
-            </select>
-        </div>
-        <div class="check-group">
-            <label><input type="checkbox" id="r1" /> Раскрой 1</label>
-            <label><input type="checkbox" id="resin" /> Смола</label>
-            <label><input type="checkbox" id="r2" /> Раскрой 2</label>
-        </div>
-        <button class="btn" onclick="createOrder()">Запустить заказ</button>
     </div>
-    <div class="card">
-        <h3>Все заказы</h3>
-        <div id="orderList"></div>
-        <button class="btn" style="font-size:14px; padding:8px; margin-top:10px; background:#eef1f4; color:#333;" onclick="loadOrders()">Обновить</button>
+
+    <!-- Активные заказы -->
+    <div class="orders-block">
+        <div class="section-title">Активные заказы</div>
+        <div id="ordersGrid" class="orders-grid">
+            <!-- Загрузка... -->
+            <div style="text-align: center; padding: 40px 0; color: #999;">Загрузка заказов...</div>
+        </div>
     </div>
+
 </div>
+
 <script>
+    // ===== ПОДКЛЮЧЕНИЕ К БАЗЕ =====
     const SUPABASE_URL = 'https://knuqfyjdptkkdapivsnm.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_6k1bwNvlNAjNYI9NrijXtg_clTUDrOJ';
+
     const { createClient } = supabase;
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -131,115 +176,72 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
-    async function createOrder() {
-        var orderNumber = document.getElementById('orderNumber').value.trim();
-        var creationDate = document.getElementById('creationDate').value;
-        var planDate = document.getElementById('planDate').value;
-        var priority = document.getElementById('priority').value;
-
-        if (!orderNumber) { showMessage('Введите номер заказа', 'err'); return; }
-        if (!creationDate) { showMessage('Выберите дату создания', 'err'); return; }
-        if (!planDate) { showMessage('Выберите плановую дату', 'err'); return; }
-
-        var btn = document.querySelector('.card .btn');
-        btn.disabled = true;
-        btn.textContent = 'Запуск...';
-
-        var r1 = document.getElementById('r1').checked;
-        var resin = document.getElementById('resin').checked;
-        var r2 = document.getElementById('r2').checked;
-        var path = '';
-        if (r1 && resin && r2) path = 'Р1+Смола+Р2';
-        else if (r1 && resin) path = 'Р1+Смола';
-        else if (r1 && r2) path = 'Р1+Р2';
-        else if (r2 && resin) path = 'Смола+Р2';
-        else if (r1) path = 'Р1';
-        else if (resin) path = 'Смола';
-        else if (r2) path = 'Р2';
-        else path = '';
-
-        const { data, error } = await supabaseClient
-            .from('orders')
-            .insert([
-                { 
-                    order_number: orderNumber, 
-                    creation_date: creationDate, 
-                    plan_date: planDate, 
-                    priority: priority,
-                    r1: r1, resin: resin, r2: r2,
-                    path: path,
-                    status: 'Запущен', stage: 'Подготовка'
-                }
-            ]);
-
-        if (!error) {
-            await supabaseClient
-                .from('stages')
-                .insert([
-                    { order_number: orderNumber, stage: 'Подготовка', status: 'Ожидание' }
-                ]);
-        }
-
-        btn.disabled = false;
-        btn.textContent = 'Запустить заказ';
-
-        if (error) {
-            showMessage('Ошибка: ' + error.message, 'err');
-        } else {
-            showMessage('Заказ ' + orderNumber + ' создан', 'ok');
-            document.getElementById('orderNumber').value = '';
-            document.getElementById('creationDate').value = '';
-            document.getElementById('planDate').value = '';
-            document.getElementById('r1').checked = false;
-            document.getElementById('resin').checked = false;
-            document.getElementById('r2').checked = false;
-            loadOrders();
-        }
+    function formatDate(dateStr) {
+        if (!dateStr) return '—';
+        try {
+            var d = new Date(dateStr);
+            return d.toLocaleDateString('ru-RU');
+        } catch (e) { return dateStr; }
     }
 
+    // ===== ЗАГРУЗКА ЗАКАЗОВ =====
     async function loadOrders() {
-        var container = document.getElementById('orderList');
-        container.innerHTML = '<div class="loading">Загрузка...</div>';
+        var grid = document.getElementById('ordersGrid');
+        grid.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
         const { data, error } = await supabaseClient
             .from('orders')
             .select('*')
-            .neq('status', 'Завершено');
+            .neq('status', 'Завершено')
+            .order('creation_date', { ascending: false });
 
         if (error) {
-            container.innerHTML = '<div class="empty">Ошибка: ' + error.message + '</div>';
+            grid.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #c0392b;">Ошибка загрузки</div>';
+            console.error(error);
             return;
         }
 
         if (!data || data.length === 0) {
-            container.innerHTML = '<div class="empty">Нет активных заказов</div>';
+            grid.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Нет активных заказов</div>';
             return;
         }
 
         var html = '';
         data.forEach(function(item) {
-            var badgeClass = '';
+            var statusClass = 'status-wait';
             var statusText = item.status || 'Ожидание';
-            if (statusText === 'Запущен') badgeClass = 'badge-launched';
-            else if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
-            else if (statusText === 'В работе') badgeClass = 'badge-work';
-            else if (statusText === 'Выполнено') badgeClass = 'badge-done';
+            if (statusText === 'Запущен' || statusText === 'В работе') { statusClass = 'status-work'; }
 
-            html += '<div class="order-item">';
-            html += '  <div class="head">';
-            html += '    <span class="order-num">№ ' + item.order_number + '</span>';
-            html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
-            html += '  </div>';
-            html += '  <div class="order-stage">' + item.stage + ' | ' + item.priority + '</div>';
-            html += '  <div class="order-meta">Дата создания: ' + item.creation_date + '</div>';
-            html += '  <div class="actions">';
-            html += '  </div>';
-            html += '</div>';
+            html += 
+                '<div class="order-row">' +
+                    '<div class="order-col">' +
+                        '<div class="label">№ заказа</div>' +
+                        '<div class="value">' + item.order_number + '</div>' +
+                    '</div>' +
+                    '<div class="order-col">' +
+                        '<div class="label">Этап</div>' +
+                        '<div class="value">' + (item.stage || '—') + '</div>' +
+                    '</div>' +
+                    '<div class="order-col">' +
+                        '<div class="label">Статус</div>' +
+                        '<div class="value ' + statusClass + '">' + statusText + '</div>' +
+                    '</div>' +
+                    '<div class="order-col">' +
+                        '<div class="label">Дата запуска</div>' +
+                        '<div class="value">' + formatDate(item.creation_date) + '</div>' +
+                    '</div>' +
+                    '<div class="order-col">' +
+                        '<div class="label">Плановая дата</div>' +
+                        '<div class="value">' + formatDate(item.plan_date) + '</div>' +
+                    '</div>' +
+                '</div>';
         });
-        container.innerHTML = html;
+        grid.innerHTML = html;
     }
 
-    document.addEventListener('DOMContentLoaded', function() { loadOrders(); });
+    document.addEventListener('DOMContentLoaded', function() {
+        loadOrders();
+    });
 </script>
 </body>
 </html>
