@@ -92,6 +92,7 @@
             height: 40px;
         }
 
+        /* СТАТУСЫ: СЕРЫЙ = ОЖИДАНИЕ, ЖЁЛТЫЙ = В РАБОТЕ */
         .status-wait { background: #e0e0e0; border-color: #b0b0b0; color: #555; }
         .status-work { background: #ffe066; border-color: #d4b300; color: #1a1a1a; }
 
@@ -178,8 +179,8 @@
         let html = '';
         data.forEach(item => {
             let statusClass = 'status-wait';
-            let statusText = item.status || 'Ожидание';
-            if (statusText === 'Запущен' || statusText === 'В работе') { statusClass = 'status-work'; }
+            let statusText = 'Ожидает';
+            if (item.status === 'В работе') { statusClass = 'status-work'; statusText = 'В работе'; }
             html += `
                 <div class="order-row">
                     <div class="order-col"><div class="label">№ заказа</div><div class="value">${item.order_number}</div></div>
