@@ -282,7 +282,7 @@
     }
 
     async function updateCuttingOrder(stageId, newStatus) {
-        // 1. Получаем номер заказа из stages
+        // 1. Получаем номер заказа из stages (только то, что есть в таблице)
         const { data: stageData, error: getError } = await supabaseClient
             .from('stages')
             .select('order_number, shelf, blocks')
@@ -322,7 +322,7 @@
 
             // Если это был последний рулон — переходим на следующий этап
             if (count === 0) {
-                // Загружаем чекбоксы из таблицы orders
+                // Загружаем чекбоксы из таблицы orders (там они точно есть)
                 const { data: orderData, error: orderError } = await supabaseClient
                     .from('orders')
                     .select('r1, resin, r2')
