@@ -161,7 +161,6 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
-    // Форматирование даты для отображения
     function formatDate(dateStr) {
         if (!dateStr) return '—';
         try {
@@ -210,6 +209,7 @@
         });
         grid.innerHTML = html;
     }
+
     document.addEventListener('DOMContentLoaded', loadOrders);
 </script>
 </body>
