@@ -163,6 +163,10 @@
             font-size: 15px;
             background: #fff;
         }
+
+        /* ======================== */
+        /* ЦВЕТА ТОЛЬКО ДЛЯ СТАТУСА */
+        /* ======================== */
         .status-wait { background: #e0e0e0 !important; border-color: #b0b0b0 !important; color: #555 !important; }
         .status-work { background: #ffe066 !important; border-color: #d4b300 !important; color: #1a1a1a !important; }
 
@@ -356,7 +360,7 @@
         }
         let html = '';
         data.forEach(item => {
-            let statusClass = 'status-wait';
+            let statusClass = '';
             let statusText = 'Ожидает';
             if (item.status === 'В работе') { 
                 statusClass = 'status-work'; 
@@ -367,9 +371,18 @@
             }
             html += `
                 <div class="order-card">
-                    <div class="col"><div class="label">№ заказа</div><div class="value ${statusClass}">${item.order_number}</div></div>
-                    <div class="col"><div class="label">Этап</div><div class="value">${item.stage || '—'}</div></div>
-                    <div class="col"><div class="label">Статус</div><div class="value ${statusClass}">${statusText}</div></div>
+                    <div class="col">
+                        <div class="label">№ заказа</div>
+                        <div class="value">${item.order_number}</div>
+                    </div>
+                    <div class="col">
+                        <div class="label">Этап</div>
+                        <div class="value">${item.stage || '—'}</div>
+                    </div>
+                    <div class="col">
+                        <div class="label">Статус</div>
+                        <div class="value ${statusClass}">${statusText}</div>
+                    </div>
                 </div>
             `;
         });
