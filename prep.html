@@ -77,6 +77,7 @@
             font-family: 'Asta Sans-Regular', sans-serif;
             font-size: 16px;
             width: 100%;
+            background: #fff;
         }
 
         .col-rolls {
@@ -104,39 +105,41 @@
             font-family: 'Asta Sans-Regular', sans-serif;
         }
         
-        /* Кнопка "плюсик" */
+        /* Кнопка "плюсик" — зелёная, круглая, аккуратная */
         .add-roll-btn {
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 42px;
-            height: 42px;
+            width: 28px;
+            height: 28px;
             border-radius: 50%;
-            background: #2c3e50;
+            background: #0f8653; /* Салатовый/зелёный как в макете */
             color: white;
-            font-size: 24px;
-            font-weight: 400;
+            font-size: 20px;
+            font-weight: 300;
             border: none;
             cursor: pointer;
             transition: 0.2s;
             line-height: 1;
+            padding: 0;
         }
-        .add-roll-btn:hover { background: #1a252f; }
+        .add-roll-btn:hover { background: #0b6b43; }
 
-        /* Кнопка Создать рулоны (зеленая) */
+        /* Кнопка Создать рулоны — зелёная, с правильным flex-автолэйаутом */
         .btn-green {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            padding: 10px 24px;
+            padding: 8px 20px;
             background-color: #0f8653;
             border-radius: 8px;
             color: #ffffff;
-            font-size: 18px;
+            font-size: 16px;
             border: none;
             cursor: pointer;
             transition: 0.2s;
             white-space: nowrap;
+            flex-shrink: 0; /* Не даёт сжиматься */
         }
         .btn-green:hover { opacity: 0.8; }
 
@@ -169,13 +172,13 @@
             .stage-btn { font-size: 14px; padding: 6px 12px; }
             .page-title { font-size: 26px; }
             .roll-input { width: 38px; height: 38px; font-size: 14px; }
-            .add-roll-btn { width: 38px; height: 38px; font-size: 20px; }
+            .add-roll-btn { width: 24px; height: 24px; font-size: 16px; }
         }
         @media (max-width: 480px) {
             .header { flex-direction: column; align-items: flex-start; gap: 4px; }
             .roll-input { width: 34px; height: 34px; font-size: 12px; }
-            .add-roll-btn { width: 34px; height: 34px; font-size: 18px; }
-            .btn-green { font-size: 15px; padding: 8px 16px; width: 100%; justify-content: center; }
+            .add-roll-btn { width: 22px; height: 22px; font-size: 14px; }
+            .btn-green { font-size: 14px; padding: 6px 14px; width: 100%; justify-content: center; }
         }
     </style>
 </head>
@@ -227,7 +230,6 @@
         const container = document.getElementById('prepList');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
-        // Загружаем заказы со статусом "Запущен", которые ещё не ушли на печать
         const { data, error } = await supabaseClient
             .from('orders')
             .select('*')
@@ -244,7 +246,6 @@
 
         let html = '';
         data.forEach(order => {
-            // Генерируем 6 полей по умолчанию
             let rollInputs = '';
             for (let i = 1; i <= 6; i++) {
                 rollInputs += `<input type="number" min="0" value="0" class="roll-input" id="roll-${order.order_number}-${i}">`;
@@ -270,10 +271,8 @@
         container.innerHTML = html;
     }
 
-    // Функция добавления нового рулона
     function addRoll(orderNumber) {
         const container = document.getElementById(`rolls-${orderNumber}`);
-        // Вставляем новое поле перед кнопкой "+"
         const newInput = document.createElement('input');
         newInput.type = 'number';
         newInput.min = 0;
@@ -302,7 +301,6 @@
             return;
         }
 
-        // Запись рулонов в таблицу rolls
         const promises = [];
         for (const key in rolls) {
             const index = parseInt(key.replace('roll_', ''));
@@ -314,7 +312,6 @@
         }
         await Promise.all(promises);
 
-        // Обновляем заказ: уходим на Печать
         await supabaseClient
             .from('orders')
             .update({ stage: 'Печать', status: 'В работе' })
