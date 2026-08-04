@@ -62,7 +62,7 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
-            max-width: 1200px;
+            max-width: 1050px;
             width: 100%;
         }
 
@@ -91,24 +91,14 @@
             height: 40px;
         }
 
-        .col-order { width: 160px; }
-        .col-type { width: 100px; }
-        .col-id { width: 160px; }
-        .col-shelf { width: 160px; }
-        .col-blocks { width: 160px; }
+        .col-order { width: 180px; }
+        .col-roll { width: 180px; }
+        .col-blocks { width: 180px; }
         .col-status { width: 200px; }
         .col-actions { width: 160px; }
 
-        .status-wait { 
-            background: #e0e0e0 !important; 
-            border-color: #b0b0b0 !important; 
-            color: #555 !important; 
-        }
-        .status-work { 
-            background: #ffe066 !important; 
-            border-color: #d4b300 !important; 
-            color: #1a1a1a !important; 
-        }
+        .status-wait { background: #e0e0e0 !important; border-color: #b0b0b0 !important; color: #555 !important; }
+        .status-work { background: #ffe066 !important; border-color: #d4b300 !important; color: #1a1a1a !important; }
 
         .btn-green {
             display: inline-flex;
@@ -165,7 +155,7 @@
 
         @media (max-width: 992px) {
             .row { align-items: flex-start; }
-            .col-order, .col-type, .col-id, .col-shelf, .col-blocks, .col-status, .col-actions { width: 100%; max-width: 100%; }
+            .col-order, .col-roll, .col-blocks, .col-status, .col-actions { width: 100%; max-width: 100%; }
             .btn-green, .btn-red { width: 100%; }
         }
         @media (max-width: 600px) {
@@ -204,9 +194,9 @@
         <a href="/planner-app/packing.html" class="stage-btn">Упаковка</a>
     </div>
 
-    <div class="page-title">Очередь в раскрой</div>
+    <div class="page-title">Очередь на раскрое</div>
     <div class="grid" id="list">
-        <div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>
+        <div style="text-align: center; padding: 40px 0; color: #999;">Загрузка заказов...</div>
     </div>
     <button class="btn-refresh" onclick="loadCuttingOrders()">Обновить</button>
 </div>
@@ -228,78 +218,30 @@
         const container = document.getElementById('list');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
-        let allItems = [];
-
-        // 1. Загружаем рулоны (Р1) с этапа "Раскрой"
-        const { data: rolls, error: rollsError } = await supabaseClient
-            .from('rolls')
-            .select('*')
-            .in('status', ['Ожидание', 'В работе']);
-
-        if (rollsError) {
-            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #c0392b;">Ошибка загрузки рулонов</div>';
-            return;
-        }
-
-        // Помечаем рулоны как Р1
-        if (rolls) {
-            rolls.forEach(r => {
-                allItems.push({
-                    ...r,
-                    type: 'Р1',
-                    shelf: null
-                });
-            });
-        }
-
-        // 2. Загружаем заказы со стеллажами (Р2) из stages
-        const { data: stages, error: stagesError } = await supabaseClient
+        const { data, error } = await supabaseClient
             .from('stages')
             .select('*')
-            .in('stage', ['Раскрой Р2', 'Раскрой'])
+            .eq('stage', 'Раскрой')
             .in('status', ['Ожидание', 'В работе']);
 
-        if (stagesError) {
-            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #c0392b;">Ошибка загрузки стеллажей</div>';
+        if (error) {
+            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #c0392b;">Ошибка загрузки</div>';
+            return;
+        }
+        if (!data || data.length === 0) {
+            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Нет заказов на раскрое</div>';
             return;
         }
 
-        if (stages) {
-            for (const s of stages) {
-                const { data: order, error: orderError } = await supabaseClient
-                    .from('orders')
-                    .select('blocks')
-                    .eq('order_number', s.order_number)
-                    .single();
-
-                if (!orderError && order) {
-                    allItems.push({
-                        id: s.id,
-                        order_number: s.order_number,
-                        roll_index: null,
-                        blocks: order.blocks || 0,
-                        status: s.status,
-                        type: 'Р2',
-                        shelf: s.shelf || '—'
-                    });
-                }
-            }
-        }
-
-        allItems.sort((a, b) => {
+        const sorted = [...data].sort((a, b) => {
             if (a.status === 'Ожидание' && b.status !== 'Ожидание') return -1;
             if (a.status !== 'Ожидание' && b.status === 'Ожидание') return 1;
             return 0;
         });
 
-        if (allItems.length === 0) {
-            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Нет заказов на раскрое</div>';
-            return;
-        }
-
         let html = '';
-        allItems.forEach(item => {
-            const rollId = item.roll_index !== null ? `${item.order_number}_${String(item.roll_index).padStart(2, '0')}` : '';
+        sorted.forEach(item => {
+            const rollId = item.shelf || '—';
             
             let statusClass = 'status-wait';
             let statusText = 'Ожидает';
@@ -308,21 +250,15 @@
                 statusText = 'В работе';
             }
 
-            const idOrShelf = item.type === 'Р1' ? rollId : item.shelf;
-
             html += `
                 <div class="row">
                     <div class="col col-order">
                         <div class="label">№ заказа</div>
                         <div class="value">${item.order_number}</div>
                     </div>
-                    <div class="col col-type">
-                        <div class="label">Тип</div>
-                        <div class="value">${item.type}</div>
-                    </div>
-                    <div class="col ${item.type === 'Р1' ? 'col-id' : 'col-shelf'}">
-                        <div class="label">${item.type === 'Р1' ? 'ID рулона' : 'Стеллаж'}</div>
-                        <div class="value">${idOrShelf}</div>
+                    <div class="col col-roll">
+                        <div class="label">ID рулона</div>
+                        <div class="value">${rollId}</div>
                     </div>
                     <div class="col col-blocks">
                         <div class="label">Кол-во блоков</div>
@@ -335,8 +271,8 @@
                     <div class="col col-actions">
                         <div class="label">&nbsp;</div>
                         ${item.status === 'Ожидание' 
-                            ? `<button class="btn-green" onclick="updateCuttingItem('${item.id}', '${item.type}')">Взять в работу</button>` 
-                            : `<button class="btn-red" onclick="updateCuttingItem('${item.id}', '${item.type}')">Завершить</button>`
+                            ? `<button class="btn-green" onclick="updateCuttingOrder('${item.id}', 'В работе')">Взять в работу</button>` 
+                            : `<button class="btn-red" onclick="updateCuttingOrder('${item.id}', 'Выполнено')">Завершить</button>`
                         }
                     </div>
                 </div>
@@ -345,115 +281,64 @@
         container.innerHTML = html;
     }
 
-    async function updateCuttingItem(id, type) {
-        let orderNumber = null;
+    async function updateCuttingOrder(stageId, newStatus) {
+        const { data: itemData, error: getError } = await supabaseClient
+            .from('stages')
+            .select('order_number, shelf, blocks, r1, resin, r2')
+            .eq('id', stageId)
+            .single();
 
-        if (type === 'Р1') {
-            // Получаем номер заказа из рулона
-            const { data: rollData } = await supabaseClient
-                .from('rolls')
-                .select('order_number')
-                .eq('id', id)
-                .single();
-            if (rollData) orderNumber = rollData.order_number;
-
-            // Обновляем статус рулона
-            const { error } = await supabaseClient
-                .from('rolls')
-                .update({ status: 'Выполнено' })
-                .eq('id', id);
-            if (error) {
-                showMessage('Ошибка обновления рулона', 'err');
-                return;
-            }
-        } else if (type === 'Р2') {
-            // Получаем номер заказа из этапа
-            const { data: stageData } = await supabaseClient
-                .from('stages')
-                .select('order_number')
-                .eq('id', id)
-                .single();
-            if (stageData) orderNumber = stageData.order_number;
-
-            // Обновляем статус этапа
-            const { error } = await supabaseClient
-                .from('stages')
-                .update({ status: 'Выполнено' })
-                .eq('id', id);
-            if (error) {
-                showMessage('Ошибка обновления этапа', 'err');
-                return;
-            }
+        if (getError || !itemData) {
+            showMessage('Ошибка получения данных', 'err');
+            return;
         }
 
-        // Если есть номер заказа — проверяем, все ли завершены
-        if (orderNumber) {
-            // Считаем оставшиеся рулоны Р1 (они в rolls)
-            const { count: rollCount } = await supabaseClient
-                .from('rolls')
-                .select('*', { count: 'exact', head: true })
-                .eq('order_number', orderNumber)
-                .neq('status', 'Выполнено');
+        const { error } = await supabaseClient
+            .from('stages')
+            .update({ status: newStatus })
+            .eq('id', stageId);
 
-            // Считаем оставшиеся этапы Р2 (они в stages)
-            const { count: stageCount } = await supabaseClient
-                .from('stages')
-                .select('*', { count: 'exact', head: true })
-                .eq('order_number', orderNumber)
-                .in('stage', ['Раскрой', 'Раскрой Р2'])
-                .neq('status', 'Выполнено');
+        if (error) {
+            showMessage('Ошибка обновления статуса', 'err');
+            return;
+        }
 
-            const remaining = (rollCount || 0) + (stageCount || 0);
+        // Если статус стал "Выполнено" — переходим на следующий этап
+        if (newStatus === 'Выполнено') {
+            // 1. Обновляем orders (этап на следующий)
+            let nextStage = 'ОТК';
+            let nextStageName = 'ОТК';
 
-            // Если ничего не осталось — переходим на следующий этап
-            if (remaining === 0) {
-                // Закрываем текущий этап в stages
-                await supabaseClient
-                    .from('stages')
-                    .update({ status: 'Выполнено' })
-                    .eq('order_number', orderNumber)
-                    .eq('stage', 'Раскрой');
-
-                // Получаем данные заказа для маршрута
-                const { data: order } = await supabaseClient
-                    .from('orders')
-                    .select('r1, resin, r2')
-                    .eq('order_number', orderNumber)
-                    .single();
-
-                let nextStage = 'ОТК';
-                let nextStageName = 'ОТК';
-
-                // ЛОГИКА МАРШРУТА: если R1 = true, идём на Смолу
-                if (order && (order.r1 === true)) {
-                    nextStage = 'Смола';
-                    nextStageName = 'Смола';
-                } else if (order && (order.r2 === true)) {
-                    nextStage = 'Раскрой Р2';
-                    nextStageName = 'Раскрой Р2';
-                }
-
-                // Создаём следующий этап в stages
-                await supabaseClient
-                    .from('stages')
-                    .insert([
-                        { 
-                            order_number: orderNumber, 
-                            stage: nextStage, 
-                            status: 'Ожидание'
-                        }
-                    ]);
-
-                // Обновляем заказ
-                await supabaseClient
-                    .from('orders')
-                    .update({ stage: nextStage, status: 'Ожидание' })
-                    .eq('order_number', orderNumber);
-
-                showMessage(`Все завершены! Заказ переведён на ${nextStageName}`, 'ok');
-            } else {
-                showMessage(`Осталось выполнить: ${remaining}`, 'ok');
+            // Смотрим на чекбоксы заказа
+            if (itemData.r1 === true) {
+                nextStage = 'Смола';
+                nextStageName = 'Смола';
+            } else if (itemData.r2 === true) {
+                nextStage = 'Раскрой Р2';
+                nextStageName = 'Раскрой Р2';
             }
+
+            await supabaseClient
+                .from('orders')
+                .update({ stage: nextStage })
+                .eq('order_number', itemData.order_number);
+
+            // 2. Создаём запись на следующий этап в stages
+            await supabaseClient
+                .from('stages')
+                .insert([
+                    { 
+                        order_number: itemData.order_number, 
+                        stage: nextStage, 
+                        status: 'Ожидание',
+                        shelf: itemData.shelf,
+                        blocks: itemData.blocks
+                    }
+                ]);
+
+            showMessage(`Заказ переведён на ${nextStageName}`, 'ok');
+        } else {
+            showMessage('Статус обновлён', 'ok');
         }
 
         loadCuttingOrders();
