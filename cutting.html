@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Раскрой — Планировщик</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f4f6f9; padding: 16px; min-height: 100vh; display: flex; justify-content: center; }
@@ -29,7 +29,6 @@
         .badge-waiting { background: #fff3cd; color: #856404; }
         .badge-work { background: #cce5ff; color: #004085; }
         .badge-done { background: #d4edda; color: #155724; }
-        .badge-type { background: #e8daef; color: #6c3483; }
         .item { padding: 12px 0; border-bottom: 1px solid #f0f2f5; }
         .item:last-child { border-bottom: none; }
         .item .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
@@ -55,15 +54,15 @@
         <p>Очередь рулонов (Р1) и заказов (Р2)</p>
     </div>
     <div class="nav">
-        <a href="/planner-app/">Главная</a>
-        <a href="/planner-app/prep.html">Подготовка</a>
-        <a href="/planner-app/print.html">Печать</a>
-        <a href="/planner-app/cutter.html">Каттер</a>
-        <a href="/planner-app/cutting.html" class="active">Раскрой</a>
-        <a href="/planner-app/resin.html">Смола</a>
-        <a href="/planner-app/drying.html">Сушка</a>
-        <a href="/planner-app/otk.html">ОТК</a>
-        <a href="/planner-app/packing.html">Упаковка</a>
+        <a href="/">Главная</a>
+        <a href="/prep.html">Подготовка</a>
+        <a href="/print.html">Печать</a>
+        <a href="/cutter.html">Каттер</a>
+        <a href="/cutting.html" class="active">Раскрой</a>
+        <a href="/resin.html">Смола</a>
+        <a href="/drying.html">Сушка</a>
+        <a href="/otk.html">ОТК</a>
+        <a href="/packing.html">Упаковка</a>
     </div>
     <div id="message" class="msg"></div>
     <div class="card">
@@ -75,7 +74,6 @@
 <script>
     const SUPABASE_URL = 'https://knuqfyjdptkkdapivsnm.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_6k1bwNvlNAjNYI9NrijXtg_clTUDrOJ';
-
     const { createClient } = supabase;
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -90,50 +88,144 @@
         var container = document.getElementById('cuttingList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
 
-        const { data, error } = await supabaseClient
-            .from('orders')
+        const { data: stages, error: stageError } = await supabaseClient
+            .from('stages')
             .select('*')
-            .eq('status', 'На раскрое');
+            .eq('stage', 'Раскрой')
+            .eq('status', 'Ожидание');
 
-        if (error) { container.innerHTML = '<div class="empty">Ошибка: ' + error.message + '</div>'; return; }
-        if (!data || data.length === 0) { container.innerHTML = '<div class="empty">Нет заказов на раскрое</div>'; return; }
+        if (stageError) {
+            container.innerHTML = '<div class="empty">Ошибка этапов: ' + stageError.message + '</div>';
+            return;
+        }
+        if (!stages || stages.length === 0) {
+            container.innerHTML = '<div class="empty">Нет заказов на раскрое</div>';
+            return;
+        }
+
+        var allRolls = [];
+        for (var s of stages) {
+            const { data: rolls, error: rollError } = await supabaseClient
+                .from('rolls')
+                .select('*')
+                .eq('order_number', s.order_number)
+                .neq('status', 'Выполнено');
+
+            if (!rollError && rolls) {
+                allRolls = allRolls.concat(rolls);
+            }
+        }
+
+        if (allRolls.length === 0) {
+            container.innerHTML = '<div class="empty">Все рулоны завершены</div>';
+            return;
+        }
 
         var html = '';
-        data.forEach(function(item) {
+        allRolls.forEach(function(item) {
             var badgeClass = '';
             var statusText = item.status || 'Ожидание';
-            if (statusText === 'На раскрое') badgeClass = 'badge-waiting';
-            var typeBadge = ' <span class="badge badge-type">Р2</span>';
+            if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
+            else if (statusText === 'В работе') badgeClass = 'badge-work';
+            else if (statusText === 'Выполнено') badgeClass = 'badge-done';
+
             html += '<div class="item">';
             html += '  <div class="head">';
-            html += '    <span class="order-num">№ ' + item.order_number + ' — Заказ ' + typeBadge + '</span>';
+            html += '    <span class="order-num">№ ' + item.order_number + ' — Р' + item.roll_index + '</span>';
             html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
             html += '  </div>';
+            html += '  <div class="order-meta">Блоков: ' + item.blocks + '</div>';
             html += '  <div class="actions">';
-            html += '    <button class="btn btn-sm btn-success" onclick="updateCuttingOrder(\'' + item.order_number + '\')">Взять в работу</button>';
+            if (statusText === 'Ожидание') {
+                html += '    <button class="btn btn-sm btn-success" onclick="updateCuttingRoll(\'' + item.id + '\', \'В работе\')">Взять в работу</button>';
+            } else if (statusText === 'В работе') {
+                html += '    <button class="btn btn-sm btn-danger" onclick="updateCuttingRoll(\'' + item.id + '\', \'Выполнено\')">Завершить</button>';
+            }
             html += '  </div>';
             html += '</div>';
         });
         container.innerHTML = html;
     }
 
-    async function updateCuttingOrder(orderNumber) {
-        await supabaseClient
-            .from('orders')
-            .update({ status: 'На смоле' })
-            .eq('order_number', orderNumber);
+    async function updateCuttingRoll(rollId, newStatus) {
+        const { data: rollData, error: getError } = await supabaseClient
+            .from('rolls')
+            .select('order_number')
+            .eq('id', rollId)
+            .single();
+        if (getError || !rollData) {
+            showMessage('Ошибка получения заказа', 'err');
+            return;
+        }
+        var orderNumber = rollData.order_number;
 
-        await supabaseClient
-            .from('order_history')
-            .insert([
-                { 
-                    order_id: orderNumber, 
-                    stage: 'Раскрой', 
-                    status: 'Завершено' 
-                }
-            ]);
+        const { error: updateError } = await supabaseClient
+            .from('rolls')
+            .update({ status: newStatus })
+            .eq('id', rollId);
+        if (updateError) {
+            showMessage('Ошибка обновления рулона', 'err');
+            return;
+        }
 
-        showMessage('Заказ отправлен на смолу', 'ok');
+        const { data: remaining, error: countError } = await supabaseClient
+            .from('rolls')
+            .select('id', { count: 'exact' })
+            .eq('order_number', orderNumber)
+            .neq('status', 'Выполнено');
+
+        if (countError) {
+            showMessage('Ошибка подсчёта рулонов', 'err');
+            return;
+        }
+
+        if (remaining.length === 0) {
+            // Получаем данные заказа, чтобы понять его маршрут
+            const { data: orderData, error: orderError } = await supabaseClient
+                .from('orders')
+                .select('resin, r2, path')
+                .eq('order_number', orderNumber)
+                .single();
+
+            if (orderError) {
+                showMessage('Ошибка получения данных заказа', 'err');
+                return;
+            }
+
+            await supabaseClient
+                .from('stages')
+                .update({ status: 'Выполнено' })
+                .eq('order_number', orderNumber)
+                .eq('stage', 'Раскрой');
+
+            // Определяем следующий этап в зависимости от чекбоксов
+            var nextStage = 'ОТК';
+            var nextStageName = 'ОТК';
+
+            if (orderData.resin) {
+                nextStage = 'Смола';
+                nextStageName = 'Смола';
+            } else if (orderData.r2) {
+                nextStage = 'Раскрой Р2';
+                nextStageName = 'Раскрой Р2';
+            }
+
+            await supabaseClient
+                .from('stages')
+                .insert([
+                    { order_number: orderNumber, stage: nextStage, status: 'Ожидание' }
+                ]);
+
+            await supabaseClient
+                .from('orders')
+                .update({ stage: nextStage, status: 'В работе' })
+                .eq('order_number', orderNumber);
+
+            showMessage('Все рулоны завершены! Заказ переведён на ' + nextStageName, 'ok');
+        } else {
+            showMessage('Рулон обновлён. Осталось ещё ' + remaining.length + ' рулонов', 'ok');
+        }
+
         loadCuttingOrders();
     }
 
