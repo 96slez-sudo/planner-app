@@ -76,8 +76,8 @@
             display: flex;
             flex-direction: column;
             gap: 4px;
-            flex: 1 1 150px;
-            min-width: 130px;
+            flex: 1 1 180px;
+            min-width: 140px;
         }
         .order-col .label { font-size: 18px; color: #161616; }
         .order-col .value {
@@ -92,17 +92,8 @@
             height: 40px;
         }
 
-        /* ЦВЕТНЫЕ ПЛАШКИ С ПРИНУДИТЕЛЬНЫМ ПРИОРИТЕТОМ */
-        .status-wait { 
-            background-color: #e0e0e0 !important; 
-            border-color: #b0b0b0 !important; 
-            color: #555 !important; 
-        }
-        .status-work { 
-            background-color: #ffe066 !important; 
-            border-color: #d4b300 !important; 
-            color: #1a1a1a !important; 
-        }
+        .status-wait { background-color: #e0e0e0 !important; border-color: #b0b0b0 !important; color: #555 !important; }
+        .status-work { background-color: #ffe066 !important; border-color: #d4b300 !important; color: #1a1a1a !important; }
 
         .msg { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; display: none; }
         .msg.show { display: block; }
@@ -168,7 +159,6 @@
         el.className = 'msg show ' + type;
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
-
     function formatDate(dateStr) {
         if (!dateStr) return '—';
         try {
@@ -180,35 +170,60 @@
     async function loadOrders() {
         const grid = document.getElementById('ordersGrid');
         grid.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
-        const { data, error } = await supabaseClient
+
+        // Получаем заказы из orders
+        const { data: orders, error: ordersError } = await supabaseClient
             .from('orders')
             .select('*')
             .neq('status', 'Завершено')
             .order('creation_date', { ascending: false });
-        if (error) {
-            grid.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #c0392b;">Ошибка загрузки</div>';
+
+        if (ordersError) {
+            grid.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #c0392b;">Ошибка загрузки заказов</div>';
             return;
         }
-        if (!data || data.length === 0) {
+        if (!orders || orders.length === 0) {
             grid.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Нет активных заказов</div>';
             return;
         }
+
+        // Получаем текущие этапы из stages
+        const { data: stages, error: stagesError } = await supabaseClient
+            .from('stages')
+            .select('order_number, stage, status');
+
+        if (stagesError) {
+            grid.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #c0392b;">Ошибка загрузки этапов</div>';
+            return;
+        }
+
         let html = '';
-        data.forEach(item => {
-            let statusClass = 'status-wait';
+        orders.forEach(item => {
+            // Ищем этап в stages
+            const currentStage = stages?.find(s => s.order_number === item.order_number);
+            
+            let stageName = item.stage || '—';
             let statusText = 'Ожидает';
-            if (item.status === 'В работе') { 
-                statusClass = 'status-work'; 
-                statusText = 'В работе'; 
-            } else if (item.status === 'Ожидание') { 
-                statusClass = 'status-wait'; 
-                statusText = 'Ожидает'; 
+            let statusClass = 'status-wait';
+
+            if (currentStage) {
+                stageName = currentStage.stage;
+                if (currentStage.status === 'В работе') {
+                    statusText = 'В работе';
+                    statusClass = 'status-work';
+                } else if (currentStage.status === 'Выполнено') {
+                    statusText = 'Выполнено';
+                    statusClass = 'status-work';
+                } else {
+                    statusText = 'Ожидает';
+                    statusClass = 'status-wait';
+                }
             }
 
             html += `
                 <div class="order-row">
                     <div class="order-col"><div class="label">№ заказа</div><div class="value">${item.order_number}</div></div>
-                    <div class="order-col"><div class="label">Этап</div><div class="value">${item.stage || '—'}</div></div>
+                    <div class="order-col"><div class="label">Этап</div><div class="value">${stageName}</div></div>
                     <div class="order-col"><div class="label">Статус</div><div class="value ${statusClass}">${statusText}</div></div>
                     <div class="order-col"><div class="label">Дата запуска</div><div class="value">${formatDate(item.creation_date)}</div></div>
                     <div class="order-col"><div class="label">Плановая дата</div><div class="value">${formatDate(item.plan_date)}</div></div>
