@@ -23,7 +23,6 @@
 
         .container { max-width: 1520px; width: 100%; }
 
-        /* --- Шапка --- */
         .header {
             display: flex;
             flex-wrap: wrap;
@@ -37,7 +36,6 @@
         .header .subtitle { font-size: 16px; color: #161616; cursor: pointer; transition: 0.2s; }
         .header .subtitle:hover { opacity: 0.7; }
 
-        /* --- Меню --- */
         .stages {
             display: flex;
             flex-wrap: wrap;
@@ -56,15 +54,10 @@
             transition: 0.2s;
         }
         .stage-btn:hover { background: #b0b0b0; }
-        .stage-btn.active {
-            background: #1e1e1e;
-            color: #ffffff;
-        }
+        .stage-btn.active { background: #1e1e1e; color: #ffffff; }
 
-        /* --- Заголовок --- */
-        .page-title { font-size: 32px; margin-bottom: 30px; color: #161616; }
-
-        /* --- Таблица рулонов --- */
+        .page-title { font-size: 32px; margin-bottom: 24px; color: #161616; }
+        
         .rolls-grid {
             display: flex;
             flex-direction: column;
@@ -73,11 +66,10 @@
             width: 100%;
         }
 
-        /* Строка рулона — все элементы одной высоты */
         .roll-row {
             display: flex;
             flex-wrap: wrap;
-            align-items: center; /* Идеальное центрирование по вертикали */
+            align-items: center; 
             gap: 16px 24px;
         }
 
@@ -105,27 +97,20 @@
         .col-roll { width: 180px; }
         .col-blocks { width: 180px; }
         .col-status { width: 200px; }
-        .col-actions { width: auto; flex: 0 0 auto; }
+        .col-actions { width: 160px; /* ФИКСИРОВАННАЯ ДЛИНА, КАК У ПОЛЕЙ */ }
 
-        /* --- СТАТУСЫ (Исправленные цвета) --- */
-        .status-wait { 
-            background: #e0e0e0; 
-            border-color: #b0b0b0; 
-            color: #555; 
-        }
-        .status-work { 
-            background: #ffe066; 
-            border-color: #d4b300; 
-            color: #1a1a1a; 
-        }
+        /* СТАТУСЫ: СЕРЫЙ = ОЖИДАНИЕ, ЖЁЛТЫЙ = В РАБОТЕ */
+        .status-wait { background: #e0e0e0; border-color: #b0b0b0; color: #555; }
+        .status-work { background: #ffe066; border-color: #d4b300; color: #1a1a1a; }
 
-        /* --- КНОПКИ (Теперь они 40px высотой и выровнены) --- */
+        /* КНОПКИ (Теперь они 40px высотой и 160px шириной, как поле) */
         .btn-green {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            padding: 0 16px;
-            height: 40px; /* Ровно как у полей ввода */
+            padding: 0;
+            height: 40px;
+            width: 160px; /* ФИКСИРОВАННАЯ ШИРИНА, ЧТОБЫ НЕ ПРЫГАЛИ */
             background-color: #0f8653;
             border-radius: 8px;
             color: #ffffff;
@@ -140,8 +125,9 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            padding: 0 16px;
-            height: 40px; /* Ровно как у полей ввода */
+            padding: 0;
+            height: 40px;
+            width: 160px; /* ФИКСИРОВАННАЯ ШИРИНА */
             background-color: #e74c3c;
             border-radius: 8px;
             color: #ffffff;
@@ -171,12 +157,10 @@
         .msg.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .msg.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
-        /* --- Адаптивность --- */
         @media (max-width: 992px) {
             .roll-row { align-items: flex-start; }
-            .col-id, .col-roll, .col-blocks, .col-status { width: 100%; max-width: 100%; }
-            .col-actions { width: 100%; }
-            .rolls-grid { max-width: 100%; }
+            .col-id, .col-roll, .col-blocks, .col-status, .col-actions { width: 100%; max-width: 100%; }
+            .btn-green, .btn-red { width: 100%; }
         }
         @media (max-width: 600px) {
             .header .title { font-size: 16px; }
