@@ -281,7 +281,8 @@
         container.innerHTML = html;
     }
 
-    async function updateRoll(stageId, newStatus) {
+        async function updateRoll(stageId, newStatus) {
+        // 1. Сначала получаем данные рулона (этапа)
         const { data: itemData, error: getError } = await supabaseClient
             .from('stages')
             .select('order_number, shelf, blocks')
@@ -293,18 +294,18 @@
             return;
         }
 
-        // 1. Обновляем статус текущего этапа в stages
+        // 2. Обновляем статус в таблице stages
         const { error } = await supabaseClient
             .from('stages')
             .update({ status: newStatus })
             .eq('id', stageId);
 
         if (error) {
-            showMessage('Ошибка обновления', 'err');
+            showMessage('Ошибка обновления статуса', 'err');
             return;
         }
 
-        // 2. Если завершён — переходим на Раскрой
+        // 3. ЕСЛИ СТАТУС СТАЛ "Выполнено" — создаём Раскрой
         if (newStatus === 'Выполнено') {
             // Обновляем orders (этап на Раскрой)
             await supabaseClient
@@ -320,8 +321,8 @@
                         order_number: itemData.order_number, 
                         stage: 'Раскрой', 
                         status: 'Ожидание',
-                        shelf: itemData.shelf,   // ID рулона
-                        blocks: itemData.blocks  // Блоки
+                        shelf: itemData.shelf,
+                        blocks: itemData.blocks
                     }
                 ]);
 
