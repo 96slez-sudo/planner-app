@@ -158,19 +158,6 @@
         else if (r2) path = 'Р2';
         else path = '';
 
-        // 1. Загружаем нормативы из базы
-        const { data: standards, error: stdErr } = await supabaseClient
-            .from('standards')
-            .select('*');
-
-        if (stdErr) {
-            showMessage('Ошибка загрузки нормативов: ' + stdErr.message, 'err');
-            btn.disabled = false;
-            btn.textContent = 'Запустить заказ';
-            return;
-        }
-
-        // 2. Создаём заказ
         const { data, error } = await supabaseClient
             .from('orders')
             .insert([
@@ -186,47 +173,11 @@
             ]);
 
         if (!error) {
-            // Логируем начало этапа
-            await supabaseClient
-                .from('stage_logs')
-                .insert([
-                    { 
-                        order_number: orderNumber, 
-                        stage: 'Подготовка', 
-                        start_time: new Date().toISOString()
-                    }
-                ]);
-
             await supabaseClient
                 .from('stages')
                 .insert([
                     { order_number: orderNumber, stage: 'Подготовка', status: 'Ожидание' }
                 ]);
-
-            // 3. Считаем прогноз
-            const totalBlocks = 0; // Пока 0, будет уточняться позже
-            var totalMinutes = 0;
-            var routeStages = ['Подготовка', 'Печать', 'Каттер'];
-            if (r1) routeStages.push('Раскрой 1');
-            if (resin) routeStages.push('Смола (заливка)', 'Смола (сушка)');
-            if (r2) routeStages.push('Раскрой 2');
-            routeStages.push('ОТК', 'Упаковка');
-
-            routeStages.forEach(function(stageName) {
-                var std = standards.find(function(s) { return s.operation === stageName; });
-                if (std) {
-                    if (std.type === 'Фикс') {
-                        totalMinutes += Number(std.minutes);
-                    } else {
-                        // Для "За блок" пока считаем по 1 блоку, позже обновим
-                        totalMinutes += Number(std.minutes);
-                    }
-                }
-            });
-            var finishDate = new Date(new Date().getTime() + totalMinutes * 60000);
-            var finishStr = finishDate.toLocaleString('ru-RU', { hour12: false });
-            
-            showMessage('Заказ ' + orderNumber + ' создан. Прогноз готовности: ' + finishStr, 'ok');
         }
 
         btn.disabled = false;
@@ -235,6 +186,7 @@
         if (error) {
             showMessage('Ошибка: ' + error.message, 'err');
         } else {
+            showMessage('Заказ ' + orderNumber + ' создан', 'ok');
             document.getElementById('orderNumber').value = '';
             document.getElementById('creationDate').value = '';
             document.getElementById('planDate').value = '';
