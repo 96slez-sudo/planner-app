@@ -171,59 +171,36 @@
         const grid = document.getElementById('ordersGrid');
         grid.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
-        // Получаем заказы из orders
-        const { data: orders, error: ordersError } = await supabaseClient
+        // Главная читает ИСКЛЮЧИТЕЛЬНО из orders
+        const { data, error } = await supabaseClient
             .from('orders')
             .select('*')
             .neq('status', 'Завершено')
             .order('creation_date', { ascending: false });
 
-        if (ordersError) {
-            grid.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #c0392b;">Ошибка загрузки заказов</div>';
+        if (error) {
+            grid.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #c0392b;">Ошибка загрузки</div>';
             return;
         }
-        if (!orders || orders.length === 0) {
+        if (!data || data.length === 0) {
             grid.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Нет активных заказов</div>';
             return;
         }
-
-        // Получаем текущие этапы из stages
-        const { data: stages, error: stagesError } = await supabaseClient
-            .from('stages')
-            .select('order_number, stage, status');
-
-        if (stagesError) {
-            grid.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #c0392b;">Ошибка загрузки этапов</div>';
-            return;
-        }
-
         let html = '';
-        orders.forEach(item => {
-            // Ищем этап в stages
-            const currentStage = stages?.find(s => s.order_number === item.order_number);
-            
-            let stageName = item.stage || '—';
-            let statusText = 'Ожидает';
+        data.forEach(item => {
             let statusClass = 'status-wait';
-
-            if (currentStage) {
-                stageName = currentStage.stage;
-                if (currentStage.status === 'В работе') {
-                    statusText = 'В работе';
-                    statusClass = 'status-work';
-                } else if (currentStage.status === 'Выполнено') {
-                    statusText = 'Выполнено';
-                    statusClass = 'status-work';
-                } else {
-                    statusText = 'Ожидает';
-                    statusClass = 'status-wait';
-                }
+            let statusText = 'Ожидает';
+            if (item.status === 'В работе') { 
+                statusClass = 'status-work'; 
+                statusText = 'В работе'; 
+            } else if (item.status === 'Ожидает') { 
+                statusClass = 'status-wait'; 
+                statusText = 'Ожидает'; 
             }
-
             html += `
                 <div class="order-row">
                     <div class="order-col"><div class="label">№ заказа</div><div class="value">${item.order_number}</div></div>
-                    <div class="order-col"><div class="label">Этап</div><div class="value">${stageName}</div></div>
+                    <div class="order-col"><div class="label">Этап</div><div class="value">${item.stage || '—'}</div></div>
                     <div class="order-col"><div class="label">Статус</div><div class="value ${statusClass}">${statusText}</div></div>
                     <div class="order-col"><div class="label">Дата запуска</div><div class="value">${formatDate(item.creation_date)}</div></div>
                     <div class="order-col"><div class="label">Плановая дата</div><div class="value">${formatDate(item.plan_date)}</div></div>
