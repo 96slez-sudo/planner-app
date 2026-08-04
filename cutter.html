@@ -241,7 +241,6 @@
 
         let html = '';
         sorted.forEach(item => {
-            // БЕРЁМ ID РУЛОНА ИЗ СТОЛБЦА shelf
             const rollId = item.shelf || '—';
             
             let statusClass = 'status-wait';
@@ -283,6 +282,18 @@
     }
 
     async function updateRoll(stageId, newStatus) {
+        const { data: itemData, error: getError } = await supabaseClient
+            .from('stages')
+            .select('order_number, shelf, blocks')
+            .eq('id', stageId)
+            .single();
+
+        if (getError || !itemData) {
+            showMessage('Ошибка получения данных', 'err');
+            return;
+        }
+
+        // 1. Обновляем статус текущего этапа в stages
         const { error } = await supabaseClient
             .from('stages')
             .update({ status: newStatus })
@@ -293,7 +304,32 @@
             return;
         }
 
-        showMessage('Рулон обновлён', 'ok');
+        // 2. Если завершён — переходим на Раскрой
+        if (newStatus === 'Выполнено') {
+            // Обновляем orders (этап на Раскрой)
+            await supabaseClient
+                .from('orders')
+                .update({ stage: 'Раскрой' })
+                .eq('order_number', itemData.order_number);
+
+            // Создаём запись в stages для Раскроя
+            await supabaseClient
+                .from('stages')
+                .insert([
+                    { 
+                        order_number: itemData.order_number, 
+                        stage: 'Раскрой', 
+                        status: 'Ожидание',
+                        shelf: itemData.shelf,   // ID рулона
+                        blocks: itemData.blocks  // Блоки
+                    }
+                ]);
+
+            showMessage(`Рулон ${itemData.shelf} переведён на Раскрой`, 'ok');
+        } else {
+            showMessage('Рулон обновлён', 'ok');
+        }
+
         loadRolls();
     }
 
