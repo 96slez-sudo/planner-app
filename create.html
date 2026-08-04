@@ -164,7 +164,7 @@
             background: #fff;
         }
 
-        /* === ЦВЕТА ПЛАШЕК (те же, что и на главной) === */
+        /* === ЦВЕТА ПЛАШЕК === */
         .status-wait { background: #e0e0e0 !important; border-color: #b0b0b0 !important; color: #555 !important; }
         .status-work { background: #ffe066 !important; border-color: #d4b300 !important; color: #1a1a1a !important; }
 
@@ -292,7 +292,6 @@
         else if (r2) path = 'Р2';
         else path = '';
 
-        // 1. Запись в orders (для Главной и Создания заказа)
         const { data, error } = await supabaseClient
             .from('orders')
             .insert([
@@ -309,14 +308,12 @@
             ]);
 
         if (!error) {
-            // 2. Запись в stages (для Подготовки/Печати)
             await supabaseClient
                 .from('stages')
                 .insert([
                     { order_number: orderNumber, stage: 'Подготовка', status: 'Ожидает' }
                 ]);
 
-            // 3. Запись в order_history
             await supabaseClient
                 .from('order_history')
                 .insert([
