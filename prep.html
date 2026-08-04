@@ -59,15 +59,15 @@
         <p>Создание рулонов</p>
     </div>
     <div class="nav">
-        <a href="/planner-app/">Главная</a>
-        <a href="/planner-app/prep.html" class="active">Подготовка</a>
-        <a href="/planner-app/print.html">Печать</a>
-        <a href="/planner-app/cutter.html">Каттер</a>
-        <a href="/planner-app/cutting.html">Раскрой</a>
-        <a href="/planner-app/resin.html">Смола</a>
-        <a href="/planner-app/drying.html">Сушка</a>
-        <a href="/planner-app/otk.html">ОТК</a>
-        <a href="/planner-app/packing.html">Упаковка</a>
+        <a href="/">Главная</a>
+        <a href="/prep.html" class="active">Подготовка</a>
+        <a href="/print.html">Печать</a>
+        <a href="/cutter.html">Каттер</a>
+        <a href="/cutting.html">Раскрой</a>
+        <a href="/resin.html">Смола</a>
+        <a href="/drying.html">Сушка</a>
+        <a href="/otk.html">ОТК</a>
+        <a href="/packing.html">Упаковка</a>
     </div>
     <div id="message" class="msg"></div>
     <div class="card">
@@ -79,7 +79,6 @@
 <script>
     const SUPABASE_URL = 'https://knuqfyjdptkkdapivsnm.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_6k1bwNvlNAjNYI9NrijXtg_clTUDrOJ';
-
     const { createClient } = supabase;
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -96,7 +95,7 @@
 
         const { data, error } = await supabaseClient
             .from('stages')
-            .select('*, orders(*)')
+            .select('*')
             .eq('stage', 'Подготовка')
             .eq('status', 'Ожидание');
 
@@ -105,23 +104,22 @@
 
         var html = '';
         data.forEach(function(item) {
-            var order = item.orders;
             html += '<div class="item">';
             html += '  <div class="head">';
-            html += '    <span class="order-num">№ ' + order.order_number + '</span>';
-            html += '    <span class="badge badge-waiting">' + (order.status || 'Ожидание') + '</span>';
+            html += '    <span class="order-num">№ ' + item.order_number + '</span>';
+            html += '    <span class="badge badge-waiting">' + (item.status || 'Ожидание') + '</span>';
             html += '  </div>';
-            html += '  <div class="order-meta">Приоритет: ' + (order.priority || 'Обычный') + '</div>';
-            html += '  <div class="roll-row" id="rolls-' + order.order_number + '">';
+            html += '  <div class="order-meta">Приоритет: ' + (item.priority || 'Обычный') + '</div>';
+            html += '  <div class="roll-row" id="rolls-' + item.order_number + '">';
             for (var i = 1; i <= 6; i++) {
                 html += '    <div class="r">';
                 html += '      <label>Р' + i + '</label>';
-                html += '      <input type="number" min="0" value="0" id="roll-' + order.order_number + '-' + i + '">';
+                html += '      <input type="number" min="0" value="0" id="roll-' + item.order_number + '-' + i + '">';
                 html += '    </div>';
             }
             html += '  </div>';
             html += '  <div class="actions">';
-            html += '    <button class="btn btn-sm btn-success" onclick="createRolls(\'' + order.order_number + '\')">Создать рулоны</button>';
+            html += '    <button class="btn btn-sm btn-success" onclick="createRolls(\'' + item.order_number + '\')">Создать рулоны</button>';
             html += '  </div>';
             html += '</div>';
         });
@@ -136,7 +134,7 @@
         }
         if (sum === 0) { showMessage('Заполните хотя бы один рулон', 'err'); return; }
 
-        // 1. Записываем рулоны
+        // 1. Создаём рулоны
         var promises = [];
         for (var key in rolls) {
             var index = parseInt(key.replace('roll_', ''));
@@ -145,52 +143,73 @@
                 supabaseClient
                     .from('rolls')
                     .insert([
-                        { 
-                            order_number: orderNumber, 
-                            roll_index: index, 
-                            blocks: blocks, 
-                            status: 'Ожидание' 
-                        }
+                        { order_number: orderNumber, roll_index: index, blocks: blocks, status: 'Ожидание' }
                     ])
             );
         }
         await Promise.all(promises);
 
-        // 2. Обновляем главный заказ
+        // 2. Обновляем общее кол-во блоков в заказе
         await supabaseClient
             .from('orders')
-            .update({ status: 'В работе', stage: 'Печать' })
+            .update({ blocks: sum })
             .eq('order_number', orderNumber);
 
-        // 3. Закрываем текущий этап в stages
+        // 3. Пересчитываем прогноз
+        const { data: order, error: orderErr } = await supabaseClient
+            .from('orders')
+            .select('*')
+            .eq('order_number', orderNumber)
+            .single();
+
+        if (!orderErr && order) {
+            const { data: standards } = await supabaseClient
+                .from('standards')
+                .select('*');
+
+            var totalMinutes = 0;
+            // Определяем маршрут заказа
+            var route = [];
+            route.push('Подготовка', 'Печать', 'Каттер');
+            if (order.r1) route.push('Раскрой 1');
+            if (order.resin) route.push('Смола (заливка)', 'Смола (сушка)');
+            if (order.r2) route.push('Раскрой 2');
+            route.push('ОТК', 'Упаковка');
+
+            route.forEach(function(stageName) {
+                var std = standards.find(function(s) { return s.operation === stageName; });
+                if (std) {
+                    if (std.type === 'Фикс') {
+                        totalMinutes += Number(std.minutes);
+                    } else {
+                        totalMinutes += Number(std.minutes) * order.blocks;
+                    }
+                }
+            });
+            var finishDate = new Date(new Date().getTime() + totalMinutes * 60000);
+            var finishStr = finishDate.toLocaleString('ru-RU', { hour12: false });
+            showMessage('Рулоны созданы. Прогноз готовности: ' + finishStr, 'ok');
+        }
+
+        // 4. Обновляем этапы
         await supabaseClient
             .from('stages')
             .update({ status: 'Выполнено' })
             .eq('order_number', orderNumber)
             .eq('stage', 'Подготовка');
 
-        // 4. Создаём новый этап
         await supabaseClient
             .from('stages')
             .insert([
-                {
-                    order_number: orderNumber,
-                    stage: 'Печать',
-                    status: 'Ожидание'
-                }
+                { order_number: orderNumber, stage: 'Печать', status: 'Ожидание' }
             ]);
 
         await supabaseClient
-            .from('order_history')
+            .from('stage_logs')
             .insert([
-                { 
-                    order_id: orderNumber, 
-                    stage: 'Подготовка', 
-                    status: 'Завершено' 
-                }
+                { order_number: orderNumber, stage: 'Подготовка', status: 'Завершено', end_time: new Date().toISOString() }
             ]);
 
-        showMessage('Рулоны созданы, заказ переведён на печать', 'ok');
         loadPrepOrders();
     }
 
