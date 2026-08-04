@@ -4,15 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Подготовка печати</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Science+Gothic&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Science Gothic', 'Asta Sans-Regular', sans-serif; background: #ffffff; color: #161616; padding: 16px; min-height: 100vh; display: flex; justify-content: center; }
+        body { 
+            font-family: 'Science Gothic', sans-serif; 
+            background: #ffffff; 
+            color: #161616; 
+            padding: 16px; 
+            min-height: 100vh; 
+            display: flex; 
+            justify-content: center; 
+        }
         a { text-decoration: none; }
 
         .container { max-width: 1520px; width: 100%; }
 
-        /* --- Шапка и Меню (как везде) --- */
         .header {
             display: flex;
             flex-wrap: wrap;
@@ -22,8 +32,8 @@
             margin-bottom: 32px;
             border-bottom: 1px solid #eeeeee;
         }
-        .header .title { font-size: 20px; letter-spacing: 0.5px; font-weight: 400; }
-        .header .subtitle { font-size: 16px; font-weight: 400; color: #161616; cursor: pointer; transition: 0.2s; }
+        .header .title { font-size: 20px; letter-spacing: 0.5px; color: #161616; }
+        .header .subtitle { font-size: 16px; color: #161616; cursor: pointer; transition: 0.2s; }
         .header .subtitle:hover { opacity: 0.7; }
 
         .stages {
@@ -44,24 +54,18 @@
             transition: 0.2s;
         }
         .stage-btn:hover { background: #b0b0b0; }
-        .stage-btn.active {
-            background: #1e1e1e;
-            color: #ffffff;
-        }
+        .stage-btn.active { background: #1e1e1e; color: #ffffff; }
 
-        /* --- Контент --- */
-        .page-title { font-size: 32px; font-weight: 400; margin-bottom: 24px; line-height: 1.4; }
-        
+        .page-title { font-size: 32px; margin-bottom: 24px; color: #161616; }
         .order-card {
             display: flex;
             flex-wrap: wrap;
             align-items: center;
-            gap: 20px;
-            padding: 16px 0;
+            gap: 16px 24px;
+            padding: 8px 0;
             border-bottom: 1px solid #eeeeee;
         }
         .order-card:last-child { border-bottom: none; }
-
         .col-order {
             display: flex;
             flex-direction: column;
@@ -69,17 +73,17 @@
             flex: 0 0 200px;
             min-width: 140px;
         }
-        .col-order label { font-size: 18px; font-weight: 400; }
+        .col-order label { font-size: 18px; color: #161616; }
         .col-order input {
-            padding: 10px 12px;
+            padding: 0 12px;
+            height: 40px;
             border: 1px solid #6c6c6c;
             border-radius: 8px;
-            font-family: 'Asta Sans-Regular', sans-serif;
-            font-size: 16px;
+            font-family: 'Science Gothic', sans-serif;
+            font-size: 15px;
             width: 100%;
             background: #fff;
         }
-
         .col-rolls {
             flex: 1;
             min-width: 280px;
@@ -87,7 +91,7 @@
             flex-direction: column;
             gap: 4px;
         }
-        .col-rolls label { font-size: 18px; font-weight: 400; }
+        .col-rolls label { font-size: 18px; color: #161616; }
         .rolls-container {
             display: flex;
             flex-wrap: wrap;
@@ -95,49 +99,43 @@
             align-items: center;
         }
         .roll-input {
-            width: 42px;
-            height: 42px;
-            padding: 4px;
+            width: 42px; height: 42px;
+            padding: 0 4px;
             border: 1px solid #6c6c6c;
             border-radius: 6px;
             text-align: center;
             font-size: 15px;
-            font-family: 'Asta Sans-Regular', sans-serif;
+            font-family: 'Science Gothic', sans-serif;
         }
         
-        /* Кнопка "+" */
         .add-roll-btn {
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 28px;
-            height: 28px;
+            width: 28px; height: 28px;
             border-radius: 50%;
             background: #0f8653;
             color: white;
             font-size: 20px;
-            font-weight: 300;
             border: none;
             cursor: pointer;
             transition: 0.2s;
         }
         .add-roll-btn:hover { background: #0b6b43; }
 
-        /* Кнопка Создать рулоны — автолэйаут */
         .btn-green {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            padding: 8px 20px;
+            height: 40px;
+            padding: 0 20px;
             background-color: #0f8653;
             border-radius: 8px;
             color: #ffffff;
-            font-size: 16px;
+            font-size: 15px;
             border: none;
             cursor: pointer;
             transition: 0.2s;
-            white-space: nowrap;
-            /* Автолэйаут */
             flex: 0 0 auto;
         }
         .btn-green:hover { opacity: 0.8; }
@@ -160,7 +158,6 @@
         .msg.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .msg.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
-        /* --- Адаптивность --- */
         @media (max-width: 992px) {
             .col-order { flex: 0 0 100%; }
             .col-rolls { flex: 1 1 100%; }
@@ -171,27 +168,24 @@
             .header .subtitle { font-size: 14px; }
             .stage-btn { font-size: 14px; padding: 6px 12px; }
             .page-title { font-size: 26px; }
-            .roll-input { width: 38px; height: 38px; font-size: 14px; }
-            .add-roll-btn { width: 24px; height: 24px; font-size: 16px; }
+            .btn-green { width: 100%; height: 36px; }
+            .roll-input { width: 36px; height: 36px; }
         }
         @media (max-width: 480px) {
             .header { flex-direction: column; align-items: flex-start; gap: 4px; }
-            .roll-input { width: 34px; height: 34px; font-size: 12px; }
-            .add-roll-btn { width: 22px; height: 22px; font-size: 14px; }
-            .btn-green { font-size: 14px; padding: 6px 14px; width: 100%; justify-content: center; }
+            .roll-input { width: 32px; height: 32px; }
+            .btn-green { height: 32px; }
         }
     </style>
 </head>
 <body>
 <div class="container">
-    <!-- Шапка -->
     <div class="header">
         <div class="title">//ПЛАНИРОВЩИК ПРОИЗВОДСТВА</div>
         <a href="/planner-app/" class="subtitle">ГЛАВНАЯ//</a>
     </div>
     <div id="message" class="msg"></div>
 
-    <!-- Меню -->
     <div class="stages">
         <a href="/planner-app/create.html" class="stage-btn">Создание заказа</a>
         <a href="/planner-app/prep.html" class="stage-btn active">Подготовка</a>
@@ -205,11 +199,9 @@
     </div>
 
     <div class="page-title">Создать рулоны<br />и запустить в печать</div>
-
     <div id="prepList">
         <div style="text-align: center; padding: 40px 0; color: #999;">Загрузка заказов...</div>
     </div>
-
     <button class="btn-refresh" onclick="loadPrepOrders()">Обновить</button>
 </div>
 
@@ -221,119 +213,4 @@
 
     function showMessage(text, type) {
         var el = document.getElementById('message');
-        el.textContent = text;
-        el.className = 'msg show ' + type;
-        setTimeout(function() { el.classList.remove('show'); }, 5000);
-    }
-
-    async function loadPrepOrders() {
-        const container = document.getElementById('prepList');
-        container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
-
-        const { data, error } = await supabaseClient
-            .from('orders')
-            .select('*')
-            .eq('status', 'Запущен');
-
-        if (error) {
-            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #c0392b;">Ошибка</div>';
-            return;
-        }
-        if (!data || data.length === 0) {
-            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Нет заказов</div>';
-            return;
-        }
-
-        let html = '';
-        data.forEach(order => {
-            let rollInputs = '';
-            for (let i = 1; i <= 6; i++) {
-                rollInputs += `<input type="number" min="0" value="0" class="roll-input" id="roll-${order.order_number}-${i}">`;
-            }
-
-            html += `
-                <div class="order-card" id="card-${order.order_number}">
-                    <div class="col-order">
-                        <label>№ заказа</label>
-                        <input type="text" value="${order.order_number}" readonly />
-                    </div>
-                    <div class="col-rolls">
-                        <label>Рулоны</label>
-                        <div class="rolls-container" id="rolls-${order.order_number}">
-                            ${rollInputs}
-                            <button class="add-roll-btn" onclick="addRoll('${order.order_number}')">+</button>
-                        </div>
-                    </div>
-                    <button class="btn-green" onclick="createRolls('${order.order_number}')">Создать рулоны</button>
-                </div>
-            `;
-        });
-        container.innerHTML = html;
-    }
-
-    function addRoll(orderNumber) {
-        const container = document.getElementById(`rolls-${orderNumber}`);
-        const newInput = document.createElement('input');
-        newInput.type = 'number';
-        newInput.min = 0;
-        newInput.value = 0;
-        newInput.className = 'roll-input';
-        newInput.id = `roll-${orderNumber}-${container.children.length}`;
-        container.insertBefore(newInput, container.lastElementChild);
-    }
-
-    async function createRolls(orderNumber) {
-        const container = document.getElementById(`rolls-${orderNumber}`);
-        const inputs = container.querySelectorAll('.roll-input');
-        let sum = 0;
-        const rolls = {};
-
-        inputs.forEach((input, index) => {
-            const val = parseInt(input.value) || 0;
-            if (val > 0) {
-                rolls[`roll_${index + 1}`] = val;
-                sum += val;
-            }
-        });
-
-        if (sum === 0) {
-            showMessage('Заполните хотя бы один рулон', 'err');
-            return;
-        }
-
-        const promises = [];
-        for (const key in rolls) {
-            const index = parseInt(key.replace('roll_', ''));
-            promises.push(
-                supabaseClient.from('rolls').insert([
-                    { order_number: orderNumber, roll_index: index, blocks: rolls[key], status: 'Ожидание' }
-                ])
-            );
-        }
-        await Promise.all(promises);
-
-        await supabaseClient
-            .from('orders')
-            .update({ stage: 'Печать', status: 'В работе' })
-            .eq('order_number', orderNumber);
-
-        await supabaseClient
-            .from('stages')
-            .update({ status: 'Выполнено' })
-            .eq('order_number', orderNumber)
-            .eq('stage', 'Подготовка');
-
-        await supabaseClient
-            .from('stages')
-            .insert([
-                { order_number: orderNumber, stage: 'Печать', status: 'Ожидание' }
-            ]);
-
-        showMessage('Рулоны созданы, заказ отправлен на печать', 'ok');
-        loadPrepOrders();
-    }
-
-    document.addEventListener('DOMContentLoaded', loadPrepOrders);
-</script>
-</body>
-</html>
+        el.textContent
