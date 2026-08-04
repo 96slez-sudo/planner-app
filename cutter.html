@@ -218,7 +218,7 @@
         const container = document.getElementById('list');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
-        // СМОТРИМ В ТАБЛИЦУ STAGES, А НЕ В ROLLS!
+        // ЧИТАЕМ ИЗ ТАБЛИЦЫ stages (там лежат блоки)
         const { data, error } = await supabaseClient
             .from('stages')
             .select('*')
@@ -234,17 +234,18 @@
             return;
         }
 
-        // Чтобы получить количество блоков, подтягиваем данные заказа
+        // Сортируем по статусу (Ожидание сначала)
+        const sorted = [...data].sort((a, b) => {
+            if (a.status === 'Ожидание' && b.status !== 'Ожидание') return -1;
+            if (a.status !== 'Ожидание' && b.status === 'Ожидание') return 1;
+            return 0;
+        });
+
         let html = '';
-        for (const item of data) {
-            const { data: order, error: orderError } = await supabaseClient
-                .from('orders')
-                .select('blocks')
-                .eq('order_number', item.order_number)
-                .single();
-
-            const blocks = order?.blocks || 0;
-
+        sorted.forEach(item => {
+            // Вытаскиваем ID рулона из столбца shelf (там лежит 1_01, 2_01...)
+            const rollId = item.shelf || '—';
+            
             let statusClass = 'status-wait';
             let statusText = 'Ожидает';
             if (item.status === 'В работе') {
@@ -260,11 +261,11 @@
                     </div>
                     <div class="col col-roll">
                         <div class="label">ID рулона</div>
-                        <div class="value">${item.shelf}</div>
+                        <div class="value">${rollId}</div>
                     </div>
                     <div class="col col-blocks">
                         <div class="label">Кол-во блоков</div>
-                        <div class="value">${blocks}</div>
+                        <div class="value">${item.blocks}</div>
                     </div>
                     <div class="col col-status">
                         <div class="label">Статус</div>
@@ -279,11 +280,12 @@
                     </div>
                 </div>
             `;
-        }
+        });
         container.innerHTML = html;
     }
 
     async function updateRoll(stageId, newStatus) {
+        // Обновляем статус прямо в таблице stages
         const { error } = await supabaseClient
             .from('stages')
             .update({ status: newStatus })
