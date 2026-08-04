@@ -281,9 +281,10 @@
     }
 
     async function updatePrintRoll(rollId, newStatus) {
+        // ДОБАВИЛИ ПОЛЕ blocks В ЗАПРОС
         const { data: rollData, error: getError } = await supabaseClient
             .from('rolls')
-            .select('order_number, roll_index')
+            .select('order_number, roll_index, blocks') 
             .eq('id', rollId)
             .single();
         if (getError || !rollData) {
@@ -304,7 +305,7 @@
         if (newStatus === 'Выполнено') {
             const rollIdFormatted = `${rollData.order_number}_${String(rollData.roll_index).padStart(2, '0')}`;
             
-            // Записываем историю
+            // 1. Записываем историю
             await supabaseClient
                 .from('order_history')
                 .insert([
@@ -316,7 +317,7 @@
                     }
                 ]);
 
-            // Создаём запись в таблице STAGES (именно здесь живут переходы)
+            // 2. Создаём запись в таблице STAGES
             await supabaseClient
                 .from('stages')
                 .insert([
@@ -324,7 +325,8 @@
                         order_number: rollData.order_number, 
                         stage: 'Каттер', 
                         status: 'Ожидание',
-                        shelf: rollIdFormatted
+                        shelf: rollIdFormatted,
+                        blocks: rollData.blocks // ТЕПЕРЬ СЮДА ПРИДЁТ ПРАВИЛЬНОЕ ЧИСЛО
                     }
                 ]);
 
