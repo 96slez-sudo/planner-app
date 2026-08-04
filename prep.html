@@ -134,7 +134,7 @@
         }
         if (sum === 0) { showMessage('Заполните хотя бы один рулон', 'err'); return; }
 
-        // 1. Создаём рулоны
+        // Записываем рулоны
         var promises = [];
         for (var key in rolls) {
             var index = parseInt(key.replace('roll_', ''));
@@ -149,49 +149,12 @@
         }
         await Promise.all(promises);
 
-        // 2. Обновляем общее кол-во блоков в заказе
+        // Обновляем статус заказа в orders и stages
         await supabaseClient
             .from('orders')
-            .update({ blocks: sum })
+            .update({ status: 'В работе', stage: 'Печать' })
             .eq('order_number', orderNumber);
 
-        // 3. Пересчитываем прогноз
-        const { data: order, error: orderErr } = await supabaseClient
-            .from('orders')
-            .select('*')
-            .eq('order_number', orderNumber)
-            .single();
-
-        if (!orderErr && order) {
-            const { data: standards } = await supabaseClient
-                .from('standards')
-                .select('*');
-
-            var totalMinutes = 0;
-            // Определяем маршрут заказа
-            var route = [];
-            route.push('Подготовка', 'Печать', 'Каттер');
-            if (order.r1) route.push('Раскрой 1');
-            if (order.resin) route.push('Смола (заливка)', 'Смола (сушка)');
-            if (order.r2) route.push('Раскрой 2');
-            route.push('ОТК', 'Упаковка');
-
-            route.forEach(function(stageName) {
-                var std = standards.find(function(s) { return s.operation === stageName; });
-                if (std) {
-                    if (std.type === 'Фикс') {
-                        totalMinutes += Number(std.minutes);
-                    } else {
-                        totalMinutes += Number(std.minutes) * order.blocks;
-                    }
-                }
-            });
-            var finishDate = new Date(new Date().getTime() + totalMinutes * 60000);
-            var finishStr = finishDate.toLocaleString('ru-RU', { hour12: false });
-            showMessage('Рулоны созданы. Прогноз готовности: ' + finishStr, 'ok');
-        }
-
-        // 4. Обновляем этапы
         await supabaseClient
             .from('stages')
             .update({ status: 'Выполнено' })
@@ -204,12 +167,7 @@
                 { order_number: orderNumber, stage: 'Печать', status: 'Ожидание' }
             ]);
 
-        await supabaseClient
-            .from('stage_logs')
-            .insert([
-                { order_number: orderNumber, stage: 'Подготовка', status: 'Завершено', end_time: new Date().toISOString() }
-            ]);
-
+        showMessage('Рулоны созданы, заказ переведён на печать', 'ok');
         loadPrepOrders();
     }
 
