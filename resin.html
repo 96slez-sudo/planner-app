@@ -273,32 +273,41 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
-    // ========================
-    // ЗАГРУЗКА СПИСКА ЗАКАЗОВ
-    // ========================
     async function loadResinOrders() {
         const container = document.getElementById('resinList');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
-        const { data, error } = await supabaseClient
+        // 1. Загружаем все этапы Смолы
+        const { data: stages, error: stageError } = await supabaseClient
             .from('stages')
-            .select('*, orders(*)')
+            .select('*')
             .eq('stage', 'Смола');
 
-        if (error) {
-            container.innerHTML = `<div style="text-align: center; padding: 40px 0; color: #c0392b;">Ошибка: ${error.message}</div>`;
+        if (stageError) {
+            container.innerHTML = `<div style="text-align: center; padding: 40px 0; color: #c0392b;">Ошибка: ${stageError.message}</div>`;
             return;
         }
-        if (!data || data.length === 0) {
+        if (!stages || stages.length === 0) {
             container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Нет заказов на смоле</div>';
             return;
         }
 
         let html = '';
-        for (let s of data) {
-            const order = s.orders;
-            const status = s.status || 'Ожидание';
+
+        // 2. Для каждого этапа подгружаем данные заказа
+        for (let s of stages) {
+            const orderNumber = s.order_number;
+
+            const { data: order, error: orderError } = await supabaseClient
+                .from('orders')
+                .select('blocks')
+                .eq('order_number', orderNumber)
+                .single();
+
+            if (orderError || !order) continue;
+
             const blocks = order.blocks || 0;
+            const status = s.status || 'Ожидание';
 
             let statusClass = 'status-wait';
             let statusText = 'Ожидает';
@@ -306,10 +315,10 @@
             else if (status === 'Готов к сушке') { statusClass = 'status-ready'; statusText = 'Готов к сушке'; }
 
             html += `
-                <div class="order-card" id="card-${order.order_number}">
+                <div class="order-card" id="card-${orderNumber}">
                     <div class="order-col col-order">
                         <div class="label">№ заказа</div>
-                        <div class="value">${order.order_number}</div>
+                        <div class="value">${orderNumber}</div>
                     </div>
                     <div class="order-col col-blocks">
                         <div class="label">Кол-во блоков</div>
@@ -322,13 +331,13 @@
                     <div class="order-col col-actions">
                         <div class="label">&nbsp;</div>
                         ${status === 'Ожидание' 
-                            ? `<button class="btn-green" onclick="startResin('${order.order_number}')">Взять в работу</button>`
+                            ? `<button class="btn-green" onclick="startResin('${orderNumber}')">Взять в работу</button>`
                             : status === 'В работе'
                                 ? `<div style="display:flex; gap:8px;">
-                                    <button class="btn-green" onclick="autoAssign('${order.order_number}', ${blocks})">Распределить автоматически</button>
-                                    <button class="btn-red" onclick="manualAssignAndFinish('${order.order_number}')">Назначить и завершить</button>
+                                    <button class="btn-green" onclick="autoAssign('${orderNumber}', ${blocks})">Распределить автоматически</button>
+                                    <button class="btn-red" onclick="manualAssignAndFinish('${orderNumber}')">Назначить и завершить</button>
                                    </div>`
-                                : `<button class="btn-red" onclick="finishResin('${order.order_number}')">Завершить</button>`
+                                : `<button class="btn-red" onclick="finishResin('${orderNumber}')">Завершить</button>`
                         }
                     </div>
                 </div>
@@ -336,17 +345,14 @@
 
             // Если заказ в работе — добавляем панель стеллажей
             if (status === 'В работе') {
-                html += await renderShelfPanel(order.order_number, blocks);
+                html += await renderShelfPanel(orderNumber, blocks);
             }
         }
         container.innerHTML = html;
     }
 
-    // ========================
-    // ОТРИСОВКА СТЕЛЛАЖЕЙ
-    // ========================
     async function renderShelfPanel(orderNumber, totalBlocks) {
-        // Получаем текущие стеллажи из drying (чтобы узнать занятые и свободные)
+        // Получаем данные о занятых стеллажах из Сушки
         const { data: drying } = await supabaseClient
             .from('stages')
             .select('*')
@@ -394,9 +400,6 @@
         return html;
     }
 
-    // ========================
-    // ВЫБОР СТЕЛЛАЖА ВРУЧНУЮ
-    // ========================
     function selectShelf(orderNumber, shelf) {
         const panel = document.getElementById(`panel-${orderNumber}`);
         const items = panel.querySelectorAll('.shelf-item');
@@ -410,9 +413,6 @@
         });
     }
 
-    // ========================
-    // ВЗЯТЬ В РАБОТУ
-    // ========================
     async function startResin(orderNumber) {
         const { error } = await supabaseClient
             .from('stages')
@@ -424,11 +424,7 @@
         loadResinOrders();
     }
 
-    // ========================
-    // АВТОМАТИЧЕСКОЕ РАСПРЕДЕЛЕНИЕ
-    // ========================
     async function autoAssign(orderNumber, totalBlocks) {
-        // Сбрасываем старые выделения
         const panel = document.getElementById(`panel-${orderNumber}`);
         const items = panel.querySelectorAll('.shelf-item');
         items.forEach(el => {
@@ -461,9 +457,6 @@
         showMessage('Стеллажи распределены автоматически', 'ok');
     }
 
-    // ========================
-    // НАЗНАЧИТЬ И ЗАВЕРШИТЬ (вручную или после авто)
-    // ========================
     async function manualAssignAndFinish(orderNumber) {
         const panel = document.getElementById(`panel-${orderNumber}`);
         const items = panel.querySelectorAll('.shelf-item.selected');
@@ -480,13 +473,12 @@
             }
         }
 
-        // Проверяем, что распределены все блоки
-        const order = await supabaseClient
+        const { data: order } = await supabaseClient
             .from('orders')
             .select('blocks')
             .eq('order_number', orderNumber)
             .single();
-        const expected = order.data?.blocks || 0;
+        const expected = order?.blocks || 0;
 
         if (totalAssigned !== expected) {
             showMessage(`Назначено ${totalAssigned} блоков, а нужно ${expected}. Проверьте стеллажи.`, 'err');
@@ -519,9 +511,6 @@
         loadResinOrders();
     }
 
-    // ========================
-    // ЗАВЕРШИТЬ (когда уже Готов к сушке)
-    // ========================
     async function finishResin(orderNumber) {
         const { error } = await supabaseClient
             .from('stages')
