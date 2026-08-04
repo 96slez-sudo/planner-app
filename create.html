@@ -307,14 +307,14 @@
             ]);
 
         if (!error) {
-            // 2. Запись в stages (чтобы Подготовка/Печать видели переходы)
+            // 2. Запись в stages (для Подготовки/Печати)
             await supabaseClient
                 .from('stages')
                 .insert([
                     { order_number: orderNumber, stage: 'Подготовка', status: 'Ожидает' }
                 ]);
 
-            // 3. Запись в order_history (для истории)
+            // 3. Запись в order_history
             await supabaseClient
                 .from('order_history')
                 .insert([
@@ -343,7 +343,6 @@
         var container = document.getElementById('orderList');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
-        // ВАЖНО: Главная смотрит в orders, поэтому берём статус и этап оттуда
         const { data, error } = await supabaseClient
             .from('orders')
             .select('*')
