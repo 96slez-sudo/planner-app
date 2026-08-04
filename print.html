@@ -180,18 +180,21 @@
         }
 
         if (remaining.length === 0) {
+            // Закрываем этап Печать
             await supabaseClient
                 .from('stages')
                 .update({ status: 'Выполнено' })
                 .eq('order_number', orderNumber)
                 .eq('stage', 'Печать');
 
+            // Создаём новый этап Каттер
             await supabaseClient
                 .from('stages')
                 .insert([
                     { order_number: orderNumber, stage: 'Каттер', status: 'Ожидание' }
                 ]);
 
+            // Обновляем главный заказ
             await supabaseClient
                 .from('orders')
                 .update({ stage: 'Каттер', status: 'В работе' })
