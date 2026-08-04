@@ -58,7 +58,7 @@
 
         .page-title { font-size: 32px; margin-bottom: 24px; color: #161616; }
         
-        .rolls-grid {
+        .grid {
             display: flex;
             flex-direction: column;
             gap: 16px;
@@ -66,20 +66,20 @@
             width: 100%;
         }
 
-        .roll-row {
+        .row {
             display: flex;
             flex-wrap: wrap;
             align-items: center; 
             gap: 16px 24px;
         }
 
-        .roll-col {
+        .col {
             display: flex;
             flex-direction: column;
             gap: 4px;
         }
-        .roll-col .label { font-size: 18px; color: #161616; }
-        .roll-col .value {
+        .col .label { font-size: 18px; color: #161616; }
+        .col .value {
             display: flex;
             align-items: center;
             padding: 0 12px;
@@ -91,24 +91,14 @@
             height: 40px;
         }
 
-        /* Ширина колонок */
-        .col-id { width: 180px; }
+        .col-order { width: 180px; }
         .col-roll { width: 180px; }
         .col-blocks { width: 180px; }
         .col-status { width: 200px; }
         .col-actions { width: 160px; }
 
-        /* ЦВЕТНЫЕ ПЛАШКИ (с !important как на главной) */
-        .status-wait { 
-            background: #e0e0e0 !important; 
-            border-color: #b0b0b0 !important; 
-            color: #555 !important; 
-        }
-        .status-work { 
-            background: #ffe066 !important; 
-            border-color: #d4b300 !important; 
-            color: #1a1a1a !important; 
-        }
+        .status-wait { background: #e0e0e0 !important; border-color: #b0b0b0 !important; color: #555 !important; }
+        .status-work { background: #ffe066 !important; border-color: #d4b300 !important; color: #1a1a1a !important; }
 
         .btn-green {
             display: inline-flex;
@@ -164,8 +154,8 @@
         .msg.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
         @media (max-width: 992px) {
-            .roll-row { align-items: flex-start; }
-            .col-id, .col-roll, .col-blocks, .col-status, .col-actions { width: 100%; max-width: 100%; }
+            .row { align-items: flex-start; }
+            .col-order, .col-roll, .col-blocks, .col-status, .col-actions { width: 100%; max-width: 100%; }
             .btn-green, .btn-red { width: 100%; }
         }
         @media (max-width: 600px) {
@@ -174,12 +164,12 @@
             .stage-btn { font-size: 14px; padding: 6px 12px; }
             .page-title { font-size: 26px; }
             .btn-green, .btn-red { width: 100%; height: 36px; }
-            .roll-col .value { height: 36px; }
+            .col .value { height: 36px; }
         }
         @media (max-width: 480px) {
             .header { flex-direction: column; align-items: flex-start; gap: 4px; }
-            .roll-col .label { font-size: 16px; }
-            .roll-col .value { font-size: 13px; height: 32px; }
+            .col .label { font-size: 16px; }
+            .col .value { font-size: 13px; height: 32px; }
             .btn-green, .btn-red { height: 32px; }
         }
     </style>
@@ -204,8 +194,8 @@
         <a href="/planner-app/packing.html" class="stage-btn">Упаковка</a>
     </div>
 
-    <div class="page-title">Очередь на печать</div>
-    <div class="rolls-grid" id="printList">
+    <div class="page-title">Запустить рулоны в печать</div>
+    <div class="grid" id="list">
         <div style="text-align: center; padding: 40px 0; color: #999;">Загрузка рулонов...</div>
     </div>
     <button class="btn-refresh" onclick="loadPrintRolls()">Обновить</button>
@@ -225,7 +215,7 @@
     }
 
     async function loadPrintRolls() {
-        const container = document.getElementById('printList');
+        const container = document.getElementById('list');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
         const { data, error } = await supabaseClient
@@ -242,7 +232,6 @@
             return;
         }
 
-        // СОРТИРОВКА: Сначала "Ожидание", потом "В работе"
         const sorted = [...data].sort((a, b) => {
             if (a.status === 'Ожидание' && b.status !== 'Ожидание') return -1;
             if (a.status !== 'Ожидание' && b.status === 'Ожидание') return 1;
@@ -261,24 +250,24 @@
             }
 
             html += `
-                <div class="roll-row">
-                    <div class="roll-col col-id">
+                <div class="row">
+                    <div class="col col-order">
                         <div class="label">№ заказа</div>
                         <div class="value">${item.order_number}</div>
                     </div>
-                    <div class="roll-col col-roll">
+                    <div class="col col-roll">
                         <div class="label">ID рулона</div>
                         <div class="value">${rollId}</div>
                     </div>
-                    <div class="roll-col col-blocks">
+                    <div class="col col-blocks">
                         <div class="label">Кол-во блоков</div>
                         <div class="value">${item.blocks}</div>
                     </div>
-                    <div class="roll-col col-status">
+                    <div class="col col-status">
                         <div class="label">Статус</div>
                         <div class="value ${statusClass}">${statusText}</div>
                     </div>
-                    <div class="roll-col col-actions">
+                    <div class="col col-actions">
                         <div class="label">&nbsp;</div>
                         ${item.status === 'Ожидание' 
                             ? `<button class="btn-green" onclick="updatePrintRoll('${item.id}', 'В работе')">Взять в работу</button>` 
@@ -311,7 +300,23 @@
             return;
         }
 
+        // Если рулон завершён, он уходит на следующий этап (Каттер) отдельно
         if (newStatus === 'Выполнено') {
+            const rollIdFormatted = `${rollData.order_number}_${String(rollData.roll_index).padStart(2, '0')}`;
+            
+            // Записываем историю
+            await supabaseClient
+                .from('order_history')
+                .insert([
+                    { 
+                        order_id: rollData.order_number, 
+                        stage: 'Печать', 
+                        status: 'Завершено',
+                        timestamp: new Date().toISOString()
+                    }
+                ]);
+
+            // Создаём запись в таблице STAGES (именно здесь живут переходы)
             await supabaseClient
                 .from('stages')
                 .insert([
@@ -319,11 +324,11 @@
                         order_number: rollData.order_number, 
                         stage: 'Каттер', 
                         status: 'Ожидание',
-                        shelf: `Р${rollData.roll_index}`
+                        shelf: rollIdFormatted
                     }
                 ]);
 
-            showMessage(`Рулон ${rollData.order_number}_${String(rollData.roll_index).padStart(2, '0')} переведён на Каттер`, 'ok');
+            showMessage(`Рулон ${rollIdFormatted} переведён на Каттер`, 'ok');
         } else {
             showMessage('Рулон обновлён', 'ok');
         }
