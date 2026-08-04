@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>ОТК — Планировщик</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f4f6f9; padding: 16px; min-height: 100vh; display: flex; justify-content: center; }
@@ -44,7 +44,6 @@
         @media (max-width: 480px) {
             body { padding: 12px; }
             .card { padding: 14px; }
-            .nav a { font-size: 11px; padding: 5px 10px; }
         }
     </style>
 </head>
@@ -55,15 +54,15 @@
         <p>Очередь заказов</p>
     </div>
     <div class="nav">
-        <a href="/planner-app/">Главная</a>
-        <a href="/planner-app/prep.html">Подготовка</a>
-        <a href="/planner-app/print.html">Печать</a>
-        <a href="/planner-app/cutter.html">Каттер</a>
-        <a href="/planner-app/cutting.html">Раскрой</a>
-        <a href="/planner-app/resin.html">Смола</a>
-        <a href="/planner-app/drying.html">Сушка</a>
-        <a href="/planner-app/otk.html" class="active">ОТК</a>
-        <a href="/planner-app/packing.html">Упаковка</a>
+        <a href="/">Главная</a>
+        <a href="/prep.html">Подготовка</a>
+        <a href="/print.html">Печать</a>
+        <a href="/cutter.html">Каттер</a>
+        <a href="/cutting.html">Раскрой</a>
+        <a href="/resin.html">Смола</a>
+        <a href="/drying.html">Сушка</a>
+        <a href="/otk.html" class="active">ОТК</a>
+        <a href="/packing.html">Упаковка</a>
     </div>
     <div id="message" class="msg"></div>
     <div class="card">
@@ -73,9 +72,8 @@
     </div>
 </div>
 <script>
-   const SUPABASE_URL = 'https://knuqfyjdptkkdapivsnm.supabase.co';
+    const SUPABASE_URL = 'https://knuqfyjdptkkdapivsnm.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_6k1bwNvlNAjNYI9NrijXtg_clTUDrOJ';
-
     const { createClient } = supabase;
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -90,49 +88,92 @@
         var container = document.getElementById('otkList');
         container.innerHTML = '<div class="loading">Загрузка...</div>';
 
-        const { data, error } = await supabaseClient
-            .from('orders')
+        const { data: stages, error: stageError } = await supabaseClient
+            .from('stages')
             .select('*')
-            .eq('status', 'На ОТК');
+            .eq('stage', 'ОТК')
+            .eq('status', 'Ожидание');
 
-        if (error) { container.innerHTML = '<div class="empty">Ошибка: ' + error.message + '</div>'; return; }
-        if (!data || data.length === 0) { container.innerHTML = '<div class="empty">Нет заказов на ОТК</div>'; return; }
+        if (stageError) {
+            container.innerHTML = '<div class="empty">Ошибка этапов: ' + stageError.message + '</div>';
+            return;
+        }
+        if (!stages || stages.length === 0) {
+            container.innerHTML = '<div class="empty">Нет заказов на ОТК</div>';
+            return;
+        }
 
         var html = '';
-        data.forEach(function(item) {
+        for (var s of stages) {
+            const { data: order, error: orderError } = await supabaseClient
+                .from('orders')
+                .select('*')
+                .eq('order_number', s.order_number)
+                .single();
+
+            if (orderError || !order) continue;
+
             var badgeClass = '';
-            var statusText = item.status || 'Ожидание';
-            if (statusText === 'На ОТК') badgeClass = 'badge-work';
+            var statusText = s.status || 'Ожидание';
+            if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
+            else if (statusText === 'В работе') badgeClass = 'badge-work';
+            else if (statusText === 'Выполнено') badgeClass = 'badge-done';
+
             html += '<div class="item">';
             html += '  <div class="head">';
-            html += '    <span class="order-num">№ ' + item.order_number + '</span>';
+            html += '    <span class="order-num">№ ' + order.order_number + '</span>';
             html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
             html += '  </div>';
+            html += '  <div class="order-meta">Этап: ' + s.stage + '</div>';
             html += '  <div class="actions">';
-            html += '    <button class="btn btn-sm btn-danger" onclick="updateOtkOrder(\'' + item.order_number + '\')">Завершить</button>';
+            if (statusText === 'Ожидание') {
+                html += '    <button class="btn btn-sm btn-success" onclick="updateOtkOrder(\'' + order.order_number + '\', \'В работе\')">Взять в работу</button>';
+            } else if (statusText === 'В работе') {
+                html += '    <button class="btn btn-sm btn-danger" onclick="updateOtkOrder(\'' + order.order_number + '\', \'Выполнено\')">Завершить</button>';
+            }
             html += '  </div>';
             html += '</div>';
-        });
+        }
+
+        if (html === '') html = '<div class="empty">Нет заказов на ОТК</div>';
         container.innerHTML = html;
     }
 
-    async function updateOtkOrder(orderNumber) {
-        await supabaseClient
-            .from('orders')
-            .update({ status: 'На упаковке' })
-            .eq('order_number', orderNumber);
+    async function updateOtkOrder(orderNumber, newStatus) {
+        const { data: stages, error: stageError } = await supabaseClient
+            .from('stages')
+            .select('*')
+            .eq('order_number', orderNumber)
+            .eq('stage', 'ОТК');
 
-        await supabaseClient
-            .from('order_history')
-            .insert([
-                { 
-                    order_id: orderNumber, 
-                    stage: 'ОТК', 
-                    status: 'Завершено' 
-                }
-            ]);
+        if (stageError) {
+            showMessage('Ошибка получения этапа', 'err');
+            return;
+        }
 
-        showMessage('Заказ отправлен на упаковку', 'ok');
+        if (stages && stages.length > 0) {
+            await supabaseClient
+                .from('stages')
+                .update({ status: newStatus })
+                .eq('order_number', orderNumber)
+                .eq('stage', 'ОТК');
+        }
+
+        if (newStatus === 'Выполнено') {
+            // Создаем этап Упаковка
+            await supabaseClient
+                .from('stages')
+                .insert([
+                    { order_number: orderNumber, stage: 'Упаковка', status: 'Ожидание' }
+                ]);
+
+            await supabaseClient
+                .from('orders')
+                .update({ stage: 'Упаковка', status: 'В работе' })
+                .eq('order_number', orderNumber);
+        }
+
+        showMessage('Заказ ' + orderNumber + ' обновлён', 'ok');
         loadOtkOrders();
     }
 
