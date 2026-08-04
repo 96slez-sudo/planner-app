@@ -302,29 +302,26 @@
         }
         await Promise.all(promises);
 
-        // 1. ОБНОВЛЯЕМ ТАБЛИЦУ ORDERS (этап на Печать, статус В работе)
+        // =====================================================
+        // ОБНОВЛЯЕМ ORDERS: статус 'В работе', этап 'Печать'
+        // =====================================================
         await supabaseClient
             .from('orders')
             .update({ status: 'В работе', stage: 'Печать' })
             .eq('order_number', orderNumber);
 
-        // 2. Закрываем этап в stages
+        // Закрываем этап в stages
         await supabaseClient
             .from('stages')
             .update({ status: 'Выполнено' })
             .eq('order_number', orderNumber)
             .eq('stage', 'Подготовка');
 
-        // 3. Создаём новый этап для Печати с количеством блоков!
+        // Создаём новый этап для Печати
         await supabaseClient
             .from('stages')
             .insert([
-                { 
-                    order_number: orderNumber, 
-                    stage: 'Печать', 
-                    status: 'Ожидание',
-                    blocks: sum // ЗАПИСЫВАЕМ СЮДА СУММУ БЛОКОВ
-                }
+                { order_number: orderNumber, stage: 'Печать', status: 'Ожидание' }
             ]);
 
         showMessage('Рулоны созданы', 'ok');
