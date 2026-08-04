@@ -3,74 +3,193 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Печать — Планировщик</title>
+    <title>Печать</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f4f6f9; padding: 16px; min-height: 100vh; display: flex; justify-content: center; }
-        .container { max-width: 500px; width: 100%; }
-        .header { margin-bottom: 16px; }
-        .header h1 { font-size: 22px; font-weight: 600; color: #1a1a2e; }
-        .header p { font-size: 14px; color: #888; }
-        .nav { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; background: white; padding: 8px; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-        .nav a { padding: 6px 12px; background: #eef1f4; border-radius: 16px; text-decoration: none; font-size: 12px; color: #555; font-weight: 500; }
-        .nav a:hover { background: #dce0e4; }
-        .nav a.active { background: #2c3e50; color: white; }
-        .card { background: white; border-radius: 12px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); border: 1px solid #eaeef2; }
-        .card h3 { font-size: 16px; font-weight: 600; margin-bottom: 14px; color: #1a1a2e; }
-        .btn { padding: 8px 16px; background: #2c3e50; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.2s; }
-        .btn:hover { background: #1a252f; }
-        .btn-sm { padding: 5px 12px; font-size: 12px; }
-        .btn-success { background: #27ae60; }
-        .btn-success:hover { background: #1e8449; }
-        .btn-danger { background: #e74c3c; }
-        .btn-danger:hover { background: #c0392b; }
-        .badge { display: inline-block; padding: 3px 12px; border-radius: 16px; font-size: 12px; font-weight: 500; }
-        .badge-waiting { background: #fff3cd; color: #856404; }
-        .badge-work { background: #cce5ff; color: #004085; }
-        .badge-done { background: #d4edda; color: #155724; }
-        .item { padding: 12px 0; border-bottom: 1px solid #f0f2f5; }
-        .item:last-child { border-bottom: none; }
-        .item .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
-        .item .order-num { font-weight: 600; font-size: 15px; color: #1a1a2e; }
-        .item .order-meta { font-size: 14px; color: #666; }
-        .item .actions { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-        .msg { padding: 12px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; display: none; }
+        body { font-family: 'Science Gothic', 'Asta Sans-Regular', sans-serif; background: #ffffff; color: #161616; padding: 16px; min-height: 100vh; display: flex; justify-content: center; }
+        a { text-decoration: none; }
+
+        .container { max-width: 1520px; width: 100%; }
+
+        .header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 16px;
+            margin-bottom: 32px;
+            border-bottom: 1px solid #eeeeee;
+        }
+        .header .title { font-size: 20px; letter-spacing: 0.5px; font-weight: 400; }
+        .header .subtitle { font-size: 16px; font-weight: 400; color: #161616; cursor: pointer; transition: 0.2s; }
+        .header .subtitle:hover { opacity: 0.7; }
+
+        .stages {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 40px;
+        }
+        .stage-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 18px;
+            background: #cdcdcd;
+            border-radius: 8px;
+            color: #141414;
+            font-size: 18px;
+            transition: 0.2s;
+        }
+        .stage-btn:hover { background: #b0b0b0; }
+        .stage-btn.active {
+            background: #1e1e1e;
+            color: #ffffff;
+        }
+
+        .page-title { font-size: 32px; font-weight: 400; margin-bottom: 24px; }
+        
+        .order-card {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 20px;
+            padding: 16px 0;
+            border-bottom: 1px solid #eeeeee;
+        }
+        .order-card:last-child { border-bottom: none; }
+
+        .col-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1 1 200px;
+            min-width: 140px;
+        }
+        .col-info .label { font-size: 18px; font-weight: 400; }
+        .col-info .value {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border: 1px solid #6c6c6c;
+            border-radius: 8px;
+            font-family: 'Asta Sans-Regular', sans-serif;
+            font-size: 15px;
+            background: #fff;
+        }
+
+        .col-status {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 0 0 120px;
+        }
+        .col-status .label { font-size: 18px; font-weight: 400; }
+        .status-badge {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid #6c6c6c;
+            font-size: 15px;
+            font-family: 'Asta Sans-Regular', sans-serif;
+        }
+        .status-badge.waiting { background: #cdcdcd; }
+        .status-badge.working { background: #ffe26f; }
+        .status-badge.done { background: #d4edda; }
+
+        .btn-success {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 16px;
+            background-color: #0f8653;
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 15px;
+            border: none;
+            cursor: pointer;
+            transition: 0.2s;
+            flex: 0 0 auto;
+        }
+        .btn-success:hover { opacity: 0.8; }
+        .btn-danger {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 16px;
+            background-color: #e74c3c;
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 15px;
+            border: none;
+            cursor: pointer;
+            transition: 0.2s;
+            flex: 0 0 auto;
+        }
+        .btn-danger:hover { opacity: 0.8; }
+
+        .btn-refresh {
+            width: 100%;
+            padding: 12px;
+            background: #eef1f4;
+            border-radius: 8px;
+            color: #333;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .btn-refresh:hover { background: #dce0e4; }
+
+        .msg { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; display: none; }
         .msg.show { display: block; }
         .msg.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .msg.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .empty { text-align: center; padding: 28px 0; color: #aaa; font-size: 14px; }
-        .loading { text-align: center; padding: 16px 0; color: #999; font-size: 14px; }
+
+        @media (max-width: 768px) {
+            .header .title { font-size: 16px; }
+            .header .subtitle { font-size: 14px; }
+            .stage-btn { font-size: 14px; padding: 6px 12px; }
+            .page-title { font-size: 26px; }
+            .order-card { align-items: stretch; }
+            .col-status { flex: 0 0 100px; }
+        }
         @media (max-width: 480px) {
-            body { padding: 12px; }
-            .card { padding: 14px; }
+            .header { flex-direction: column; align-items: flex-start; gap: 4px; }
+            .order-card { flex-direction: column; align-items: stretch; gap: 12px; }
+            .col-status { flex: 1 1 100%; }
         }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
-        <h1>Печать</h1>
-        <p>Очередь рулонов</p>
-    </div>
-    <div class="nav">
-        <a href="/planner-app/">Главная</a>
-        <a href="/planner-app/prep.html">Подготовка</a>
-        <a href="/planner-app/print.html" class="active">Печать</a>
-        <a href="/planner-app/cutter.html">Каттер</a>
-        <a href="/planner-app/cutting.html">Раскрой</a>
-        <a href="/planner-app/resin.html">Смола</a>
-        <a href="/planner-app/drying.html">Сушка</a>
-        <a href="/planner-app/otk.html">ОТК</a>
-        <a href="/planner-app/packing.html">Упаковка</a>
+        <div class="title">//ПЛАНИРОВЩИК ПРОИЗВОДСТВА</div>
+        <a href="/planner-app/" class="subtitle">ГЛАВНАЯ//</a>
     </div>
     <div id="message" class="msg"></div>
-    <div class="card">
-        <h3>Очередь рулонов</h3>
-        <div id="printList"></div>
-        <button class="btn" style="width:100%; margin-top:10px; background:#eef1f4; color:#333;" onclick="loadPrintRolls()">Обновить</button>
+
+    <div class="stages">
+        <a href="/planner-app/create.html" class="stage-btn">Создание заказа</a>
+        <a href="/planner-app/prep.html" class="stage-btn">Подготовка</a>
+        <a href="/planner-app/print.html" class="stage-btn active">Печать</a>
+        <a href="/planner-app/cutter.html" class="stage-btn">Каттер</a>
+        <a href="/planner-app/cutting.html" class="stage-btn">Раскрой</a>
+        <a href="/planner-app/resin.html" class="stage-btn">Смола</a>
+        <a href="/planner-app/drying.html" class="stage-btn">Сушка</a>
+        <a href="/planner-app/otk.html" class="stage-btn">ОТК</a>
+        <a href="/planner-app/packing.html" class="stage-btn">Упаковка</a>
     </div>
+
+    <div class="page-title">Очередь рулонов</div>
+    <div id="printList">
+        <div style="text-align: center; padding: 40px 0; color: #999;">Загрузка рулонов...</div>
+    </div>
+    <button class="btn-refresh" onclick="loadPrintRolls()">Обновить</button>
 </div>
+
 <script>
     const SUPABASE_URL = 'https://knuqfyjdptkkdapivsnm.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_6k1bwNvlNAjNYI9NrijXtg_clTUDrOJ';
@@ -85,89 +204,93 @@
     }
 
     async function loadPrintRolls() {
-        var container = document.getElementById('printList');
-        container.innerHTML = '<div class="loading">Загрузка...</div>';
+        const container = document.getElementById('printList');
+        container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
-        // Ищем рулоны, которые НЕ выполнены на этапе Печать
-        const { data: rolls, error: rollError } = await supabaseClient
+        // Загружаем все рулоны, которые находятся на этапе Печать (статус 'Ожидание' или 'В работе')
+        const { data, error } = await supabaseClient
             .from('rolls')
             .select('*')
-            .eq('status', 'Ожидание');
+            .in('status', ['Ожидание', 'В работе']);
 
-        if (rollError) {
-            container.innerHTML = '<div class="empty">Ошибка: ' + rollError.message + '</div>';
+        if (error) {
+            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #c0392b;">Ошибка загрузки</div>';
             return;
         }
-        if (!rolls || rolls.length === 0) {
-            container.innerHTML = '<div class="empty">Нет рулонов на печати</div>';
+        if (!data || data.length === 0) {
+            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Нет рулонов на печати</div>';
             return;
         }
 
-        var html = '';
-        rolls.forEach(function(item) {
-            var badgeClass = '';
-            var statusText = item.status || 'Ожидание';
-            if (statusText === 'Ожидание') badgeClass = 'badge-waiting';
-            else if (statusText === 'В работе') badgeClass = 'badge-work';
-            else if (statusText === 'Выполнено') badgeClass = 'badge-done';
-
-            html += '<div class="item">';
-            html += '  <div class="head">';
-            html += '    <span class="order-num">№ ' + item.order_number + ' — Р' + item.roll_index + '</span>';
-            html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
-            html += '  </div>';
-            html += '  <div class="order-meta">Блоков: ' + item.blocks + '</div>';
-            html += '  <div class="actions">';
-            if (statusText === 'Ожидание') {
-                html += '    <button class="btn btn-sm btn-success" onclick="updatePrintRoll(\'' + item.id + '\', \'В работе\')">Взять в работу</button>';
-            } else if (statusText === 'В работе') {
-                html += '    <button class="btn btn-sm btn-danger" onclick="updatePrintRoll(\'' + item.id + '\', \'Выполнено\')">Завершить</button>';
+        let html = '';
+        data.forEach(item => {
+            const rollId = `${item.order_number}_${String(item.roll_index).padStart(2, '0')}`;
+            
+            let statusClass = 'waiting';
+            let statusText = 'Ожидание';
+            if (item.status === 'В работе') {
+                statusClass = 'working';
+                statusText = 'В работе';
             }
-            html += '  </div>';
-            html += '</div>';
+
+            html += `
+                <div class="order-card">
+                    <div class="col-info">
+                        <div class="label">№ ${rollId}</div>
+                        <div class="value">Блоков: ${item.blocks}</div>
+                    </div>
+                    <div class="col-status">
+                        <div class="label">Статус</div>
+                        <div class="status-badge ${statusClass}">${statusText}</div>
+                    </div>
+                    <div>
+                        ${item.status === 'Ожидание' 
+                            ? `<button class="btn-success" onclick="updatePrintRoll('${item.id}', 'В работе')">Взять в работу</button>` 
+                            : `<button class="btn-danger" onclick="updatePrintRoll('${item.id}', 'Выполнено')">Завершить</button>`
+                        }
+                    </div>
+                </div>
+            `;
         });
         container.innerHTML = html;
     }
 
     async function updatePrintRoll(rollId, newStatus) {
-        // 1. Получаем данные рулона
+        // Получаем данные рулона
         const { data: rollData, error: getError } = await supabaseClient
             .from('rolls')
-            .select('order_number, roll_index, blocks')
+            .select('order_number, roll_index')
             .eq('id', rollId)
             .single();
-
         if (getError || !rollData) {
             showMessage('Ошибка получения рулона', 'err');
             return;
         }
 
-        // 2. Меняем статус рулона
+        // Меняем статус рулона
         const { error: updateError } = await supabaseClient
             .from('rolls')
             .update({ status: newStatus })
             .eq('id', rollId);
-
         if (updateError) {
             showMessage('Ошибка обновления рулона', 'err');
             return;
         }
 
-        // 3. Если статус стал "Выполнено" — рулон уходит на следующий этап
+        // Если рулон завершён, он уходит на следующий этап (Каттер) отдельно
         if (newStatus === 'Выполнено') {
-            // Создаём для него отдельную запись в stages на этапе Каттер
             await supabaseClient
                 .from('stages')
                 .insert([
-                    {
-                        order_number: rollData.order_number,
-                        stage: 'Каттер',
+                    { 
+                        order_number: rollData.order_number, 
+                        stage: 'Каттер', 
                         status: 'Ожидание',
-                        shelf: 'Р' + rollData.roll_index // Можно хранить индекс рулона как "стеллаж"
+                        shelf: `Р${rollData.roll_index}` // Сохраняем номер рулона как "стеллаж"
                     }
                 ]);
 
-            showMessage('Рулон Р' + rollData.roll_index + ' переведён на Каттер', 'ok');
+            showMessage(`Рулон ${rollData.order_number}_${String(rollData.roll_index).padStart(2, '0')} переведён на Каттер`, 'ok');
         } else {
             showMessage('Рулон обновлён', 'ok');
         }
@@ -175,7 +298,7 @@
         loadPrintRolls();
     }
 
-    document.addEventListener('DOMContentLoaded', function() { loadPrintRolls(); });
+    document.addEventListener('DOMContentLoaded', loadPrintRolls);
 </script>
 </body>
 </html>
