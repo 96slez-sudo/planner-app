@@ -175,14 +175,24 @@
             background-color: #e6f8e6;
         }
         .shelf-item .letter { font-weight: 600; font-size: 18px; width: 24px; color: #161616; }
+        
+        /* Красивые состояния стеллажей */
         .shelf-item .state {
             flex: 1;
             font-size: 15px;
-            color: #555;
         }
-        .shelf-item .state.taken { color: #999; }
-        .shelf-item .state.free { color: #0f8653; }
-        .shelf-item .state.free-busy { color: #d4b300; }
+        .shelf-item .state.free { color: #0f8653; }      /* Свободен — зелёный текст */
+        .shelf-item .state.free-busy { color: #d4b300; }  /* Частично занят — жёлтый текст */
+        .shelf-item .state.taken { color: #999; }         /* Занят — серый текст */
+        
+        /* Занятый стеллаж — серый фон */
+        .shelf-item.taken-bg {
+            background-color: #cdcdcd;
+            border-color: #b0b0b0;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
         .shelf-item .input-blocks {
             width: 50px;
             padding: 4px;
@@ -312,15 +322,17 @@
             let stateText = 'Свободен';
             let stateClass = 'free';
             let taken = false;
+            let bgClass = '';
 
             if (occupied) {
                 stateText = 'Занят';
                 stateClass = 'taken';
                 taken = true;
+                bgClass = 'taken-bg';
             }
 
             html += `
-                <div class="shelf-item" id="shelf-${orderNumber}-${l}" data-order="${orderNumber}" data-shelf="${l}" data-taken="${taken}" onclick="${taken ? '' : `selectShelf('${orderNumber}', '${l}')`}" style="${taken ? 'cursor:not-allowed; opacity:0.6;' : ''}">
+                <div class="shelf-item ${bgClass}" id="shelf-${orderNumber}-${l}" data-order="${orderNumber}" data-shelf="${l}" data-taken="${taken}" onclick="${taken ? '' : `selectShelf('${orderNumber}', '${l}')`}">
                     <span class="letter">${l}</span>
                     <span class="state ${stateClass}">${stateText}</span>
                     <input type="number" class="input-blocks" id="input-${orderNumber}-${l}" min="1" max="46" placeholder="0" />
@@ -399,10 +411,6 @@
                 totalAssigned += blocks;
             }
         }
-
-        const expected = 0; // мы будем брать сумму из заказа позже
-        // Пока пропускаем проверку, чтобы не ломать логику. 
-        // Для тест004 с 120 блоками это сработает.
 
         if (assignments.length === 0) {
             showMessage('Выберите хотя бы один стеллаж', 'err');
