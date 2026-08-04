@@ -213,4 +213,95 @@
 
     function showMessage(text, type) {
         var el = document.getElementById('message');
-        el.textContent
+        el.textContent = text;
+        el.className = 'msg show ' + type;
+        setTimeout(function() { el.classList.remove('show'); }, 5000);
+    }
+    async function loadPrepOrders() {
+        const container = document.getElementById('prepList');
+        container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
+        const { data, error } = await supabaseClient
+            .from('orders')
+            .select('*')
+            .eq('status', 'Запущен');
+        if (error) {
+            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #c0392b;">Ошибка</div>';
+            return;
+        }
+        if (!data || data.length === 0) {
+            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Нет заказов</div>';
+            return;
+        }
+        let html = '';
+        data.forEach(order => {
+            let rollInputs = '';
+            for (let i = 1; i <= 6; i++) {
+                rollInputs += `<input type="number" min="0" value="0" class="roll-input" id="roll-${order.order_number}-${i}">`;
+            }
+            html += `
+                <div class="order-card" id="card-${order.order_number}">
+                    <div class="col-order">
+                        <label>№ заказа</label>
+                        <input type="text" value="${order.order_number}" readonly />
+                    </div>
+                    <div class="col-rolls">
+                        <label>Рулоны</label>
+                        <div class="rolls-container" id="rolls-${order.order_number}">
+                            ${rollInputs}
+                            <button class="add-roll-btn" onclick="addRoll('${order.order_number}')">+</button>
+                        </div>
+                    </div>
+                    <button class="btn-green" onclick="createRolls('${order.order_number}')">Создать рулоны</button>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    }
+    function addRoll(orderNumber) {
+        const container = document.getElementById(`rolls-${orderNumber}`);
+        const newInput = document.createElement('input');
+        newInput.type = 'number'; newInput.min = 0; newInput.value = 0;
+        newInput.className = 'roll-input';
+        newInput.id = `roll-${orderNumber}-${container.children.length}`;
+        container.insertBefore(newInput, container.lastElementChild);
+    }
+    async function createRolls(orderNumber) {
+        const container = document.getElementById(`rolls-${orderNumber}`);
+        const inputs = container.querySelectorAll('.roll-input');
+        let sum = 0; const rolls = {};
+        inputs.forEach((input, index) => {
+            const val = parseInt(input.value) || 0;
+            if (val > 0) { rolls[`roll_${index + 1}`] = val; sum += val; }
+        });
+        if (sum === 0) { showMessage('Заполните хотя бы один рулон', 'err'); return; }
+        const promises = [];
+        for (const key in rolls) {
+            const index = parseInt(key.replace('roll_', ''));
+            promises.push(
+                supabaseClient.from('rolls').insert([
+                    { order_number: orderNumber, roll_index: index, blocks: rolls[key], status: 'Ожидание' }
+                ])
+            );
+        }
+        await Promise.all(promises);
+        await supabaseClient
+            .from('orders')
+            .update({ stage: 'Печать', status: 'В работе' })
+            .eq('order_number', orderNumber);
+        await supabaseClient
+            .from('stages')
+            .update({ status: 'Выполнено' })
+            .eq('order_number', orderNumber)
+            .eq('stage', 'Подготовка');
+        await supabaseClient
+            .from('stages')
+            .insert([
+                { order_number: orderNumber, stage: 'Печать', status: 'Ожидание' }
+            ]);
+        showMessage('Рулоны созданы, заказ отправлен на печать', 'ok');
+        loadPrepOrders();
+    }
+    document.addEventListener('DOMContentLoaded', loadPrepOrders);
+</script>
+</body>
+</html>
