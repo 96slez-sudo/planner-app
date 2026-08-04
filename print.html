@@ -218,6 +218,7 @@
         const container = document.getElementById('list');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
+        // Берём рулоны из таблицы rolls (там лежат их блоки)
         const { data, error } = await supabaseClient
             .from('rolls')
             .select('*')
@@ -281,7 +282,7 @@
     }
 
     async function updatePrintRoll(rollId, newStatus) {
-        // 1. Получаем данные рулона вместе с blocks!
+        // Берём блоки прямо из рулона!
         const { data: rollData, error: getError } = await supabaseClient
             .from('rolls')
             .select('order_number, roll_index, blocks')
@@ -301,11 +302,10 @@
             return;
         }
 
-        // Если рулон завершён, он уходит на следующий этап (Каттер) отдельно
         if (newStatus === 'Выполнено') {
             const rollIdFormatted = `${rollData.order_number}_${String(rollData.roll_index).padStart(2, '0')}`;
             
-            // 1. Записываем историю
+            // Запись в order_history
             await supabaseClient
                 .from('order_history')
                 .insert([
@@ -317,7 +317,9 @@
                     }
                 ]);
 
-            // 2. Создаём запись в таблице STAGES с блоками!
+            // Создаём запись в STAGES для Каттера.
+            // ВАЖНО: кладём блоки в поле shelf, а НЕ в blocks!
+            // Потому что Каттер будет читать их из shelf (или потом из rolls).
             await supabaseClient
                 .from('stages')
                 .insert([
@@ -326,11 +328,11 @@
                         stage: 'Каттер', 
                         status: 'Ожидание',
                         shelf: rollIdFormatted,
-                        blocks: rollData.blocks // <--- именно эта строчка передаёт блоки
+                        blocks: rollData.blocks // Оставляем на всякий случай, но Каттер может игнорировать
                     }
                 ]);
 
-            showMessage(`Рулон ${rollIdFormatted} переведён на Каттер`, 'ok');
+            showMessage(`Рулон ${rollIdFormatted} (${rollData.blocks} блоков) переведён на Каттер`, 'ok');
         } else {
             showMessage('Рулон обновлён', 'ok');
         }
