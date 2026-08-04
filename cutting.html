@@ -91,7 +91,6 @@
             height: 40px;
         }
 
-        /* Фиксированные ширины колонок */
         .col-order { width: 160px; }
         .col-type { width: 100px; }
         .col-id { width: 160px; }
@@ -100,7 +99,6 @@
         .col-status { width: 200px; }
         .col-actions { width: 160px; }
 
-        /* Цветные плашки */
         .status-wait { 
             background: #e0e0e0 !important; 
             border-color: #b0b0b0 !important; 
@@ -254,7 +252,7 @@
             });
         }
 
-        // 2. Загружаем заказы со стеллажами (Р2) из stages, где этап "Раскрой Р2" или "Раскрой"
+        // 2. Загружаем заказы со стеллажами (Р2) из stages
         const { data: stages, error: stagesError } = await supabaseClient
             .from('stages')
             .select('*')
@@ -266,7 +264,6 @@
             return;
         }
 
-        // Для каждого стеллажа получаем количество блоков из orders
         if (stages) {
             for (const s of stages) {
                 const { data: order, error: orderError } = await supabaseClient
@@ -289,7 +286,6 @@
             }
         }
 
-        // 3. Сортируем: сначала "Ожидание", потом "В работе"
         allItems.sort((a, b) => {
             if (a.status === 'Ожидание' && b.status !== 'Ожидание') return -1;
             if (a.status !== 'Ожидание' && b.status === 'Ожидание') return 1;
@@ -312,7 +308,6 @@
                 statusText = 'В работе';
             }
 
-            // Р1 — показываем ID рулона, Р2 — показываем Стеллаж
             const idOrShelf = item.type === 'Р1' ? rollId : item.shelf;
 
             html += `
@@ -351,8 +346,17 @@
     }
 
     async function updateCuttingItem(id, type, newStatus) {
+        let orderNumber = null;
+
         if (type === 'Р1') {
-            // Обновляем рулон
+            // Получаем номер заказа перед обновлением
+            const { data: rollData } = await supabaseClient
+                .from('rolls')
+                .select('order_number')
+                .eq('id', id)
+                .single();
+            if (rollData) orderNumber = rollData.order_number;
+
             const { error } = await supabaseClient
                 .from('rolls')
                 .update({ status: newStatus })
@@ -362,7 +366,14 @@
                 return;
             }
         } else if (type === 'Р2') {
-            // Обновляем этап
+            // Получаем номер заказа перед обновлением
+            const { data: stageData } = await supabaseClient
+                .from('stages')
+                .select('order_number')
+                .eq('id', id)
+                .single();
+            if (stageData) orderNumber = stageData.order_number;
+
             const { error } = await supabaseClient
                 .from('stages')
                 .update({ status: newStatus })
@@ -373,7 +384,76 @@
             }
         }
 
-        showMessage('Статус обновлён', 'ok');
+        // Если завершили и есть номер заказа — проверяем, не последний ли это
+        if (newStatus === 'Выполнено' && orderNumber) {
+            // Считаем оставшиеся рулоны или стеллажи
+            const { count: rollCount } = await supabaseClient
+                .from('rolls')
+                .select('*', { count: 'exact', head: true })
+                .eq('order_number', orderNumber)
+                .neq('status', 'Выполнено');
+
+            const { count: stageCount } = await supabaseClient
+                .from('stages')
+                .select('*', { count: 'exact', head: true })
+                .eq('order_number', orderNumber)
+                .in('stage', ['Раскрой', 'Раскрой Р2'])
+                .neq('status', 'Выполнено');
+
+            const remaining = (rollCount || 0) + (stageCount || 0);
+
+            if (remaining === 0) {
+                // Загружаем данные заказа
+                const { data: order } = await supabaseClient
+                    .from('orders')
+                    .select('r1, resin, r2')
+                    .eq('order_number', orderNumber)
+                    .single();
+
+                let nextStage = 'ОТК';
+                let nextStageName = 'ОТК';
+
+                // ЛОГИКА МАРШРУТА: если R1 = true, идём на Смолу
+                if (order && (order.r1 === true)) {
+                    nextStage = 'Смола';
+                    nextStageName = 'Смола';
+                } else if (order && (order.r2 === true)) {
+                    nextStage = 'Раскрой Р2';
+                    nextStageName = 'Раскрой Р2';
+                }
+
+                // Закрываем этап
+                await supabaseClient
+                    .from('stages')
+                    .update({ status: 'Выполнено' })
+                    .eq('order_number', orderNumber)
+                    .eq('stage', 'Раскрой');
+
+                // Создаём следующий этап
+                await supabaseClient
+                    .from('stages')
+                    .insert([
+                        { 
+                            order_number: orderNumber, 
+                            stage: nextStage, 
+                            status: 'Ожидание'
+                        }
+                    ]);
+
+                // Обновляем заказ
+                await supabaseClient
+                    .from('orders')
+                    .update({ stage: nextStage })
+                    .eq('order_number', orderNumber);
+
+                showMessage(`Все рулоны завершены! Заказ переведён на ${nextStageName}`, 'ok');
+            } else {
+                showMessage('Рулон/стеллаж завершён. Осталось: ' + remaining, 'ok');
+            }
+        } else {
+            showMessage('Статус обновлён', 'ok');
+        }
+
         loadCuttingOrders();
     }
 
