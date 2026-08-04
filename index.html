@@ -69,15 +69,15 @@
         <p>Управление заказами</p>
     </div>
     <div class="nav">
-        <a href="/planner-app/" class="active">Главная</a>
-        <a href="/planner-app/prep.html">Подготовка</a>
-        <a href="/planner-app/print.html">Печать</a>
-        <a href="/planner-app/cutter.html">Каттер</a>
-        <a href="/planner-app/cutting.html">Раскрой</a>
-        <a href="/planner-app/resin.html">Смола</a>
-        <a href="/planner-app/drying.html">Сушка</a>
-        <a href="/planner-app/otk.html">ОТК</a>
-        <a href="/planner-app/packing.html">Упаковка</a>
+        <a href="/" class="active">Главная</a>
+        <a href="/prep.html">Подготовка</a>
+        <a href="/print.html">Печать</a>
+        <a href="/cutter.html">Каттер</a>
+        <a href="/cutting.html">Раскрой</a>
+        <a href="/resin.html">Смола</a>
+        <a href="/drying.html">Сушка</a>
+        <a href="/otk.html">ОТК</a>
+        <a href="/packing.html">Упаковка</a>
     </div>
     <div id="message" class="msg"></div>
     <div class="card">
@@ -121,7 +121,6 @@
 <script>
     const SUPABASE_URL = 'https://knuqfyjdptkkdapivsnm.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_6k1bwNvlNAjNYI9NrijXtg_clTUDrOJ';
-
     const { createClient } = supabase;
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -146,13 +145,32 @@
         btn.disabled = true;
         btn.textContent = 'Запуск...';
 
-        // Определяем путь заказа
+        var r1 = document.getElementById('r1').checked;
+        var resin = document.getElementById('resin').checked;
+        var r2 = document.getElementById('r2').checked;
         var path = '';
-        if (document.getElementById('r1').checked && document.getElementById('r2').checked) path = 'Р1+Р2';
-        else if (document.getElementById('r1').checked) path = 'Р1';
-        else if (document.getElementById('r2').checked) path = 'Р2';
-        else path = 'Нет';
+        if (r1 && resin && r2) path = 'Р1+Смола+Р2';
+        else if (r1 && resin) path = 'Р1+Смола';
+        else if (r1 && r2) path = 'Р1+Р2';
+        else if (r2 && resin) path = 'Смола+Р2';
+        else if (r1) path = 'Р1';
+        else if (resin) path = 'Смола';
+        else if (r2) path = 'Р2';
+        else path = '';
 
+        // 1. Загружаем нормативы из базы
+        const { data: standards, error: stdErr } = await supabaseClient
+            .from('standards')
+            .select('*');
+
+        if (stdErr) {
+            showMessage('Ошибка загрузки нормативов: ' + stdErr.message, 'err');
+            btn.disabled = false;
+            btn.textContent = 'Запустить заказ';
+            return;
+        }
+
+        // 2. Создаём заказ
         const { data, error } = await supabaseClient
             .from('orders')
             .insert([
@@ -161,37 +179,54 @@
                     creation_date: creationDate, 
                     plan_date: planDate, 
                     priority: priority,
-                    r1: document.getElementById('r1').checked,
-                    resin: document.getElementById('resin').checked,
-                    r2: document.getElementById('r2').checked,
-                    status: 'Запущен',
-                    stage: 'Подготовка',
-                    path: path
+                    r1: r1, resin: resin, r2: r2,
+                    path: path,
+                    status: 'Запущен', stage: 'Подготовка'
                 }
             ]);
 
         if (!error) {
-            // Записываем в историю
+            // Логируем начало этапа
             await supabaseClient
-                .from('order_history')
+                .from('stage_logs')
                 .insert([
                     { 
-                        order_id: orderNumber, 
-                        stage: 'Создание', 
-                        status: 'Запущен' 
+                        order_number: orderNumber, 
+                        stage: 'Подготовка', 
+                        start_time: new Date().toISOString()
                     }
                 ]);
 
-            // Создаём запись в таблице этапов (stages)
             await supabaseClient
                 .from('stages')
                 .insert([
-                    {
-                        order_number: orderNumber,
-                        stage: 'Подготовка',
-                        status: 'Ожидание'
-                    }
+                    { order_number: orderNumber, stage: 'Подготовка', status: 'Ожидание' }
                 ]);
+
+            // 3. Считаем прогноз
+            const totalBlocks = 0; // Пока 0, будет уточняться позже
+            var totalMinutes = 0;
+            var routeStages = ['Подготовка', 'Печать', 'Каттер'];
+            if (r1) routeStages.push('Раскрой 1');
+            if (resin) routeStages.push('Смола (заливка)', 'Смола (сушка)');
+            if (r2) routeStages.push('Раскрой 2');
+            routeStages.push('ОТК', 'Упаковка');
+
+            routeStages.forEach(function(stageName) {
+                var std = standards.find(function(s) { return s.operation === stageName; });
+                if (std) {
+                    if (std.type === 'Фикс') {
+                        totalMinutes += Number(std.minutes);
+                    } else {
+                        // Для "За блок" пока считаем по 1 блоку, позже обновим
+                        totalMinutes += Number(std.minutes);
+                    }
+                }
+            });
+            var finishDate = new Date(new Date().getTime() + totalMinutes * 60000);
+            var finishStr = finishDate.toLocaleString('ru-RU', { hour12: false });
+            
+            showMessage('Заказ ' + orderNumber + ' создан. Прогноз готовности: ' + finishStr, 'ok');
         }
 
         btn.disabled = false;
@@ -200,7 +235,6 @@
         if (error) {
             showMessage('Ошибка: ' + error.message, 'err');
         } else {
-            showMessage('Заказ ' + orderNumber + ' создан', 'ok');
             document.getElementById('orderNumber').value = '';
             document.getElementById('creationDate').value = '';
             document.getElementById('planDate').value = '';
