@@ -125,6 +125,12 @@
         .btn-green:hover { opacity: 0.8; }
         .btn-green:disabled { opacity: 0.5; cursor: not-allowed; }
 
+        /* ЗАГОЛОВОК СПИСКА ТЕПЕРЬ 36px */
+        .order-list-title { 
+            font-size: 36px; 
+            margin-bottom: 24px; 
+            color: #161616; 
+        }
         .order-list {
             display: flex;
             flex-direction: column;
@@ -143,8 +149,8 @@
             display: flex;
             flex-direction: column;
             gap: 4px;
-            flex: 1 1 150px;
-            min-width: 130px;
+            flex: 1 1 180px;
+            min-width: 140px;
         }
         .order-card .col .label { font-size: 18px; color: #161616; }
         .order-card .col .value {
@@ -156,25 +162,30 @@
             border-radius: 8px;
             font-family: 'Science Gothic', sans-serif;
             font-size: 15px;
-            background: #ffffff;
+            background: #fff;
         }
+        .status-wait { background-color: #e0e0e0; border-color: #b0b0b0; color: #555; }
+        .status-work { background-color: #ffe066; border-color: #d4b300; color: #1a1a1a; }
 
-        /* ЦВЕТНЫЕ ПЛАШКИ С !important (как на главной) */
-        .status-wait { 
-            background: #e0e0e0 !important; 
-            border-color: #b0b0b0 !important; 
-            color: #555 !important; 
+        .msg { 
+            padding: 12px 16px; 
+            border-radius: 8px; 
+            margin-bottom: 16px; 
+            font-size: 14px; 
+            display: none; 
+            border: 1px solid transparent;
         }
-        .status-work { 
-            background: #ffe066 !important; 
-            border-color: #d4b300 !important; 
-            color: #1a1a1a !important; 
-        }
-
-        .msg { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; display: none; }
         .msg.show { display: block; }
-        .msg.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .msg.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .msg.ok { 
+            background-color: #e6f8e6; 
+            border-color: #b3e6b3; 
+            color: #0f6d3a; 
+        }
+        .msg.err { 
+            background-color: #fce4e4; 
+            border-color: #f5c6cb; 
+            color: #721c24; 
+        }
 
         @media (max-width: 992px) {
             .create-layout { flex-direction: column; gap: 40px; }
@@ -184,7 +195,7 @@
             .header .title { font-size: 16px; }
             .header .subtitle { font-size: 14px; }
             .stage-btn { font-size: 14px; padding: 6px 12px; }
-            .form-title { font-size: 26px; }
+            .form-title, .order-list-title { font-size: 26px; }
             .form-grid { grid-template-columns: 1fr; }
             .btn-green { width: 100%; }
         }
@@ -233,7 +244,7 @@
             <button class="btn-green" onclick="createOrder()">Создать заказ</button>
         </div>
         <div class="right">
-            <div class="section-title">Активные заказы</div>
+            <div class="order-list-title">Активные заказы</div>
             <div id="orderList" class="order-list">
                 <div style="text-align: center; padding: 40px 0; color: #999;">Загрузка заказов...</div>
             </div>
@@ -340,9 +351,9 @@
                 statusClass = 'status-wait'; 
                 statusText = 'Ожидает'; 
             }
-                        html += `
+            html += `
                 <div class="order-card">
-                    <div class="col"><div class="label">№ заказа</div><div class="value">${item.order_number}</div></div>
+                    <div class="col"><div class="label">№ заказа</div><div class="value ${statusClass}">${item.order_number}</div></div>
                     <div class="col"><div class="label">Этап</div><div class="value">${item.stage || '—'}</div></div>
                     <div class="col"><div class="label">Статус</div><div class="value ${statusClass}">${statusText}</div></div>
                 </div>
