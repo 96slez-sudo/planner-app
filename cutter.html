@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Раскрой</title>
+    <title>Каттер</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Science+Gothic&display=swap" rel="stylesheet">
@@ -194,19 +194,19 @@
         <a href="/planner-app/create.html" class="stage-btn">Создание заказа</a>
         <a href="/planner-app/prep.html" class="stage-btn">Подготовка</a>
         <a href="/planner-app/print.html" class="stage-btn">Печать</a>
-        <a href="/planner-app/cutter.html" class="stage-btn">Каттер</a>
-        <a href="/planner-app/cutting.html" class="stage-btn active">Раскрой</a>
+        <a href="/planner-app/cutter.html" class="stage-btn active">Каттер</a>
+        <a href="/planner-app/cutting.html" class="stage-btn">Раскрой</a>
         <a href="/planner-app/resin.html" class="stage-btn">Смола</a>
         <a href="/planner-app/drying.html" class="stage-btn">Сушка</a>
         <a href="/planner-app/otk.html" class="stage-btn">ОТК</a>
         <a href="/planner-app/packing.html" class="stage-btn">Упаковка</a>
     </div>
 
-    <div class="page-title">Очередь рулонов на раскрое</div>
-    <div class="rolls-grid" id="cuttingList">
+    <div class="page-title">Очередь рулонов</div>
+    <div class="rolls-grid" id="rollsList">
         <div style="text-align: center; padding: 40px 0; color: #999;">Загрузка рулонов...</div>
     </div>
-    <button class="btn-refresh" onclick="loadCuttingOrders()">Обновить</button>
+    <button class="btn-refresh" onclick="loadRolls()">Обновить</button>
 </div>
 
 <script>
@@ -222,8 +222,8 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
-    async function loadCuttingOrders() {
-        const container = document.getElementById('cuttingList');
+    async function loadRolls() {
+        const container = document.getElementById('rollsList');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
         const { data, error } = await supabaseClient
@@ -236,7 +236,7 @@
             return;
         }
         if (!data || data.length === 0) {
-            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Нет рулонов на раскрое</div>';
+            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Нет рулонов на каттере</div>';
             return;
         }
 
@@ -278,8 +278,8 @@
                     <div class="roll-col col-actions">
                         <div class="label">&nbsp;</div>
                         ${item.status === 'Ожидание' 
-                            ? `<button class="btn-green" onclick="updateCuttingRoll('${item.id}', 'В работе')">Взять в работу</button>` 
-                            : `<button class="btn-red" onclick="updateCuttingRoll('${item.id}', 'Выполнено')">Завершить</button>`
+                            ? `<button class="btn-green" onclick="updateRoll('${item.id}', 'В работе')">Взять в работу</button>` 
+                            : `<button class="btn-red" onclick="updateRoll('${item.id}', 'Выполнено')">Завершить</button>`
                         }
                     </div>
                 </div>
@@ -288,7 +288,7 @@
         container.innerHTML = html;
     }
 
-    async function updateCuttingRoll(rollId, newStatus) {
+    async function updateRoll(rollId, newStatus) {
         const { data: rollData, error: getError } = await supabaseClient
             .from('rolls')
             .select('order_number, roll_index')
@@ -308,88 +308,27 @@
             return;
         }
 
-        // Если рулон завершён, проверяем, был ли он последним
         if (newStatus === 'Выполнено') {
-            const { data: remaining, error: countError } = await supabaseClient
-                .from('rolls')
-                .select('id', { count: 'exact' })
-                .eq('order_number', rollData.order_number)
-                .neq('status', 'Выполнено');
-
-            if (countError) {
-                showMessage('Ошибка подсчёта рулонов', 'err');
-                return;
-            }
-
-            // Если это был последний рулон, определяем следующий этап
-            if (remaining.length === 0) {
-                const { data: order, error: orderError } = await supabaseClient
-                    .from('orders')
-                    .select('r1, resin, r2, path')
-                    .eq('order_number', rollData.order_number)
-                    .single();
-
-                if (orderError) {
-                    showMessage('Ошибка получения данных заказа', 'err');
-                    return;
-                }
-
-                let nextStage = '';
-                let nextStageName = '';
-
-                // ЛОГИКА МАРШРУТА ПО ЧЕКБОКСАМ
-                if (order.r1) {
-                    nextStage = 'Смола';
-                    nextStageName = 'Смола';
-                } else if (order.r2) {
-                    nextStage = 'Раскрой Р2';
-                    nextStageName = 'Раскрой Р2';
-                } else {
-                    // Если ни Р1, ни Р2 (или только Смола), идём на ОТК
-                    // Но проверяем path на всякий случай
-                    if (order.path && order.path.includes('Смола')) {
-                        nextStage = 'Смола';
-                        nextStageName = 'Смола';
-                    } else {
-                        nextStage = 'ОТК';
-                        nextStageName = 'ОТК';
+            await supabaseClient
+                .from('stages')
+                .insert([
+                    { 
+                        order_number: rollData.order_number, 
+                        stage: 'Раскрой', 
+                        status: 'Ожидание',
+                        shelf: `Р${rollData.roll_index}`
                     }
-                }
+                ]);
 
-                await supabaseClient
-                    .from('stages')
-                    .update({ status: 'Выполнено' })
-                    .eq('order_number', rollData.order_number)
-                    .eq('stage', 'Раскрой');
-
-                await supabaseClient
-                    .from('stages')
-                    .insert([
-                        { 
-                            order_number: rollData.order_number, 
-                            stage: nextStage, 
-                            status: 'Ожидание',
-                            shelf: `Р${rollData.roll_index}`
-                        }
-                    ]);
-
-                await supabaseClient
-                    .from('orders')
-                    .update({ stage: nextStage })
-                    .eq('order_number', rollData.order_number);
-
-                showMessage(`Все рулоны завершены! Заказ переведён на ${nextStageName}`, 'ok');
-            } else {
-                showMessage(`Рулон ${rollData.order_number}_${String(rollData.roll_index).padStart(2, '0')} завершён. Осталось ещё ${remaining.length} рулонов`, 'ok');
-            }
+            showMessage(`Рулон ${rollData.order_number}_${String(rollData.roll_index).padStart(2, '0')} переведён на Раскрой`, 'ok');
         } else {
             showMessage('Рулон обновлён', 'ok');
         }
 
-        loadCuttingOrders();
+        loadRolls();
     }
 
-    document.addEventListener('DOMContentLoaded', loadCuttingOrders);
+    document.addEventListener('DOMContentLoaded', loadRolls);
 </script>
 </body>
 </html>
