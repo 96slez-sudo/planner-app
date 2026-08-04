@@ -281,8 +281,7 @@
         container.innerHTML = html;
     }
 
-        async function updateRoll(stageId, newStatus) {
-        // 1. Сначала получаем данные рулона (этапа)
+    async function updateRoll(stageId, newStatus) {
         const { data: itemData, error: getError } = await supabaseClient
             .from('stages')
             .select('order_number, shelf, blocks')
@@ -294,7 +293,7 @@
             return;
         }
 
-        // 2. Обновляем статус в таблице stages
+        // 1. Обновляем статус этого рулона на Каттере
         const { error } = await supabaseClient
             .from('stages')
             .update({ status: newStatus })
@@ -305,28 +304,45 @@
             return;
         }
 
-        // 3. ЕСЛИ СТАТУС СТАЛ "Выполнено" — создаём Раскрой
+        // 2. Если статус стал "Выполнено" — проверяем, есть ли ещё рулоны на Каттере
         if (newStatus === 'Выполнено') {
-            // Обновляем orders (этап на Раскрой)
-            await supabaseClient
-                .from('orders')
-                .update({ stage: 'Раскрой' })
-                .eq('order_number', itemData.order_number);
-
-            // Создаём запись в stages для Раскроя
-            await supabaseClient
+            const { count, error: countError } = await supabaseClient
                 .from('stages')
-                .insert([
-                    { 
-                        order_number: itemData.order_number, 
-                        stage: 'Раскрой', 
-                        status: 'Ожидание',
-                        shelf: itemData.shelf,
-                        blocks: itemData.blocks
-                    }
-                ]);
+                .select('*', { count: 'exact', head: true })
+                .eq('order_number', itemData.order_number)
+                .eq('stage', 'Каттер')
+                .neq('status', 'Выполнено');
 
-            showMessage(`Рулон ${itemData.shelf} переведён на Раскрой`, 'ok');
+            if (countError) {
+                showMessage('Ошибка подсчёта рулонов', 'err');
+                return;
+            }
+
+            // Если это был последний рулон на Каттере, только тогда переходим на Раскрой
+            if (count === 0) {
+                // Обновляем orders (этап на Раскрой)
+                await supabaseClient
+                    .from('orders')
+                    .update({ stage: 'Раскрой' })
+                    .eq('order_number', itemData.order_number);
+
+                // Создаём запись в stages для Раскроя
+                await supabaseClient
+                    .from('stages')
+                    .insert([
+                        { 
+                            order_number: itemData.order_number, 
+                            stage: 'Раскрой', 
+                            status: 'Ожидание',
+                            shelf: itemData.shelf,
+                            blocks: itemData.blocks
+                        }
+                    ]);
+
+                showMessage(`Все рулоны на Каттере завершены! Заказ переведён на Раскрой`, 'ok');
+            } else {
+                showMessage(`Рулон ${itemData.shelf} завершён. Осталось ещё ${count} рулон(ов) на Каттере`, 'ok');
+            }
         } else {
             showMessage('Рулон обновлён', 'ok');
         }
