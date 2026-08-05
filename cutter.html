@@ -229,56 +229,12 @@
         return data.path;
     }
 
-    // Функция для подсчета количества рулонов для Р2 заказа
-    async function getR2RollCount(orderNumber) {
-        const { data, error } = await supabaseClient
-            .from('stages')
-            .select('id')
-            .eq('order_number', orderNumber)
-            .eq('stage', 'Каттер')
-            .in('status', ['Ожидание', 'В работе', 'Выполнено']);
-
-        if (error) {
-            console.error('Ошибка подсчета рулонов Р2:', error);
-            return 0;
-        }
-        return data.length;
-    }
-
-    // Функция для получения следующего номера рулона для Р2
-    async function getNextR2RollNumber(orderNumber) {
-        const { data, error } = await supabaseClient
-            .from('stages')
-            .select('shelf')
-            .eq('order_number', orderNumber)
-            .eq('stage', 'Каттер')
-            .in('status', ['Ожидание', 'В работе', 'Выполнено']);
-
-        if (error) {
-            console.error('Ошибка получения номеров рулонов Р2:', error);
-            return 1;
-        }
-
-        // Собираем все номера рулонов для Р2 (формат R{номер}_{номер_рулона})
-        const usedNumbers = new Set();
-        data.forEach(item => {
-            if (item.shelf && /^R\d+_\d+$/.test(item.shelf)) {
-                const parts = item.shelf.split('_');
-                if (parts.length === 2) {
-                    const rollNum = parseInt(parts[1]);
-                    if (!isNaN(rollNum)) {
-                        usedNumbers.add(rollNum);
-                    }
-                }
-            }
-        });
-
-        // Ищем минимальный свободный номер
-        let counter = 1;
-        while (usedNumbers.has(counter)) {
-            counter++;
-        }
-        return counter;
+    // Функция для создания ID рулона для Р2 (R1_01, R1_02, R2_01 и т.д.)
+    async function getR2RollId(orderNumber, rollIndex) {
+        // Получаем номер заказа
+        const orderNum = orderNumber;
+        // Формируем ID: R{номер заказа}_{номер рулона с ведущим нулем}
+        return `R${orderNum}_${String(rollIndex).padStart(2, '0')}`;
     }
 
     async function loadRolls() {
@@ -391,17 +347,13 @@
             let nextStage = 'Раскрой';
             let nextShelf = itemData.shelf; // По умолчанию сохраняем ID рулона
 
-            // Для Р2 заказов назначаем новый ID рулона формата R{номер}_{номер_рулона}
+            // Для Р2 заказов формируем ID рулона R{номер}_{номер}
             if (routeType === 'Р2') {
-                // Получаем следующий номер рулона для этого заказа
-                const rollNumber = await getNextR2RollNumber(itemData.order_number);
-                // Получаем порядковый номер заказа (извлекаем из shelf или используем 1)
-                let orderNum = 1;
-                if (itemData.shelf && /^R\d+_\d+$/.test(itemData.shelf)) {
-                    const parts = itemData.shelf.split('_');
-                    orderNum = parseInt(parts[0].replace('R', '')) || 1;
-                }
-                nextShelf = `R${orderNum}_${String(rollNumber).padStart(2, '0')}`;
+                // Извлекаем номер рулона из shelf (формат {order_number}_{roll_index})
+                const parts = itemData.shelf.split('_');
+                const rollIndex = parseInt(parts[1]) || 1;
+                // Формируем новый ID: R{order_number}_{roll_index}
+                nextShelf = `R${itemData.order_number}_${String(rollIndex).padStart(2, '0')}`;
             }
 
             // Создаем запись на следующем этапе
