@@ -66,9 +66,6 @@
             width: 100%;
         }
 
-        /* ======================== */
-        /* ДИЗАЙН КАРТОЧКИ СТЕЛЛАЖА */
-        /* ======================== */
         .shelf-card {
             display: flex;
             flex-direction: column;
@@ -95,23 +92,10 @@
             transition: background-color 0.3s;
         }
 
-        /* ============================================================ */
-        /* ЦВЕТА ПО СОСТОЯНИЮ (по умолчанию ВСЕ ЗЕЛЕНЫЕ - state-empty)   */
-        /* ============================================================ */
-        
-        /* 1. Пустой (Зеленый) - По умолчанию */
         .shelf-card.state-empty .shelf-header { background-color: #1e8449; } 
-        
-        /* 2. Частично занят (Желтый) */
         .shelf-card.state-partial .shelf-header { background-color: #ffd966; color: #161616; }
-        
-        /* 3. Полностью занят (Серый) */
         .shelf-card.state-full .shelf-header { background-color: #7f8c8d; }
-        
-        /* 4. В процессе сушки (Синий) */
         .shelf-card.state-drying .shelf-header { background-color: #4a6fa5; }
-
-        /* ============================================================ */
 
         .shelf-body {
             display: flex;
@@ -134,7 +118,6 @@
         .shelf-row .label { color: #161616; font-weight: 500; font-size: 13px; }
         .shelf-row .value { font-weight: 400; font-size: 14px; }
         
-        /* Поле с ID заказа (чтобы текст не вылезал) */
         .shelf-row.order-id {
             font-size: 13px;
             padding: 0 6px;
@@ -148,7 +131,35 @@
             max-width: 100px; 
         }
 
-        /* Кнопки */
+        .zone-selector {
+            display: flex;
+            justify-content: space-between;
+            gap: 4px;
+            margin-top: 4px;
+        }
+        .zone-btn {
+            flex: 1;
+            height: 34px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: #fafafa;
+            font-family: 'Science Gothic', sans-serif;
+            font-size: 14px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .zone-btn:hover {
+            background: #e5e7eb;
+        }
+        .zone-btn.selected {
+            background: #0f8653;
+            color: white;
+            border-color: #0f8653;
+        }
+        .zone-btn.selected:hover {
+            background: #0b6b43;
+        }
+
         .btn-drying {
             display: flex;
             align-items: center;
@@ -209,6 +220,7 @@
         @media (max-width: 480px) {
             .header { flex-direction: column; align-items: flex-start; gap: 4px; }
             .shelf-card { max-width: 100%; }
+            .zone-btn { font-size: 12px; height: 30px; }
         }
     </style>
 </head>
@@ -256,7 +268,6 @@
         const container = document.getElementById('shelfGrid');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
-        // Получаем все активные записи на сушке
         const { data: dryingData, error: stageError } = await supabaseClient
             .from('stages')
             .select('*')
@@ -278,8 +289,9 @@
             let freeBlocks = 46;
             let blocks = 0;
             let orderNumber = '';
-            let stateClass = 'state-empty'; // По умолчанию ВСЕ ЗЕЛЕНЫЕ
+            let stateClass = 'state-empty';
             let buttonHtml = `<button class="btn-drying btn-disabled" disabled>Начать сушку</button>`;
+            let zoneHtml = `<div style="color:#9ca3af; text-align:center; font-size:13px; margin-top:4px;">—</div>`;
             
             if (isOccupied) {
                 blocks = shelfData.blocks || 0;
@@ -287,19 +299,29 @@
                 orderNumber = shelfData.order_number || '—';
                 
                 if (shelfData.status === 'В работе') {
-                    stateClass = 'state-drying'; // Синий
+                    stateClass = 'state-drying';
                     buttonHtml = `<button class="btn-drying btn-finish" onclick="finishDrying('${shelfData.id}', '${orderNumber}', ${blocks}, '${l}')">Завершить сушку</button>`;
+                    zoneHtml = `<div style="text-align:center; font-size:13px; margin-top:4px; color:#4a6fa5;">Зона выбрана</div>`;
                 } else {
                     if (freeBlocks === 0) {
-                        stateClass = 'state-full'; // Серый (полностью занят)
+                        stateClass = 'state-full';
                     } else {
-                        stateClass = 'state-partial'; // Желтый (частично занят)
+                        stateClass = 'state-partial';
                     }
-                    buttonHtml = `<button class="btn-drying btn-start" onclick="startDrying('${shelfData.id}')">Начать сушку</button>`;
+                    
+                    zoneHtml = `
+                        <div class="zone-selector" id="zone-selector-${shelfData.id}">
+                            <button class="zone-btn" onclick="selectZone('${shelfData.id}', '1')">1</button>
+                            <button class="zone-btn" onclick="selectZone('${shelfData.id}', '2')">2</button>
+                            <button class="zone-btn" onclick="selectZone('${shelfData.id}', '3')">3</button>
+                            <button class="zone-btn" onclick="selectZone('${shelfData.id}', '4')">4</button>
+                        </div>
+                    `;
+                    
+                    buttonHtml = `<button class="btn-drying btn-start" id="start-btn-${shelfData.id}" onclick="startDrying('${shelfData.id}')" disabled>Выберите зону</button>`;
                 }
             }
 
-            // Тексты для полей
             let ordersText = isOccupied ? '1' : '0';
             let orderIdText = isOccupied ? orderNumber : '—';
             let freeText = isOccupied ? freeBlocks : '46';
@@ -312,6 +334,7 @@
                         <div class="shelf-row order-id"><span class="value">${orderIdText}</span></div>
                         <div class="shelf-row"><span class="label">Кол-во блоков</span><span class="value">${blocks}</span></div>
                         <div class="shelf-row"><span class="label">Свободно</span><span class="value">${freeText}</span></div>
+                        ${zoneHtml}
                         ${buttonHtml}
                     </div>
                 </div>
@@ -320,21 +343,57 @@
         container.innerHTML = html;
     }
 
+    function selectZone(stageId, zoneNumber) {
+        const container = document.getElementById(`zone-selector-${stageId}`);
+        const buttons = container.querySelectorAll('.zone-btn');
+        buttons.forEach(btn => btn.classList.remove('selected'));
+        
+        const clickedBtn = container.querySelector(`.zone-btn:nth-child(${zoneNumber})`);
+        if(clickedBtn) clickedBtn.classList.add('selected');
+
+        const startBtn = document.getElementById(`start-btn-${stageId}`);
+        startBtn.disabled = false;
+        startBtn.textContent = 'Начать сушку';
+        startBtn.dataset.zone = zoneNumber;
+    }
+
     async function startDrying(stageId) {
+        const startBtn = document.getElementById(`start-btn-${stageId}`);
+        const selectedZone = startBtn.dataset.zone;
+
+        if (!selectedZone) {
+            showMessage('Сначала выберите зону (1, 2, 3 или 4)!', 'err');
+            return;
+        }
+
         const { error } = await supabaseClient
             .from('stages')
-            .update({ status: 'В работе' })
+            .update({ status: 'В работе', zone: selectedZone })
             .eq('id', stageId);
 
         if (error) {
             showMessage('Ошибка запуска сушки: ' + error.message, 'err');
         } else {
-            showMessage('Сушка запущена!', 'ok');
+            showMessage(`Сушка запущена в зоне ${selectedZone}!`, 'ok');
             loadDryingShelves();
         }
     }
 
     async function finishDrying(stageId, orderNumber, blocks, shelfLetter) {
+        // 1. Получаем зону из базы
+        const { data: stageData, error: getError } = await supabaseClient
+            .from('stages')
+            .select('zone')
+            .eq('id', stageId)
+            .single();
+
+        if (getError || !stageData) {
+            showMessage('Ошибка получения зоны', 'err');
+            return;
+        }
+        const zone = stageData.zone || 'Не указана';
+
+        // 2. Завершаем текущий этап сушки
         const { error: updateError } = await supabaseClient
             .from('stages')
             .update({ status: 'Выполнено' })
@@ -345,17 +404,7 @@
             return;
         }
 
-        const { data: orderData, error: orderError } = await supabaseClient
-            .from('orders')
-            .select('r1, r2, resin')
-            .eq('order_number', orderNumber)
-            .single();
-
-        if (orderError || !orderData) {
-            showMessage('Ошибка получения данных заказа', 'err');
-            return;
-        }
-
+        // 3. Проверяем, есть ли еще стеллажи этого заказа на сушке
         const { count, error: countError } = await supabaseClient
             .from('stages')
             .select('*', { count: 'exact', head: true })
@@ -368,33 +417,68 @@
             return;
         }
 
+        // 4. Если это был последний стеллаж
         if (count === 0) {
-            let nextStage = 'ОТК';
-            let nextStageName = 'ОТК';
-
-            if (orderData.r2 === true) {
-                nextStage = 'Раскрой Р2';
-                nextStageName = 'Раскрой Р2';
-            } 
-
-            await supabaseClient
+            // Проверяем, нужен ли заказу Раскрой Р2
+            const { data: orderData, error: orderError } = await supabaseClient
                 .from('orders')
-                .update({ stage: nextStage })
-                .eq('order_number', orderNumber);
+                .select('r2')
+                .eq('order_number', orderNumber)
+                .single();
 
-            await supabaseClient
-                .from('stages')
-                .insert([
-                    { 
-                        order_number: orderNumber, 
-                        stage: nextStage, 
-                        status: 'Ожидание',
-                        shelf: shelfLetter,
-                        blocks: blocks
-                    }
-                ]);
+            if (orderError || !orderData) {
+                showMessage('Ошибка получения настроек заказа', 'err');
+                return;
+            }
 
-            showMessage(`Сушка завершена! Заказ переведён на ${nextStageName}`, 'ok');
+            // ============================================================
+            // ГЛАВНАЯ ЛОГИКА: ЕСЛИ r2 === true, ИДЕМ НА РАСКРОЙ. ИНАЧЕ - ОТК.
+            // ============================================================
+            if (orderData.r2 === true) {
+                // Вариант А: Нужен Раскрой Р2 -> Создаем запись в обычных stages
+                await supabaseClient
+                    .from('stages')
+                    .insert([
+                        { 
+                            order_number: orderNumber, 
+                            stage: 'Раскрой', 
+                            status: 'Ожидание',
+                            shelf: shelfLetter,
+                            blocks: blocks
+                        }
+                    ]);
+                
+                // Обновляем заказ в orders
+                await supabaseClient
+                    .from('orders')
+                    .update({ stage: 'Раскрой' })
+                    .eq('order_number', orderNumber);
+
+                showMessage(`Сушка завершена! Заказ отправлен обратно на Раскрой (Р2)`, 'ok');
+
+            } else {
+                // Вариант Б: Р2 не нужен -> Идем на ОТК (в новую таблицу)
+                await supabaseClient
+                    .from('otk_queue')
+                    .insert([
+                        { 
+                            order_number: orderNumber, 
+                            shelf: shelfLetter, 
+                            zone: zone,
+                            blocks: blocks,
+                            status: 'Ожидание'
+                        }
+                    ]);
+
+                // Обновляем заказ в orders
+                await supabaseClient
+                    .from('orders')
+                    .update({ stage: 'ОТК' })
+                    .eq('order_number', orderNumber);
+
+                showMessage(`Сушка завершена! Заказ отправлен на ОТК (Зона: ${zone})`, 'ok');
+            }
+
         } else {
             showMessage(`Стеллаж ${shelfLetter} завершён. Осталось ещё ${count} стеллажей на сушке`, 'ok');
         }
