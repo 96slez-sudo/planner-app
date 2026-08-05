@@ -343,10 +343,10 @@
             }
 
             if (count === 0) {
+                // Проверяем, нужна ли смола для этого заказа (только для рулонов Р1)
                 const isShelf = /^[A-H]$/.test(stageData.shelf);
                 let needsResin = false;
                 
-                // Для рулонов (Р1) проверяем, нужна ли смола
                 if (!isShelf) {
                     const { data: orderData } = await supabaseClient
                         .from('orders')
@@ -359,7 +359,7 @@
                 }
 
                 if (needsResin) {
-                    // Идем на Смолу (по рулонам)
+                    // Идем на Смолу (по рулонам) - КОД ОСТАЕТСЯ БЕЗ ИЗМЕНЕНИЙ
                     const { data: completedItems } = await supabaseClient
                         .from('stages')
                         .select('shelf, blocks')
@@ -392,21 +392,21 @@
                     showMessage(`Все завершены! Заказ переведён на Смолу`, 'ok');
 
                 } else {
-                    // Идем на ОТК. 
-                    // Сначала получаем общее кол-во блоков этого заказа
+                    // ИДЕМ НА ОТК. ЛОГИКА С ОДНОЙ СТРОКОЙ И ПОМЕТКАМИ.
+                    
+                    // 1. Получаем общее кол-во блоков этого заказа (из orders)
                     const { data: orderData } = await supabaseClient
                         .from('orders')
                         .select('blocks')
                         .eq('order_number', stageData.order_number)
                         .single();
                     
-                    // Получаем букву стеллажа (если это Р2)
                     let shelfLetter = isShelf ? stageData.shelf : '—';
 
-                    // Проверяем, есть ли уже запись этого заказа в otk_orders
+                    // 2. Проверяем, есть ли уже запись этого заказа в otk_orders
                     const { data: existingOtk, error: checkError } = await supabaseClient
                         .from('otk_orders')
-                        .select('id, shelves_list')
+                        .select('id, completion_note')
                         .eq('order_number', stageData.order_number)
                         .maybeSingle();
 
@@ -416,43 +416,31 @@
                     }
 
                     if (existingOtk) {
-                        // Если запись уже есть, дописываем стеллаж в список (если это Р2)
-                        let newShelvesList = existingOtk.shelves_list || '';
-                        if (isShelf) {
-                            // Проверяем, есть ли уже такая буква в списке, чтобы не дублировать
-                            const existingShelves = newShelvesList.split(',').map(s => s.trim());
-                            if (!existingShelves.includes(shelfLetter)) {
-                                if (newShelvesList.length > 0) {
-                                    newShelvesList += ', ' + shelfLetter;
-                                } else {
-                                    newShelvesList = shelfLetter;
-                                }
-                            }
-                        }
+                        // ЕСЛИ ЗАПИСЬ УЖЕ ЕСТЬ: просто обновляем пометку
+                        // Мы не знаем, сколько всего частей у заказа, поэтому просто пишем "Полный", если это последний.
+                        // В идеале, нужно знать общее количество стеллажей, но у нас этой информации нет в базе.
+                        // Мы просто ставим "Полный", так как count === 0 означает, что это был последний стеллаж на раскрое.
                         
-                        // Обновляем запись (добавляем стеллаж)
                         await supabaseClient
                             .from('otk_orders')
-                            .update({ shelves_list: newShelvesList })
+                            .update({ completion_note: 'Полный' })
                             .eq('id', existingOtk.id);
 
                     } else {
-                        // Если записи нет, создаем новую
-                        let shelvesList = isShelf ? shelfLetter : '';
-                        
+                        // ЕСЛИ ЗАПИСИ НЕТ: создаем новую запись с пометкой, что это первая часть
                         await supabaseClient
                             .from('otk_orders')
                             .insert([
                                 { 
                                     order_number: stageData.order_number,
                                     total_blocks: orderData?.blocks || 0,
-                                    shelves_list: shelvesList,
+                                    completion_note: '1 часть',
                                     status: 'Ожидание'
                                 }
                             ]);
                     }
 
-                    // Обновляем этап заказа в orders
+                    // 3. Обновляем этап заказа в orders
                     await supabaseClient
                         .from('orders')
                         .update({ stage: 'ОТК' })
@@ -462,7 +450,66 @@
                 }
 
             } else {
-                showMessage(`Элемент ${stageData.shelf} завершён. Осталось ещё ${count}`, 'ok');
+                // ЕСЛИ ЭТО НЕ ПОСЛЕДНИЙ СТЕЛЛАЖ НА РАСКРОЕ:
+                // Мы ВСЕ РАВНО отправляем его на ОТК, но с пометкой, что пришла часть.
+                // Мы не знаем, какая это часть по счету, поэтому ставим "Часть".
+                
+                // ПРОВЕРКА: Это стеллаж (Р2) или рулон (Р1)?
+                const isShelf = /^[A-H]$/.test(stageData.shelf);
+                
+                if (isShelf) {
+                    // Проверяем, есть ли уже запись в otk_orders для этого заказа
+                    const { data: existingOtk, error: checkError } = await supabaseClient
+                        .from('otk_orders')
+                        .select('id, completion_note')
+                        .eq('order_number', stageData.order_number)
+                        .maybeSingle();
+
+                    if (checkError) {
+                        showMessage('Ошибка проверки ОТК', 'err');
+                        return;
+                    }
+
+                    if (existingOtk) {
+                        // Если запись уже есть, меняем пометку на "Еще часть"
+                        if (existingOtk.completion_note !== 'Полный') {
+                            await supabaseClient
+                                .from('otk_orders')
+                                .update({ completion_note: 'Еще часть' })
+                                .eq('id', existingOtk.id);
+                        }
+                    } else {
+                        // Если записи нет (первый стеллаж), создаем ее
+                        const { data: orderData } = await supabaseClient
+                            .from('orders')
+                            .select('blocks')
+                            .eq('order_number', stageData.order_number)
+                            .single();
+                        
+                        await supabaseClient
+                            .from('otk_orders')
+                            .insert([
+                                { 
+                                    order_number: stageData.order_number,
+                                    total_blocks: orderData?.blocks || 0,
+                                    completion_note: '1 часть',
+                                    status: 'Ожидание'
+                                }
+                            ]);
+                    }
+
+                    // Обновляем этап заказа в orders на ОТК
+                    await supabaseClient
+                        .from('orders')
+                        .update({ stage: 'ОТК' })
+                        .eq('order_number', stageData.order_number);
+
+                    showMessage(`Стеллаж ${stageData.shelf} завершён и отправлен на ОТК. Осталось ещё ${count} стеллажей.`, 'ok');
+                } else {
+                    // Если это Р1 (рулон) - он не должен идти на ОТК частями, только целиком.
+                    // Здесь мы просто сообщаем об остатке.
+                    showMessage(`Элемент ${stageData.shelf} завершён. Осталось ещё ${count}`, 'ok');
+                }
             }
         } else {
             showMessage('Статус обновлён', 'ok');
