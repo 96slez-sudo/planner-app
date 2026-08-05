@@ -136,10 +136,11 @@
             justify-content: space-between;
             gap: 4px;
             margin-top: 4px;
+            height: 34px;
         }
         .zone-btn {
             flex: 1;
-            height: 34px;
+            height: 100%;
             border: 1px solid #d1d5db;
             border-radius: 6px;
             background: #fafafa;
@@ -220,7 +221,7 @@
         @media (max-width: 480px) {
             .header { flex-direction: column; align-items: flex-start; gap: 4px; }
             .shelf-card { max-width: 100%; }
-            .zone-btn { font-size: 12px; height: 30px; }
+            .zone-btn { font-size: 12px; }
         }
     </style>
 </head>
@@ -344,13 +345,16 @@
     }
 
     function selectZone(stageId, zoneNumber) {
+        // 1. Снимаем выделение со всех кнопок зон у этого стеллажа
         const container = document.getElementById(`zone-selector-${stageId}`);
         const buttons = container.querySelectorAll('.zone-btn');
         buttons.forEach(btn => btn.classList.remove('selected'));
         
+        // 2. Подсвечиваем выбранную
         const clickedBtn = container.querySelector(`.zone-btn:nth-child(${zoneNumber})`);
         if(clickedBtn) clickedBtn.classList.add('selected');
 
+        // 3. Активируем кнопку "Начать сушку" и сохраняем зону
         const startBtn = document.getElementById(`start-btn-${stageId}`);
         startBtn.disabled = false;
         startBtn.textContent = 'Начать сушку';
@@ -380,7 +384,6 @@
     }
 
     async function finishDrying(stageId, orderNumber, blocks, shelfLetter) {
-        // 1. Получаем зону из базы
         const { data: stageData, error: getError } = await supabaseClient
             .from('stages')
             .select('zone')
@@ -393,7 +396,6 @@
         }
         const zone = stageData.zone || 'Не указана';
 
-        // 2. Завершаем текущий этап сушки
         const { error: updateError } = await supabaseClient
             .from('stages')
             .update({ status: 'Выполнено' })
@@ -404,7 +406,6 @@
             return;
         }
 
-        // 3. Проверяем, есть ли еще стеллажи этого заказа на сушке
         const { count, error: countError } = await supabaseClient
             .from('stages')
             .select('*', { count: 'exact', head: true })
@@ -417,9 +418,7 @@
             return;
         }
 
-        // 4. Если это был последний стеллаж
         if (count === 0) {
-            // Проверяем, нужен ли заказу Раскрой Р2
             const { data: orderData, error: orderError } = await supabaseClient
                 .from('orders')
                 .select('r2')
@@ -431,11 +430,7 @@
                 return;
             }
 
-            // ============================================================
-            // ГЛАВНАЯ ЛОГИКА: ЕСЛИ r2 === true, ИДЕМ НА РАСКРОЙ. ИНАЧЕ - ОТК.
-            // ============================================================
             if (orderData.r2 === true) {
-                // Вариант А: Нужен Раскрой Р2 -> Создаем запись в обычных stages
                 await supabaseClient
                     .from('stages')
                     .insert([
@@ -448,7 +443,6 @@
                         }
                     ]);
                 
-                // Обновляем заказ в orders
                 await supabaseClient
                     .from('orders')
                     .update({ stage: 'Раскрой' })
@@ -457,7 +451,6 @@
                 showMessage(`Сушка завершена! Заказ отправлен обратно на Раскрой (Р2)`, 'ok');
 
             } else {
-                // Вариант Б: Р2 не нужен -> Идем на ОТК (в новую таблицу)
                 await supabaseClient
                     .from('otk_queue')
                     .insert([
@@ -470,7 +463,6 @@
                         }
                     ]);
 
-                // Обновляем заказ в orders
                 await supabaseClient
                     .from('orders')
                     .update({ stage: 'ОТК' })
