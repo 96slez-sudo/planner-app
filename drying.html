@@ -3,74 +3,204 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Сушка — Планировщик</title>
+    <title>Сушка</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Science+Gothic&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f4f6f9; padding: 16px; min-height: 100vh; display: flex; justify-content: center; }
-        .container { max-width: 500px; width: 100%; }
-        .header { margin-bottom: 16px; }
-        .header h1 { font-size: 22px; font-weight: 600; color: #1a1a2e; }
-        .header p { font-size: 14px; color: #888; }
-        .nav { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; background: white; padding: 8px; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-        .nav a { padding: 6px 12px; background: #eef1f4; border-radius: 16px; text-decoration: none; font-size: 12px; color: #555; font-weight: 500; }
-        .nav a:hover { background: #dce0e4; }
-        .nav a.active { background: #2c3e50; color: white; }
-        .card { background: white; border-radius: 12px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); border: 1px solid #eaeef2; }
-        .card h3 { font-size: 16px; font-weight: 600; margin-bottom: 14px; color: #1a1a2e; }
-        .btn { padding: 8px 16px; background: #2c3e50; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.2s; }
-        .btn:hover { background: #1a252f; }
-        .btn-sm { padding: 5px 12px; font-size: 12px; }
-        .btn-success { background: #27ae60; }
-        .btn-success:hover { background: #1e8449; }
-        .btn-danger { background: #e74c3c; }
-        .btn-danger:hover { background: #c0392b; }
-        .badge { display: inline-block; padding: 3px 12px; border-radius: 16px; font-size: 12px; font-weight: 500; }
-        .badge-waiting { background: #fff3cd; color: #856404; }
-        .badge-work { background: #cce5ff; color: #004085; }
-        .badge-done { background: #d4edda; color: #155724; }
-        .item { padding: 12px 0; border-bottom: 1px solid #f0f2f5; }
-        .item:last-child { border-bottom: none; }
-        .item .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
-        .item .order-num { font-weight: 600; font-size: 15px; color: #1a1a2e; }
-        .item .order-meta { font-size: 14px; color: #666; }
-        .item .actions { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-        .msg { padding: 12px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; display: none; }
+        body { 
+            font-family: 'Science Gothic', sans-serif; 
+            background: #ffffff; 
+            color: #161616; 
+            padding: 16px; 
+            min-height: 100vh; 
+            display: flex; 
+            justify-content: center; 
+        }
+        a { text-decoration: none; }
+
+        .container { max-width: 1520px; width: 100%; }
+
+        .header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 16px;
+            margin-bottom: 32px;
+            border-bottom: 1px solid #eeeeee;
+        }
+        .header .title { font-size: 20px; letter-spacing: 0.5px; color: #161616; }
+        .header .subtitle { font-size: 16px; color: #161616; cursor: pointer; transition: 0.2s; }
+        .header .subtitle:hover { opacity: 0.7; }
+
+        .stages {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 40px;
+        }
+        .stage-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 18px;
+            background: #cdcdcd;
+            border-radius: 8px;
+            color: #141414;
+            font-size: 18px;
+            transition: 0.2s;
+        }
+        .stage-btn:hover { background: #b0b0b0; }
+        .stage-btn.active { background: #1e1e1e; color: #ffffff; }
+
+        .page-title { font-size: 32px; margin-bottom: 24px; color: #161616; }
+        
+        .grid {
+            display: flex;
+            flex-wrap: wrap; /* Чтобы стеллажи переносились */
+            gap: 20px;
+            max-width: 1000px;
+            width: 100%;
+        }
+
+        /* Карточка стеллажа */
+        .shelf-card {
+            display: flex;
+            flex-direction: column;
+            width: 220px;
+            background: #fff;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            padding: 0 0 12px 0;
+            overflow: hidden;
+        }
+
+        .shelf-header {
+            text-align: center;
+            padding: 8px;
+            font-size: 20px;
+            font-weight: 600;
+            color: #fff;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        /* Цвета заголовков по вашему описанию */
+        .shelf-A .shelf-header { background-color: #ffd966; color: #161616; }
+        .shelf-B .shelf-header { background-color: #7f8c8d; }
+        .shelf-C .shelf-header { background-color: #4a6fa5; }
+        .shelf-D .shelf-header { background-color: #1e8449; }
+        .shelf-E .shelf-header { background-color: #1e8449; }
+        .shelf-F .shelf-header { background-color: #1e8449; }
+        .shelf-G .shelf-header { background-color: #1e8449; }
+        .shelf-H .shelf-header { background-color: #1e8449; }
+
+        .shelf-body {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 12px;
+        }
+        
+        .shelf-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid #6c6c6c;
+            border-radius: 6px;
+            padding: 0 8px;
+            height: 36px;
+            font-size: 15px;
+            background: #fff;
+        }
+        .shelf-row .label { color: #161616; font-weight: 500; }
+        .shelf-row .value { font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
+
+        .btn-drying {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 40px;
+            width: 100%;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 15px;
+            border: none;
+            cursor: pointer;
+            transition: 0.2s;
+            margin-top: 6px;
+        }
+        .btn-drying:hover { opacity: 0.8; }
+        
+        .btn-start { background-color: #0f8653; }
+        .btn-finish { background-color: #e74c3c; }
+        .btn-disabled { background-color: #cdcdcd; color: #888; cursor: not-allowed; opacity: 0.6; }
+        .btn-disabled:hover { opacity: 0.6; }
+
+        .btn-refresh {
+            width: 100%;
+            max-width: 1000px;
+            padding: 12px;
+            background: #eef1f4;
+            border-radius: 8px;
+            color: #333;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        .btn-refresh:hover { background: #dce0e4; }
+
+        .msg { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; display: none; }
         .msg.show { display: block; }
         .msg.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .msg.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .empty { text-align: center; padding: 28px 0; color: #aaa; font-size: 14px; }
-        .loading { text-align: center; padding: 16px 0; color: #999; font-size: 14px; }
+
+        @media (max-width: 992px) {
+            .grid { justify-content: center; }
+            .shelf-card { width: 100%; max-width: 320px; }
+        }
+        @media (max-width: 600px) {
+            .header .title { font-size: 16px; }
+            .header .subtitle { font-size: 14px; }
+            .stage-btn { font-size: 14px; padding: 6px 12px; }
+            .page-title { font-size: 26px; }
+        }
         @media (max-width: 480px) {
-            body { padding: 12px; }
-            .card { padding: 14px; }
+            .header { flex-direction: column; align-items: flex-start; gap: 4px; }
+            .shelf-card { max-width: 100%; }
         }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
-        <h1>Сушка</h1>
-        <p>Стеллажи и сушка</p>
+        <div class="title">//ПЛАНИРОВЩИК ПРОИЗВОДСТВА</div>
+        <a href="/planner-app/" class="subtitle">ГЛАВНАЯ//</a>
     </div>
-    <div class="nav">
-    <a href="/planner-app/" class="active">Главная</a>
-    <a href="/planner-app/prep.html">Подготовка</a>
-    <a href="/planner-app/print.html">Печать</a>
-    <a href="/planner-app/cutter.html">Каттер</a>
-    <a href="/planner-app/cutting.html">Раскрой</a>
-    <a href="/planner-app/resin.html">Смола</a>
-    <a href="/planner-app/drying.html">Сушка</a>
-    <a href="/planner-app/otk.html">ОТК</a>
-    <a href="/planner-app/packing.html">Упаковка</a>
-</div>
     <div id="message" class="msg"></div>
-    <div class="card">
-        <h3>Стеллажи</h3>
-        <div id="dryingList"></div>
-        <button class="btn" style="width:100%; margin-top:10px; background:#eef1f4; color:#333;" onclick="loadDryingOrders()">Обновить</button>
+
+    <div class="stages">
+        <a href="/planner-app/create.html" class="stage-btn">Создание заказа</a>
+        <a href="/planner-app/prep.html" class="stage-btn">Подготовка</a>
+        <a href="/planner-app/print.html" class="stage-btn">Печать</a>
+        <a href="/planner-app/cutter.html" class="stage-btn">Каттер</a>
+        <a href="/planner-app/cutting.html" class="stage-btn">Раскрой</a>
+        <a href="/planner-app/resin.html" class="stage-btn">Смола</a>
+        <a href="/planner-app/drying.html" class="stage-btn active">Сушка</a>
+        <a href="/planner-app/otk.html" class="stage-btn">ОТК</a>
+        <a href="/planner-app/packing.html" class="stage-btn">Упаковка</a>
     </div>
+
+    <div class="page-title">Сушка</div>
+    <div class="grid" id="shelfGrid">
+        <div style="text-align: center; padding: 40px 0; color: #999; width: 100%;">Загрузка стеллажей...</div>
+    </div>
+    <button class="btn-refresh" onclick="loadDryingShelves()">Обновить</button>
 </div>
+
 <script>
     const SUPABASE_URL = 'https://knuqfyjdptkkdapivsnm.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_6k1bwNvlNAjNYI9NrijXtg_clTUDrOJ';
@@ -84,149 +214,183 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
-    async function loadDryingOrders() {
-        var container = document.getElementById('dryingList');
-        container.innerHTML = '<div class="loading">Загрузка...</div>';
+    async function loadDryingShelves() {
+        const container = document.getElementById('shelfGrid');
+        container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
-        const { data: stages, error: stageError } = await supabaseClient
+        // Получаем все активные записи на сушке
+        const { data: dryingData, error: stageError } = await supabaseClient
             .from('stages')
             .select('*')
             .eq('stage', 'Сушка')
-            .eq('status', 'Ожидание');
+            .in('status', ['Ожидание', 'В работе']);
 
         if (stageError) {
-            container.innerHTML = '<div class="empty">Ошибка этапов: ' + stageError.message + '</div>';
-            return;
-        }
-        if (!stages || stages.length === 0) {
-            container.innerHTML = '<div class="empty">Нет стеллажей</div>';
+            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #c0392b;">Ошибка загрузки</div>';
             return;
         }
 
-        var html = '';
-        for (var s of stages) {
-            const { data: order, error: orderError } = await supabaseClient
-                .from('orders')
-                .select('*')
-                .eq('order_number', s.order_number)
-                .single();
+        const letters = ['A','B','C','D','E','F','G','H'];
+        let html = '';
 
-            if (orderError || !order) continue;
-
-            var item = {
-                shelf: s.order_number,
-                orders: s.order_number,
-                count: 1,
-                packed: s.status === 'В работе',
-                zone: '',
-                startDrying: '',
-                rolledOut: s.status === 'Выполнено',
-                endDrying: '',
-                blocksCount: order.blocks || 0
-            };
-
-            var badgeClass = '';
-            var statusText = 'Свободен';
-
-            var ordersStr = String(s.order_number);
-            var orderCount = 1;
-            var usedBlocks = order.blocks || 0;
-            var freeSpace = 46 - usedBlocks;
-
-            if (s.status === 'В работе') {
-                statusText = 'На сушке';
-                badgeClass = 'badge-drying';
-            } else if (s.status === 'Выполнено') {
-                statusText = 'Готов к выкату';
-                badgeClass = 'badge-done';
-            } else {
-                badgeClass = 'badge-free';
+        for (let l of letters) {
+            // Ищем этот стеллаж в данных
+            let shelfData = dryingData?.find(d => d.shelf === l);
+            let isOccupied = !!shelfData;
+            
+            // Расчет свободных мест (макс 46)
+            let freeBlocks = 46;
+            let blocks = 0;
+            let orderNumber = '';
+            let status = 'Свободно';
+            let shelfStatus = 'empty'; // empty, partial, full, drying
+            
+            if (isOccupied) {
+                blocks = shelfData.blocks || 0;
+                freeBlocks = 46 - blocks;
+                orderNumber = shelfData.order_number || '—';
+                status = shelfData.status === 'В работе' ? 'На сушке' : 'Ожидает';
+                
+                if (shelfData.status === 'В работе') {
+                    shelfStatus = 'drying';
+                } else if (freeBlocks === 0) {
+                    shelfStatus = 'full';
+                } else {
+                    shelfStatus = 'partial';
+                }
             }
 
-            var spaceInfo = '';
-            if (statusText === 'На сушке' || statusText === 'Укомплектован') {
-                spaceInfo = 'Занято: ' + usedBlocks + ' / 46';
-            } else {
-                spaceInfo = 'Свободно: ' + freeSpace + ' / 46';
+            // Тексты и цвета
+            let ordersText = isOccupied ? orderNumber : '—';
+            let freeText = isOccupied ? freeBlocks : '46';
+            
+            // Кнопка
+            let buttonHtml = '';
+            if (shelfStatus === 'empty') {
+                // Стеллаж пустой - серая неактивная кнопка
+                buttonHtml = `<button class="btn-drying btn-disabled" disabled>Начать сушку</button>`;
+            } else if (shelfStatus === 'partial' || shelfStatus === 'full') {
+                // Есть место (желтый) или занят (серый) - кнопка "Начать"
+                buttonHtml = `<button class="btn-drying btn-start" onclick="startDrying('${shelfData.id}')">Начать сушку</button>`;
+            } else if (shelfStatus === 'drying') {
+                // Уже на сушке (синий) - кнопка "Завершить"
+                buttonHtml = `<button class="btn-drying btn-finish" onclick="finishDrying('${shelfData.id}', '${orderNumber}', ${blocks}, '${l}')">Завершить сушку</button>`;
             }
 
-            html += '<div class="item">';
-            html += '  <div class="head">';
-            html += '    <span class="order-num">Стеллаж ' + item.shelf + '</span>';
-            html += '    <span class="badge ' + badgeClass + '">' + statusText + '</span>';
-            html += '  </div>';
-            html += '  <div class="order-meta">Заказов: ' + orderCount + ' | Зона: ' + (item.zone || '—') + ' | ' + spaceInfo + '</div>';
-            html += '  <div class="actions">';
-            if (s.status === 'Ожидание') {
-                html += '    <button class="btn btn-sm btn-success" onclick="packShelf(\'' + s.order_number + '\')">Укомплектовать</button>';
-            } else if (s.status === 'В работе') {
-                html += '    <button class="btn btn-sm btn-danger" onclick="rollOutShelf(\'' + s.order_number + '\')">Выкатить</button>';
-            }
-            html += '  </div>';
-            html += '</div>';
+            html += `
+                <div class="shelf-card shelf-${l}">
+                    <div class="shelf-header">${l}</div>
+                    <div class="shelf-body">
+                        <div class="shelf-row"><span class="label">Кол-во заказов</span><span class="value">${isOccupied ? '1' : '0'}</span></div>
+                        <div class="shelf-row" style="font-size:13px; padding: 0 4px; height: 28px;"><span class="value" style="white-space:normal; max-width: 100%;">${ordersText}</span></div>
+                        <div class="shelf-row"><span class="label">Кол-во блоков</span><span class="value">${blocks}</span></div>
+                        <div class="shelf-row"><span class="label">Свободно</span><span class="value">${freeText}</span></div>
+                        ${buttonHtml}
+                    </div>
+                </div>
+            `;
         }
-
-        if (html === '') html = '<div class="empty">Нет стеллажей</div>';
         container.innerHTML = html;
     }
 
-    async function packShelf(orderNumber) {
-        await supabaseClient
+    async function startDrying(stageId) {
+        const { error } = await supabaseClient
             .from('stages')
             .update({ status: 'В работе' })
-            .eq('order_number', orderNumber)
-            .eq('stage', 'Сушка');
+            .eq('id', stageId);
 
-        await supabaseClient
-            .from('orders')
-            .update({ status: 'В работе' })
-            .eq('order_number', orderNumber);
-
-        showMessage('Стеллаж укомплектован', 'ok');
-        loadDryingOrders();
+        if (error) {
+            showMessage('Ошибка запуска сушки: ' + error.message, 'err');
+        } else {
+            showMessage('Сушка запущена!', 'ok');
+            loadDryingShelves();
+        }
     }
 
-    async function rollOutShelf(orderNumber) {
-        await supabaseClient
+    async function finishDrying(stageId, orderNumber, blocks, shelfLetter) {
+        // 1. Обновляем статус текущего этапа
+        const { error: updateError } = await supabaseClient
             .from('stages')
             .update({ status: 'Выполнено' })
-            .eq('order_number', orderNumber)
-            .eq('stage', 'Сушка');
+            .eq('id', stageId);
 
-        // Определяем следующий этап
-        const { data: order, error: orderError } = await supabaseClient
+        if (updateError) {
+            showMessage('Ошибка завершения этапа', 'err');
+            return;
+        }
+
+        // 2. Получаем данные заказа, чтобы понять, нужен ли Раскрой Р2
+        const { data: orderData, error: orderError } = await supabaseClient
             .from('orders')
-            .select('r2, path')
+            .select('r1, r2, resin')
             .eq('order_number', orderNumber)
             .single();
 
-        if (!orderError && order) {
-            var nextStage = 'ОТК';
-            var nextStageName = 'ОТК';
+        if (orderError || !orderData) {
+            showMessage('Ошибка получения данных заказа', 'err');
+            return;
+        }
 
-            if (order.r2) {
+        // 3. Проверяем, есть ли еще незавершенные стеллажи этого заказа на сушке
+        const { count, error: countError } = await supabaseClient
+            .from('stages')
+            .select('*', { count: 'exact', head: true })
+            .eq('order_number', orderNumber)
+            .eq('stage', 'Сушка')
+            .neq('status', 'Выполнено');
+
+        if (countError) {
+            showMessage('Ошибка проверки оставшихся стеллажей', 'err');
+            return;
+        }
+
+        // 4. ЛОГИКА ПЕРЕХОДА:
+        // Если это был последний стеллаж (count === 0), то решаем, куда идти
+        if (count === 0) {
+            let nextStage = 'ОТК';
+            let nextStageName = 'ОТК';
+            let needR2 = false;
+
+            // Если есть R2, идём на Раскрой Р2
+            if (orderData.r2 === true) {
                 nextStage = 'Раскрой Р2';
                 nextStageName = 'Раскрой Р2';
+                needR2 = true;
+            } 
+            // Иначе сразу на ОТК
+            else {
+                nextStage = 'ОТК';
+                nextStageName = 'ОТК';
             }
 
+            // Обновляем таблицу orders (основной этап заказа)
+            await supabaseClient
+                .from('orders')
+                .update({ stage: nextStage })
+                .eq('order_number', orderNumber);
+
+            // Создаём запись в stages для следующего этапа
             await supabaseClient
                 .from('stages')
                 .insert([
-                    { order_number: orderNumber, stage: nextStage, status: 'Ожидание' }
+                    { 
+                        order_number: orderNumber, 
+                        stage: nextStage, 
+                        status: 'Ожидание',
+                        shelf: shelfLetter,
+                        blocks: blocks
+                    }
                 ]);
 
-            await supabaseClient
-                .from('orders')
-                .update({ stage: nextStage, status: 'В работе' })
-                .eq('order_number', orderNumber);
-
-            showMessage('Стеллаж выкачен! Заказ переведён на ' + nextStageName, 'ok');
+            showMessage(`Сушка завершена! Заказ переведён на ${nextStageName}`, 'ok');
+        } else {
+            showMessage(`Стеллаж ${shelfLetter} завершён. Осталось ещё ${count} стеллажей на сушке`, 'ok');
         }
 
-        loadDryingOrders();
+        loadDryingShelves();
     }
 
-    document.addEventListener('DOMContentLoaded', function() { loadDryingOrders(); });
+    document.addEventListener('DOMContentLoaded', loadDryingShelves);
 </script>
 </body>
 </html>
