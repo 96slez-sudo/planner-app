@@ -337,13 +337,7 @@
             
             // Определяем следующий этап и shelf
             let nextStage = 'Раскрой';
-            let nextShelf = itemData.shelf; // По умолчанию сохраняем ID рулона
-
-            // Для Р2 заказов сохраняем ID как есть (он уже в формате R{номер}_{номер})
-            if (routeType === 'Р2') {
-                // Просто сохраняем текущий shelf (он уже R1_01, R1_02 и т.д.)
-                nextShelf = itemData.shelf;
-            }
+            let nextShelf = itemData.shelf; // ПРОСТО БЕРЕМ ТЕКУЩИЙ SHELF
 
             // Создаем запись на следующем этапе
             await supabaseClient
