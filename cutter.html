@@ -328,6 +328,7 @@
                     return;
                 }
 
+                // ОПРЕДЕЛЯЕМ СЛЕДУЮЩИЙ ЭТАП
                 let nextStage = 'ОТК';
                 let nextStageName = 'ОТК';
 
@@ -342,15 +343,13 @@
                     nextStageName = 'Раскрой';
                 }
 
+                // 1. Обновляем orders (чтобы раскрой знал, что это заказ с путем)
                 await supabaseClient
                     .from('orders')
                     .update({ stage: nextStage })
                     .eq('order_number', itemData.order_number);
 
-                // ============================================================
-                // САМОЕ ГЛАВНОЕ ИСПРАВЛЕНИЕ: Получаем все завершенные рулоны
-                // и вставляем их по одному
-                // ============================================================
+                // 2. Запускаем все рулоны на следующий этап
                 const { data: completedRolls } = await supabaseClient
                     .from('stages')
                     .select('shelf, blocks')
@@ -359,7 +358,6 @@
                     .eq('status', 'Выполнено');
 
                 if (completedRolls && completedRolls.length > 0) {
-                    // Создаем массив промисов для вставки каждого рулона
                     const insertPromises = completedRolls.map(roll => {
                         return supabaseClient
                             .from('stages')
@@ -374,7 +372,6 @@
                             ]);
                     });
 
-                    // Ждем, пока все вставки выполнятся
                     await Promise.all(insertPromises);
                 }
 
