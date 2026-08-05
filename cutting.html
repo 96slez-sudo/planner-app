@@ -368,7 +368,7 @@
                 return;
             }
 
-            // ВАЖНО: ДОБАВЛЯЕМ БЛОКИ В otk_orders И ПЕРЕВОДИМ ЗАКАЗ НА ОТК
+            // ДОБАВЛЯЕМ БЛОКИ В otk_orders
             const { data: existingOtk } = await supabaseClient
                 .from('otk_orders')
                 .select('id, total_blocks')
@@ -381,6 +381,7 @@
                     .from('otk_orders')
                     .update({ total_blocks: newTotal })
                     .eq('id', existingOtk[0].id);
+                showMessage(`Блоки добавлены к существующему заказу на ОТК.`, 'ok');
             } else {
                 await supabaseClient
                     .from('otk_orders')
@@ -391,6 +392,7 @@
                             status: 'Ожидание'
                         }
                     ]);
+                showMessage(`Заказ создан на ОТК.`, 'ok');
             }
 
             // Меняем этап заказа на ОТК (только если он еще не ОТК)
