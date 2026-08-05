@@ -57,6 +57,7 @@
         .stage-btn.active { background: #1e1e1e; color: #ffffff; }
 
         .page-title { font-size: 32px; margin-bottom: 24px; color: #161616; }
+        
         .order-card {
             display: flex;
             flex-wrap: wrap;
@@ -141,16 +142,6 @@
             margin-bottom: 16px;
         }
         .shelf-title-row h4 { font-size: 22px; font-weight: 400; color: #161616; }
-        .shelf-title-row .auto-btn {
-            background: transparent;
-            border: none;
-            color: #6c6c6c;
-            font-size: 20px;
-            text-decoration: underline;
-            cursor: pointer;
-            font-family: 'Science Gothic', sans-serif;
-        }
-        .shelf-title-row .auto-btn:hover { color: #0f8653; }
 
         .shelf-grid {
             display: grid;
@@ -168,7 +159,6 @@
             min-height: 48px;
         }
 
-        /* Стили для состояния Занят (серый) */
         .shelf-item.occupied {
             background-color: #a0a0a0;
             border-color: #888;
@@ -177,14 +167,12 @@
         .shelf-item.occupied .letter { background: #777; color: #fff; }
         .shelf-item.occupied .state-text { color: #444; }
 
-        /* Стили для состояния Свободно частично (жёлтый) */
         .shelf-item.partial {
             background-color: #ffe066;
             border-color: #d4b300;
         }
         .shelf-item.partial .state-text { color: #7d6608; }
 
-        /* Буква стеллажа — кнопка */
         .letter {
             display: flex;
             align-items: center;
@@ -206,14 +194,12 @@
             color: #ffffff;
         }
 
-        /* Текст состояния */
         .state-text {
             flex: 1;
             font-size: 15px;
             color: #161616;
         }
 
-        /* Поле ввода кол-ва блоков */
         .shelf-item .input-blocks {
             width: 50px;
             padding: 4px;
@@ -320,7 +306,6 @@
     }
 
     async function renderShelfPanel(orderNumber, totalBlocks) {
-        // Получаем текущее состояние сушки
         const { data: drying } = await supabaseClient
             .from('stages')
             .select('*')
@@ -332,7 +317,6 @@
             <div class="shelf-panel" id="panel-${orderNumber}">
                 <div class="shelf-title-row">
                     <h4>Назначьте стеллаж</h4>
-                    <button class="auto-btn" onclick="autoAssign('${orderNumber}', ${totalBlocks})">Распределить автоматически</button>
                 </div>
                 <div class="shelf-grid">
         `;
@@ -377,39 +361,6 @@
         letter.classList.toggle('selected');
     }
 
-    async function autoAssign(orderNumber, totalBlocks) {
-        const panel = document.getElementById(`panel-${orderNumber}`);
-        const letters = panel.querySelectorAll('.letter');
-        
-        letters.forEach(el => el.classList.remove('selected'));
-        const inputs = panel.querySelectorAll('.input-blocks');
-        inputs.forEach(inp => inp.value = '');
-
-        let remaining = totalBlocks;
-        const selected = [];
-
-        for (let el of letters) {
-            if (el.dataset.taken === 'true') continue;
-            if (remaining <= 0) break;
-            
-            const shelf = el.dataset.shelf;
-            const take = Math.min(remaining, 46);
-            selected.push({ shelf, blocks: take });
-            
-            el.classList.add('selected');
-            const input = panel.querySelector(`#input-${orderNumber}-${shelf}`);
-            if (input) input.value = take;
-            remaining -= take;
-        }
-
-        if (remaining > 0) {
-            showMessage('Не хватает свободных стеллажей!', 'err');
-            return;
-        }
-
-        showMessage('Стеллажи распределены автоматически', 'ok');
-    }
-
     async function manualAssignAndFinish(orderNumber) {
         const panel = document.getElementById(`panel-${orderNumber}`);
         const letters = panel.querySelectorAll('.letter.selected');
@@ -431,7 +382,6 @@
             return;
         }
 
-        // Создаём записи в сушке
         for (let a of assignments) {
             await supabaseClient
                 .from('stages')
@@ -440,14 +390,12 @@
                 ]);
         }
 
-        // Закрываем смолу
         await supabaseClient
             .from('stages')
             .update({ status: 'Выполнено' })
             .eq('order_number', orderNumber)
             .eq('stage', 'Смола');
 
-        // Обновляем заказ
         await supabaseClient
             .from('orders')
             .update({ stage: 'Сушка' })
@@ -548,10 +496,7 @@
                         ${status === 'Ожидает' || status === 'Ожидание' 
                             ? `<button class="btn-green" onclick="startResin('${orderNumber}')">Взять в работу</button>`
                             : status === 'В работе'
-                                ? `<div style="display:flex; gap:8px;">
-                                    <button class="btn-green" onclick="autoAssign('${orderNumber}', ${blocks})">Распределить автоматически</button>
-                                    <button class="btn-red" onclick="manualAssignAndFinish('${orderNumber}')">Назначить и завершить</button>
-                                   </div>`
+                                ? `<button class="btn-red" onclick="manualAssignAndFinish('${orderNumber}')">Назначить и завершить</button>`
                                 : `<button class="btn-red" onclick="finishResin('${orderNumber}')">Завершить</button>`
                         }
                     </div>
