@@ -151,13 +151,18 @@
             box-shadow: 0 0 0 1px #0f8653;
         }
 
+        /* =========================================================== */
+        /* ЦВЕТА СТЕЛЛАЖЕЙ                                               */
+        /* =========================================================== */
         .shelf-item.state-grey { 
             background-color: #a0a0a0; 
             border-color: #888; 
         }
+        .shelf-item.state-grey .letter { background: #777; color: #fff; cursor: not-allowed; }
         .shelf-item.state-grey .state-text { color: #444; }
         .shelf-item.state-grey .input-blocks { background: #e0e0e0; border-color: #aaa; color: #666; }
 
+        /* БУКВЫ (меняют цвет, а не фон карточки) */
         .letter {
             display: flex;
             align-items: center;
@@ -313,11 +318,25 @@
     }
 
     async function renderShelfPanel(stageId, orderNumber, totalBlocks) {
+        // 1. Получаем занятые блоки на Сушке
         const { data: drying, error } = await supabaseClient
             .from('stages')
             .select('shelf, blocks')
             .eq('stage', 'Сушка')
             .in('status', ['Ожидание', 'В работе']);
+
+        // 2. Получаем стеллажи, которые физически заняты на Раскрое
+        const { data: cutting, error: cutError } = await supabaseClient
+            .from('stages')
+            .select('shelf')
+            .eq('stage', 'Раскрой')
+            .in('status', ['Ожидание', 'В работе']);
+
+        // Создаем список занятых букв на раскрое
+        const occupiedOnCutting = new Set();
+        if (cutting && !cutError) {
+            cutting.forEach(item => { occupiedOnCutting.add(item.shelf); });
+        }
 
         const shelfUsage = {
             'A': 0, 'B': 0, 'C': 0, 'D': 0,
@@ -352,13 +371,24 @@
             let inputDisabled = false;
             let letterClickable = true;
 
-            if (currentBlocks === 46) {
+            // Приоритет 1: Если стеллаж на Раскрое, он ЗАНЯТ (серый)
+            if (occupiedOnCutting.has(l)) {
+                itemClass = 'state-grey';
+                letterClass = 'state-grey';
+                stateText = 'Занят (на раскрое)';
+                inputDisabled = true;
+                letterClickable = false;
+            } 
+            // Приоритет 2: Если полностью забит на сушке (46)
+            else if (currentBlocks === 46) {
                 itemClass = 'state-grey';
                 letterClass = 'state-grey';
                 stateText = 'Занят';
                 inputDisabled = true;
                 letterClickable = false;
-            } else if (currentBlocks > 0 && currentBlocks < 46) {
+            } 
+            // Приоритет 3: Если частично занят на сушке
+            else if (currentBlocks > 0 && currentBlocks < 46) {
                 letterClass = 'state-yellow';
             }
 
@@ -469,7 +499,7 @@
             return;
         }
 
-        // 1. Создаем записи на сушку СРАЗУ (они появятся в статусе Ожидание)
+        // 1. Создаем записи на сушку
         for (let a of assignments) {
             await supabaseClient
                 .from('stages')
