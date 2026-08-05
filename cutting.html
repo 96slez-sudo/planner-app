@@ -245,18 +245,25 @@
         }
 
         const orderNumbers = [...new Set(data.map(d => d.order_number))];
-        const { data: ordersData, error: ordersError } = await supabaseClient
-            .from('orders')
-            .select('order_number, r1, r2, resin')
-            .in('order_number', orderNumbers);
-
-        if (ordersError) {
-            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #c0392b;">Ошибка загрузки типов заказов</div>';
-            return;
+        let ordersData = [];
+        let ordersError = null;
+        
+        // Ищем заказы в базе. Если заказ не найден (ошибка), просто пропускаем.
+        try {
+            const result = await supabaseClient
+                .from('orders')
+                .select('order_number, r1, r2, resin')
+                .in('order_number', orderNumbers);
+            ordersData = result.data;
+            ordersError = result.error;
+        } catch (e) {
+            // Игнорируем ошибки выборки заказов (например, для стеллажей с "1.1, 1")
         }
 
         const orderMap = {};
-        ordersData.forEach(o => { orderMap[o.order_number] = o; });
+        if (ordersData && !ordersError) {
+            ordersData.forEach(o => { orderMap[o.order_number] = o; });
+        }
 
         const sorted = [...data].sort((a, b) => {
             if (a.status === 'Ожидание' && b.status !== 'Ожидание') return -1;
@@ -279,16 +286,12 @@
             
             if (r1) {
                 routeType = 'Р1';
-            } else if (r2 && resin) {
+            } else if (isSingleLetterShelf && resin) {
+                // Это стеллаж, пришедший после смолы
                 routeType = 'Р2';
                 idColumnLabel = 'Стеллаж';
             } else if (r2) {
                 routeType = 'Р2';
-            } 
-            
-            if (resin && isSingleLetterShelf) {
-                routeType = 'Р2';
-                idColumnLabel = 'Стеллаж';
             }
 
             let statusClass = 'status-wait';
@@ -369,25 +372,25 @@
             }
 
             if (count === 0) {
-                const { data: orderData, error: orderError } = await supabaseClient
-                    .from('orders')
-                    .select('r1, r2, resin')
-                    .eq('order_number', stageData.order_number)
-                    .single();
-
-                if (orderError || !orderData) {
-                    showMessage('Ошибка получения данных заказа', 'err');
-                    return;
+                // Определяем, нужна ли Смола, или сразу ОТК
+                let needsResin = false;
+                
+                // Если это Р1 и есть смола, идём на смолу.
+                // Если это стеллаж (Р2) - всегда на ОТК.
+                const isShelf = /^[A-H]$/.test(stageData.shelf);
+                if (!isShelf) {
+                    // Это может быть Р1. Проверяем базу.
+                    const { data: orderData } = await supabaseClient
+                        .from('orders')
+                        .select('resin')
+                        .eq('order_number', stageData.order_number)
+                        .single();
+                    if (orderData?.resin === true) {
+                        needsResin = true;
+                    }
                 }
 
-                let nextStageName = 'ОТК';
-
-                // ============================================================
-                // ЕДИНСТВЕННОЕ ПРАВИЛО ОТПРАВКИ НА СМОЛУ:
-                // ТОЛЬКО если это Р1 И у него есть resin = true
-                // ВСЕ ОСТАЛЬНЫЕ СЛУЧАИ (включая Р2) -> ОТК
-                // ============================================================
-                if (orderData.r1 === true && orderData.resin === true) {
+                if (needsResin) {
                     // Идем на Смолу (массово переносим рулоны)
                     const { data: completedItems } = await supabaseClient
                         .from('stages')
@@ -421,7 +424,7 @@
                     showMessage(`Все завершены! Заказ переведён на Смолу`, 'ok');
 
                 } else {
-                    // Идем на ОТК (целым заказом, суммируя блоки)
+                    // Идем на ОТК (целым заказом)
                     const { data: totals } = await supabaseClient
                         .from('stages')
                         .select('blocks')
