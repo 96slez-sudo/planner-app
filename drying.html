@@ -431,9 +431,11 @@
                 return;
             }
 
-            // ЕСЛИ Р2 (после смолы) - ИДЕМ НА РАСКРОЙ
+            // ============================================================
+            // ГЛАВНАЯ ЛОГИКА ПЕРЕХОДА
+            // ============================================================
             if (orderData.r2 === true) {
-                // 1. Получаем список ВСЕХ завершенных стеллажей этого заказа
+                // 1. ЕСЛИ ЕСТЬ Р2 -> ИДЕМ НА РАСКРОЙ (по стеллажам)
                 const { data: completedShelves, error: fetchError } = await supabaseClient
                     .from('stages')
                     .select('shelf, blocks')
@@ -454,7 +456,7 @@
                                 order_number: orderNumber, 
                                 stage: 'Раскрой', 
                                 status: 'Ожидание',
-                                shelf: item.shelf,
+                                shelf: item.shelf, // Важно: сохраняем букву стеллажа
                                 blocks: item.blocks
                             }
                         ]);
@@ -470,8 +472,8 @@
                 showMessage(`Сушка завершена! Все стеллажи отправлены обратно на Раскрой (Р2)`, 'ok');
 
             } else {
-                // ЕСЛИ НЕТ Р2 - ИДЕМ НА ОТК (как целый заказ, агрегируя блоки)
-                // 1. Получаем общее количество блоков, завершенных на сушке
+                // 2. ЕСЛИ НЕТ Р2 -> ИДЕМ НА ОТК (как целый заказ)
+                // Суммируем все блоки со всех стеллажей
                 const { data: totals, error: sumError } = await supabaseClient
                     .from('stages')
                     .select('blocks')
@@ -484,7 +486,7 @@
                     totals.forEach(item => { totalBlocks += (item.blocks || 0); });
                 }
 
-                // 2. Создаем запись в новой таблице otk_orders (целиком)
+                // Создаем запись в новой таблице otk_orders (целиком)
                 await supabaseClient
                     .from('otk_orders')
                     .insert([
@@ -495,7 +497,7 @@
                         }
                     ]);
 
-                // 3. Обновляем заказ в orders
+                // Обновляем заказ в orders
                 await supabaseClient
                     .from('orders')
                     .update({ stage: 'ОТК' })
