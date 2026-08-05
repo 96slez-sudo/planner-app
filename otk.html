@@ -148,6 +148,24 @@
         }
         .btn-red:hover { opacity: 0.8; }
 
+        .btn-disabled {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            height: 40px;
+            width: 160px;
+            background-color: #f3f4f6;
+            color: #9ca3af;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            cursor: not-allowed;
+            box-sizing: border-box;
+            flex-shrink: 0;
+            font-family: 'Science Gothic', sans-serif;
+            font-size: 15px;
+        }
+
         .btn-refresh {
             width: 100%;
             padding: 12px;
@@ -170,7 +188,7 @@
             .row { gap: 12px; }
             .col { flex: 1 1 100%; max-width: 100%; }
             .col-order, .col-blocks, .col-note, .col-status, .col-actions { width: 100%; }
-            .btn-green, .btn-red { width: 100%; height: 36px; }
+            .btn-green, .btn-red, .btn-disabled { width: 100%; height: 36px; }
         }
         @media (max-width: 600px) {
             .header .title { font-size: 16px; }
@@ -183,7 +201,7 @@
             .header { flex-direction: column; align-items: flex-start; gap: 4px; }
             .col .label { font-size: 16px; }
             .col .value { font-size: 13px; height: 32px; }
-            .btn-green, .btn-red { height: 32px; }
+            .btn-green, .btn-red, .btn-disabled { height: 32px; }
         }
     </style>
 </head>
@@ -227,6 +245,15 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
+    // Функция для проверки, собраны ли все части
+    function isFullyCollected(completionNote) {
+        if (!completionNote) return false;
+        // Проверяем формат "X/Y" и что X == Y
+        const parts = completionNote.split('/');
+        if (parts.length !== 2) return false;
+        return parts[0] === parts[1];
+    }
+
     async function loadOtkOrders() {
         const container = document.getElementById('list');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
@@ -252,7 +279,7 @@
         });
 
         let html = '';
-        sorted.forEach(item => {
+        for (const item of sorted) {
             let statusClass = 'status-wait';
             let statusText = 'Ожидает';
             if (item.status === 'В работе') {
@@ -260,8 +287,8 @@
                 statusText = 'В работе';
             }
 
-            let isComplete = item.completion_note === 'Полный';
-            let noteDisplay = item.completion_note || 'Ожидание частей';
+            const noteDisplay = item.completion_note || 'Ожидание частей';
+            const isComplete = isFullyCollected(item.completion_note);
 
             html += `
                 <div class="row">
@@ -287,12 +314,12 @@
                             ? `<button class="btn-green" onclick="startOtk('${item.id}', '${item.order_number}', ${item.total_blocks})">Взять в работу</button>` 
                             : isComplete 
                                 ? `<button class="btn-red" id="finish-btn-${item.id}" onclick="finishOtk('${item.id}', '${item.order_number}')">Завершить</button>`
-                                : `<button class="btn-drying btn-disabled" style="background:#f3f4f6; color:#9ca3af; border:1px solid #e5e7eb; border-radius:6px; width:160px; height:40px; cursor:not-allowed;" disabled>Ожидание частей</button>`
+                                : `<button class="btn-disabled" disabled>Ожидание частей</button>`
                         }
                     </div>
                 </div>
             `;
-        });
+        }
         container.innerHTML = html;
     }
 
