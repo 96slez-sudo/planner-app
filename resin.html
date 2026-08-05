@@ -60,20 +60,22 @@
         
         .order-card {
             display: flex;
-            flex-wrap: wrap;
+            flex-wrap: wrap; /* Разрешаем перенос на мобильных */
             align-items: center;
             gap: 16px 24px;
-            padding: 16px 0;
+            padding: 8px 0;
             border-bottom: 1px solid #eeeeee;
         }
         .order-card:last-child { border-bottom: none; }
-        .col-order {
+
+        .col {
             display: flex;
             flex-direction: column;
             gap: 4px;
+            flex-shrink: 0;
         }
-        .col-order .label { font-size: 18px; color: #161616; }
-        .col-order .value {
+        .col .label { font-size: 18px; color: #161616; }
+        .col .value {
             display: flex;
             align-items: center;
             padding: 0 12px;
@@ -83,16 +85,17 @@
             font-size: 15px;
             background: #fff;
             height: 40px;
+            width: 100%;
         }
 
         .col-order { width: 160px; }
-        .col-blocks { width: 160px; }
+        .col-roll { width: 180px; }
+        .col-blocks { width: 140px; }
         .col-status { width: 200px; }
-        .col-actions { width: 260px; }
+        .col-actions { width: 160px; }
 
         .status-wait { background: #e0e0e0 !important; border-color: #b0b0b0 !important; color: #555 !important; }
         .status-work { background: #ffe066 !important; border-color: #d4b300 !important; color: #1a1a1a !important; }
-        .status-ready { background: #e8daef !important; border-color: #c39bd3 !important; color: #4a235a !important; }
 
         .btn-green {
             display: inline-flex;
@@ -110,6 +113,7 @@
             transition: 0.2s;
         }
         .btn-green:hover { opacity: 0.8; }
+
         .btn-red {
             display: inline-flex;
             align-items: center;
@@ -127,26 +131,23 @@
         }
         .btn-red:hover { opacity: 0.8; }
 
-        /* ===== ПАНЕЛЬ СТЕЛЛАЖЕЙ ===== */
+        /* ===== ПАНЕЛЬ ВЫБОРА СТЕЛЛАЖЕЙ (ПОКАЗЫВАЕМ ТОЛЬКО ДЛЯ ВЗЯТОГО В РАБОТУ РУЛОНА) ===== */
         .shelf-panel {
-            margin-top: 20px;
-            padding-top: 16px;
-            border-top: 1px solid #eeeeee;
             width: 100%;
-        }
-        .shelf-title-row {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 24px;
+            padding: 16px;
+            margin-top: 8px;
             margin-bottom: 16px;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
         }
-        .shelf-title-row h4 { font-size: 22px; font-weight: 400; color: #161616; }
+        .shelf-title-row h4 { font-size: 20px; font-weight: 400; color: #161616; margin-bottom: 12px; }
 
         .shelf-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 12px;
+            max-width: 800px;
         }
         .shelf-item {
             display: flex;
@@ -211,17 +212,17 @@
             background: #fff;
         }
 
-        .assign-btn-wrap { margin-top: 16px; }
+        .assign-btn-wrap { margin-top: 12px; }
         .btn-assign {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             padding: 0 32px;
-            height: 48px;
+            height: 40px;
             background-color: #e74c3c;
             border-radius: 8px;
             color: #ffffff;
-            font-size: 16px;
+            font-size: 15px;
             border: none;
             cursor: pointer;
             transition: 0.2s;
@@ -247,8 +248,7 @@
         .msg.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
         @media (max-width: 992px) {
-            .order-card { align-items: flex-start; }
-            .col-order, .col-blocks, .col-status, .col-actions { width: 100%; max-width: 100%; }
+            .col-order, .col-roll, .col-blocks, .col-status, .col-actions { width: 100%; max-width: 100%; }
             .btn-green, .btn-red, .btn-assign { width: 100%; }
             .shelf-grid { grid-template-columns: repeat(2, 1fr); }
         }
@@ -262,6 +262,9 @@
         }
         @media (max-width: 480px) {
             .header { flex-direction: column; align-items: flex-start; gap: 4px; }
+            .col .label { font-size: 16px; }
+            .col .value { font-size: 13px; height: 32px; }
+            .btn-green, .btn-red, .btn-assign { height: 32px; }
         }
     </style>
 </head>
@@ -305,7 +308,10 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
-    async function renderShelfPanel(orderNumber, totalBlocks) {
+    /* ============================================================
+       ФУНКЦИЯ ОТРИСОВКИ ПАНЕЛИ СТЕЛЛАЖЕЙ ДЛЯ КОНКРЕТНОГО РУЛОНА
+       ============================================================ */
+    async function renderShelfPanel(stageId, orderNumber, totalBlocks) {
         const { data: drying } = await supabaseClient
             .from('stages')
             .select('*')
@@ -314,9 +320,9 @@
 
         const letters = ['A','B','C','D','E','F','G','H'];
         let html = `
-            <div class="shelf-panel" id="panel-${orderNumber}">
+            <div class="shelf-panel" id="panel-${stageId}">
                 <div class="shelf-title-row">
-                    <h4>Назначьте стеллаж</h4>
+                    <h4>Заказ ${orderNumber} (${totalBlocks} блоков). Выберите стеллаж:</h4>
                 </div>
                 <div class="shelf-grid">
         `;
@@ -334,12 +340,12 @@
             }
 
             html += `
-                <div class="shelf-item ${mainClass}" id="shelf-${orderNumber}-${l}">
-                    <div class="letter" id="letter-${orderNumber}-${l}" data-order="${orderNumber}" data-shelf="${l}" data-taken="${taken}" onclick="${taken ? '' : `selectShelf('${orderNumber}', '${l}')`}" style="${taken ? 'cursor:not-allowed;' : ''}">
+                <div class="shelf-item ${mainClass}" id="shelf-${stageId}-${l}">
+                    <div class="letter" id="letter-${stageId}-${l}" data-stage="${stageId}" data-shelf="${l}" data-taken="${taken}" onclick="${taken ? '' : `selectShelf('${stageId}', '${l}')`}" style="${taken ? 'cursor:not-allowed;' : ''}">
                         ${l}
                     </div>
                     <span class="state-text">${stateText}</span>
-                    <input type="number" class="input-blocks" id="input-${orderNumber}-${l}" min="1" max="46" placeholder="0" ${taken ? 'disabled' : ''} />
+                    <input type="number" class="input-blocks" id="input-${stageId}-${l}" min="1" max="46" placeholder="0" ${taken ? 'disabled' : ''} />
                 </div>
             `;
         }
@@ -347,29 +353,29 @@
         html += `
                 </div>
                 <div class="assign-btn-wrap">
-                    <button class="btn-assign" onclick="manualAssignAndFinish('${orderNumber}')">Назначить и завершить</button>
+                    <button class="btn-assign" onclick="manualAssignAndFinish('${stageId}')">Назначить и завершить</button>
                 </div>
             </div>
         `;
         return html;
     }
 
-    function selectShelf(orderNumber, shelf) {
-        const panel = document.getElementById(`panel-${orderNumber}`);
-        const letter = panel.querySelector(`#letter-${orderNumber}-${shelf}`);
+    function selectShelf(stageId, shelf) {
+        const panel = document.getElementById(`panel-${stageId}`);
+        const letter = panel.querySelector(`#letter-${stageId}-${shelf}`);
         if (!letter) return;
         letter.classList.toggle('selected');
     }
 
-    async function manualAssignAndFinish(orderNumber) {
-        const panel = document.getElementById(`panel-${orderNumber}`);
+    async function manualAssignAndFinish(stageId) {
+        const panel = document.getElementById(`panel-${stageId}`);
         const letters = panel.querySelectorAll('.letter.selected');
         const assignments = [];
 
         let totalAssigned = 0;
         for (let el of letters) {
             const shelf = el.dataset.shelf;
-            const input = panel.querySelector(`#input-${orderNumber}-${shelf}`);
+            const input = panel.querySelector(`#input-${stageId}-${shelf}`);
             const blocks = parseInt(input?.value) || 0;
             if (blocks > 0 && blocks <= 46) {
                 assignments.push({ shelf, blocks });
@@ -382,54 +388,74 @@
             return;
         }
 
+        // Получаем номер заказа, чтобы обновить его позже
+        const { data: stageData, error: getError } = await supabaseClient
+            .from('stages')
+            .select('order_number, blocks')
+            .eq('id', stageId)
+            .single();
+
+        if (getError || !stageData) {
+            showMessage('Ошибка получения заказа', 'err');
+            return;
+        }
+
+        // Создаём записи на сушку
         for (let a of assignments) {
             await supabaseClient
                 .from('stages')
                 .insert([
-                    { order_number: orderNumber, stage: 'Сушка', status: 'Ожидание', shelf: a.shelf, blocks: a.blocks }
+                    { 
+                        order_number: stageData.order_number, 
+                        stage: 'Сушка', 
+                        status: 'Ожидание', 
+                        shelf: a.shelf, 
+                        blocks: a.blocks 
+                    }
                 ]);
         }
 
+        // Закрываем этот конкретный рулон на смоле
         await supabaseClient
             .from('stages')
             .update({ status: 'Выполнено' })
-            .eq('order_number', orderNumber)
-            .eq('stage', 'Смола');
+            .eq('id', stageId);
 
-        await supabaseClient
-            .from('orders')
-            .update({ stage: 'Сушка' })
-            .eq('order_number', orderNumber);
-
-        showMessage(`Заказ ${orderNumber} назначен на стеллажи и завершён!`, 'ok');
-        loadResinOrders();
-    }
-
-    async function startResin(orderNumber) {
-        const { error } = await supabaseClient
+        // Проверяем, остались ли ещё рулоны этого заказа на смоле
+        const { count, error: countError } = await supabaseClient
             .from('stages')
-            .update({ status: 'В работе' })
-            .eq('order_number', orderNumber)
-            .eq('stage', 'Смола');
-        if (error) showMessage('Ошибка: ' + error.message, 'err');
-        else showMessage('Заказ взят в работу', 'ok');
-        loadResinOrders();
-    }
+            .select('*', { count: 'exact', head: true })
+            .eq('order_number', stageData.order_number)
+            .eq('stage', 'Смола')
+            .neq('status', 'Выполнено');
 
-    async function finishResin(orderNumber) {
-        const { error } = await supabaseClient
-            .from('stages')
-            .update({ status: 'Выполнено' })
-            .eq('order_number', orderNumber)
-            .eq('stage', 'Смола');
-        if (error) showMessage('Ошибка: ' + error.message, 'err');
-        else {
+        if (countError) {
+            showMessage('Ошибка подсчёта рулонов', 'err');
+            return;
+        }
+
+        // Если ЭТО БЫЛ ПОСЛЕДНИЙ рулон, обновляем основной статус заказа
+        if (count === 0) {
             await supabaseClient
                 .from('orders')
                 .update({ stage: 'Сушка' })
-                .eq('order_number', orderNumber);
-            showMessage('Заказ отправлен на сушку', 'ok');
+                .eq('order_number', stageData.order_number);
+            showMessage(`Последний рулон завершён! Весь заказ переведён на Сушку`, 'ok');
+        } else {
+            showMessage(`Рулон назначен на стеллаж. Осталось ещё ${count} рулон(ов) на смоле.`, 'ok');
         }
+
+        loadResinOrders();
+    }
+
+    async function startResin(stageId) {
+        const { error } = await supabaseClient
+            .from('stages')
+            .update({ status: 'В работе' })
+            .eq('id', stageId);
+            
+        if (error) showMessage('Ошибка: ' + error.message, 'err');
+        else showMessage('Рулон взят в работу', 'ok');
         loadResinOrders();
     }
 
@@ -437,74 +463,74 @@
         const container = document.getElementById('resinList');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
+        // Вытаскиваем ВСЕ рулоны со статусами Ожидание и В работе
         const { data: stages, error: stageError } = await supabaseClient
             .from('stages')
             .select('*')
             .eq('stage', 'Смола')
-            .in('status', ['Ожидание', 'Ожидает', 'В работе', 'Готов к сушке']);
+            .in('status', ['Ожидание', 'Ожидает', 'В работе']);
 
         if (stageError) {
             container.innerHTML = `<div style="text-align: center; padding: 40px 0; color: #c0392b;">Ошибка: ${stageError.message}</div>`;
             return;
         }
         if (!stages || stages.length === 0) {
-            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Нет заказов на смоле</div>';
+            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Нет рулонов на смоле</div>';
             return;
         }
 
-        let orderMap = {};
-        for (let s of stages) {
-            const orderNumber = s.order_number;
-            if (!orderMap[orderNumber]) {
-                orderMap[orderNumber] = {
-                    order_number: orderNumber,
-                    status: s.status,
-                    blocks: 0
-                };
-            }
-            orderMap[orderNumber].blocks += (s.blocks || 0);
-        }
+        // Сортируем: сначала Ожидание
+        const sorted = [...stages].sort((a, b) => {
+            if (a.status === 'Ожидание' && b.status !== 'Ожидание') return -1;
+            if (a.status !== 'Ожидание' && b.status === 'Ожидание') return 1;
+            return 0;
+        });
 
         let html = '';
-        for (let key in orderMap) {
-            const item = orderMap[key];
+        for (let item of sorted) {
             const orderNumber = item.order_number;
-            const blocks = item.blocks;
-            const status = item.status || 'Ожидает';
+            const blocks = item.blocks || 0;
+            const rollId = item.shelf || '—';
+            const status = item.status;
 
             let statusClass = 'status-wait';
             let statusText = 'Ожидает';
-            if (status === 'В работе') { statusClass = 'status-work'; statusText = 'В работе'; }
-            else if (status === 'Готов к сушке') { statusClass = 'status-ready'; statusText = 'Готов к сушке'; }
+            if (status === 'В работе') { 
+                statusClass = 'status-work'; 
+                statusText = 'В работе'; 
+            }
 
             html += `
-                <div class="order-card" id="card-${orderNumber}">
-                    <div class="col-order col-order">
+                <div class="order-card">
+                    <div class="col col-order">
                         <div class="label">№ заказа</div>
                         <div class="value">${orderNumber}</div>
                     </div>
-                    <div class="col-order col-blocks">
+                    <div class="col col-roll">
+                        <div class="label">ID рулона</div>
+                        <div class="value">${rollId}</div>
+                    </div>
+                    <div class="col col-blocks">
                         <div class="label">Кол-во блоков</div>
                         <div class="value">${blocks}</div>
                     </div>
-                    <div class="col-order col-status">
+                    <div class="col col-status">
                         <div class="label">Статус</div>
                         <div class="value ${statusClass}">${statusText}</div>
                     </div>
-                    <div class="col-order col-actions">
+                    <div class="col col-actions">
                         <div class="label">&nbsp;</div>
-                        ${status === 'Ожидает' || status === 'Ожидание' 
-                            ? `<button class="btn-green" onclick="startResin('${orderNumber}')">Взять в работу</button>`
-                            : status === 'В работе'
-                                ? `<button class="btn-red" onclick="manualAssignAndFinish('${orderNumber}')">Назначить и завершить</button>`
-                                : `<button class="btn-red" onclick="finishResin('${orderNumber}')">Завершить</button>`
+                        ${status === 'Ожидание' || status === 'Ожидает'
+                            ? `<button class="btn-green" onclick="startResin('${item.id}')">Взять в работу</button>`
+                            : `<button class="btn-red" onclick="manualAssignAndFinish('${item.id}')">Назначить и завершить</button>`
                         }
                     </div>
                 </div>
             `;
 
+            // Если статус "В работе", разворачиваем выбор стеллажа ПРЯМО ПОД ЭТИМ РУЛОНОМ
             if (status === 'В работе') {
-                html += await renderShelfPanel(orderNumber, blocks);
+                html += await renderShelfPanel(item.id, orderNumber, blocks);
             }
         }
         container.innerHTML = html;
