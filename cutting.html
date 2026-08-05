@@ -66,22 +66,27 @@
             width: 100%;
         }
 
+        /* ============================================ */
+        /* ГЛАВНОЕ ИСПРАВЛЕНИЕ: ЗАПРЕТ ПЕРЕНОСА СТРОК   */
+        /* ============================================ */
         .row {
             display: flex;
-            flex-wrap: wrap;
+            flex-wrap: nowrap; /* ЗАПРЕЩАЕМ ПЕРЕНОС ЭЛЕМЕНТОВ НА НОВУЮ СТРОКУ */
             align-items: center; 
             gap: 16px 24px;
+            overflow-x: auto; /* Если экран узкий - появится скролл, но строка не сломается */
+            padding-bottom: 4px; /* Место для полосы прокрутки */
         }
 
         .col {
             display: flex;
             flex-direction: column;
             gap: 4px;
+            flex-shrink: 0; /* ЗАПРЕЩАЕМ СЖИМАТЬСЯ */
         }
         .col .label { 
             font-size: 18px; 
             color: #161616; 
-            white-space: nowrap;
         }
         .col .value {
             display: flex;
@@ -93,27 +98,29 @@
             font-size: 15px;
             background: #fff;
             height: 40px;
-            width: 100%;
+            /* Убираем width: 100% и растягивание */
+            width: auto; 
         }
 
-        /* Ширины колонок, чтобы совпадали с Печатью */
-        .col-order { width: 180px; flex-shrink: 0; }
-        .col-type { width: 120px; flex-shrink: 0; }
-        .col-id { width: 180px; flex-shrink: 0; }
-        .col-blocks { width: 180px; flex-shrink: 0; }
-        .col-status { width: 200px; flex-shrink: 0; }
-        .col-actions { width: 160px; flex-shrink: 0; }
+        /* ЖЕСТКИЕ ШИРИНЫ, ЧТОБЫ НИЧЕГО НЕ СЪЕЗЖАЛО */
+        .col-order { width: 160px; }
+        .col-type { width: 100px; }
+        .col-id { width: 180px; }
+        .col-blocks { width: 140px; }
+        .col-status { width: 200px; }
+        .col-actions { width: 160px; }
 
         .status-wait { background: #e0e0e0 !important; border-color: #b0b0b0 !important; color: #555 !important; }
         .status-work { background: #ffe066 !important; border-color: #d4b300 !important; color: #1a1a1a !important; }
 
+        /* Кнопка больше не растягивается на всю ширину */
         .btn-green {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             padding: 0;
             height: 40px;
-            width: 160px; /* Кнопка фиксированной ширины, как и везде */
+            width: 160px; 
             background-color: #0f8653;
             border-radius: 8px;
             color: #ffffff;
@@ -122,6 +129,7 @@
             cursor: pointer;
             transition: 0.2s;
             box-sizing: border-box;
+            flex-shrink: 0;
         }
         .btn-green:hover { opacity: 0.8; }
         .btn-red {
@@ -139,6 +147,7 @@
             cursor: pointer;
             transition: 0.2s;
             box-sizing: border-box;
+            flex-shrink: 0;
         }
         .btn-red:hover { opacity: 0.8; }
 
@@ -151,7 +160,7 @@
             font-size: 14px;
             border: none;
             cursor: pointer;
-            margin-top: 10px;
+            margin-top: 20px;
         }
         .btn-refresh:hover { background: #dce0e4; }
 
@@ -160,12 +169,18 @@
         .msg.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .msg.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
+        /* Адаптив для планшетов и маленьких экранов */
         @media (max-width: 992px) {
-            .row { align-items: flex-start; }
-            .col-order, .col-type, .col-id, .col-blocks, .col-status, .col-actions { 
-                width: 100%; max-width: 100%; flex: none; 
+            .row { 
+                flex-wrap: nowrap; /* ОСТАВЛЯЕМ СТРОКУ ЦЕЛЬНОЙ */
+                gap: 12px; 
             }
-            .btn-green, .btn-red { width: 100%; height: 36px; }
+            .col-order { width: 140px; }
+            .col-id { width: 150px; }
+            .col-blocks { width: 120px; }
+            .col-status { width: 160px; }
+            .col-actions { width: 140px; }
+            .btn-green, .btn-red { width: 140px; height: 36px; }
         }
         @media (max-width: 600px) {
             .header .title { font-size: 16px; }
@@ -178,6 +193,7 @@
             .header { flex-direction: column; align-items: flex-start; gap: 4px; }
             .col .label { font-size: 16px; }
             .col .value { font-size: 13px; height: 32px; }
+            .btn-green, .btn-red { height: 32px; }
         }
     </style>
 </head>
@@ -357,7 +373,6 @@
                 return;
             }
 
-            // ВАЖНО: Переходим на следующий этап ТОЛЬКО если не осталось рулонов
             if (count === 0) {
                 const { data: orderData, error: orderError } = await supabaseClient
                     .from('orders')
@@ -386,7 +401,6 @@
                     .update({ stage: nextStage })
                     .eq('order_number', stageData.order_number);
 
-                // Создаем запись на следующий этап для этого рулона
                 await supabaseClient
                     .from('stages')
                     .insert([
