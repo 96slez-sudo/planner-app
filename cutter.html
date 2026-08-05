@@ -304,7 +304,6 @@
         }
 
         if (newStatus === 'Выполнено') {
-            // Считаем, сколько еще рулонов ЭТОГО ЗАКАЗА осталось на каттере
             const { count, error: countError } = await supabaseClient
                 .from('stages')
                 .select('*', { count: 'exact', head: true })
@@ -317,9 +316,7 @@
                 return;
             }
 
-            // Если это был последний рулон на Каттере, ТОЛЬКО ТОГДА переходим на Раскрой
             if (count === 0) {
-                // Получаем путь заказа, чтобы понять, Р1 это или что-то другое
                 const { data: orderData, error: orderError } = await supabaseClient
                     .from('orders')
                     .select('r1, r2, resin')
@@ -345,15 +342,15 @@
                     nextStageName = 'Раскрой';
                 }
 
-                // Обновляем заказ в orders
                 await supabaseClient
                     .from('orders')
                     .update({ stage: nextStage })
                     .eq('order_number', itemData.order_number);
 
-                // ВАЖНО: ЗАПУСКАЕМ ВСЕ РУЛОНЫ ЭТОГО ЗАКАЗА НА ЭТАП.
-                // Мы делаем это, снова запрашивая данные о завершенных рулонах этого заказа
-                // и создавая для них записи.
+                // ============================================================
+                // САМОЕ ГЛАВНОЕ ИСПРАВЛЕНИЕ: Получаем все завершенные рулоны
+                // и вставляем их по одному
+                // ============================================================
                 const { data: completedRolls } = await supabaseClient
                     .from('stages')
                     .select('shelf, blocks')
@@ -362,18 +359,23 @@
                     .eq('status', 'Выполнено');
 
                 if (completedRolls && completedRolls.length > 0) {
-                    const newStages = completedRolls.map(roll => ({
-                        order_number: itemData.order_number,
-                        stage: nextStage,
-                        status: 'Ожидание',
-                        shelf: roll.shelf,
-                        blocks: roll.blocks
-                    }));
-                    
-                    // Вставляем ВСЕ рулоны разом
-                    await supabaseClient
-                        .from('stages')
-                        .insert(newStages);
+                    // Создаем массив промисов для вставки каждого рулона
+                    const insertPromises = completedRolls.map(roll => {
+                        return supabaseClient
+                            .from('stages')
+                            .insert([
+                                { 
+                                    order_number: itemData.order_number,
+                                    stage: nextStage,
+                                    status: 'Ожидание',
+                                    shelf: roll.shelf,
+                                    blocks: roll.blocks
+                                }
+                            ]);
+                    });
+
+                    // Ждем, пока все вставки выполнятся
+                    await Promise.all(insertPromises);
                 }
 
                 showMessage(`Все рулоны на Каттере завершены! Заказ переведён на ${nextStageName}`, 'ok');
