@@ -60,98 +60,136 @@
         
         .grid {
             display: flex;
-            flex-wrap: wrap; /* Чтобы стеллажи переносились */
+            flex-wrap: wrap;
             gap: 20px;
             max-width: 1000px;
             width: 100%;
         }
 
-        /* Карточка стеллажа */
+        /* ======================== */
+        /* ДИЗАЙН КАРТОЧКИ СТЕЛЛАЖА */
+        /* ======================== */
         .shelf-card {
             display: flex;
             flex-direction: column;
             width: 220px;
             background: #fff;
-            border-radius: 8px;
-            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            border: 1px solid #eaeaea;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
             padding: 0 0 12px 0;
             overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .shelf-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         }
 
         .shelf-header {
             text-align: center;
-            padding: 8px;
-            font-size: 20px;
+            padding: 12px 0;
+            font-size: 22px;
             font-weight: 600;
             color: #fff;
-            border-bottom: 1px solid #e0e0e0;
+            transition: background-color 0.3s;
         }
 
-        /* Цвета заголовков по вашему описанию */
-        .shelf-A .shelf-header { background-color: #ffd966; color: #161616; }
-        .shelf-B .shelf-header { background-color: #7f8c8d; }
-        .shelf-C .shelf-header { background-color: #4a6fa5; }
-        .shelf-D .shelf-header { background-color: #1e8449; }
-        .shelf-E .shelf-header { background-color: #1e8449; }
-        .shelf-F .shelf-header { background-color: #1e8449; }
-        .shelf-G .shelf-header { background-color: #1e8449; }
-        .shelf-H .shelf-header { background-color: #1e8449; }
+        /* ============================================================ */
+        /* ЦВЕТА ПО СОСТОЯНИЮ (по умолчанию ВСЕ ЗЕЛЕНЫЕ - state-empty)   */
+        /* ============================================================ */
+        
+        /* 1. Пустой (Зеленый) - По умолчанию */
+        .shelf-card.state-empty .shelf-header { background-color: #1e8449; } 
+        
+        /* 2. Частично занят (Желтый) */
+        .shelf-card.state-partial .shelf-header { background-color: #ffd966; color: #161616; }
+        
+        /* 3. Полностью занят (Серый) */
+        .shelf-card.state-full .shelf-header { background-color: #7f8c8d; }
+        
+        /* 4. В процессе сушки (Синий) */
+        .shelf-card.state-drying .shelf-header { background-color: #4a6fa5; }
+
+        /* ============================================================ */
 
         .shelf-body {
             display: flex;
             flex-direction: column;
-            gap: 6px;
-            padding: 12px;
+            gap: 8px;
+            padding: 12px 16px;
         }
         
         .shelf-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            border: 1px solid #6c6c6c;
+            border: 1px solid #d1d5db;
             border-radius: 6px;
-            padding: 0 8px;
-            height: 36px;
-            font-size: 15px;
+            padding: 0 10px;
+            height: 34px;
+            font-size: 14px;
+            background: #fafafa;
+        }
+        .shelf-row .label { color: #161616; font-weight: 500; font-size: 13px; }
+        .shelf-row .value { font-weight: 400; font-size: 14px; }
+        
+        /* Поле с ID заказа (чтобы текст не вылезал) */
+        .shelf-row.order-id {
+            font-size: 13px;
+            padding: 0 6px;
+            height: 30px;
             background: #fff;
         }
-        .shelf-row .label { color: #161616; font-weight: 500; }
-        .shelf-row .value { font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
+        .shelf-row.order-id .value { 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            max-width: 100px; 
+        }
 
+        /* Кнопки */
         .btn-drying {
             display: flex;
             align-items: center;
             justify-content: center;
-            height: 40px;
+            height: 36px;
             width: 100%;
             border-radius: 6px;
             color: #fff;
-            font-size: 15px;
+            font-size: 14px;
             border: none;
             cursor: pointer;
             transition: 0.2s;
-            margin-top: 6px;
+            margin-top: 4px;
         }
-        .btn-drying:hover { opacity: 0.8; }
+        .btn-drying:hover { opacity: 0.85; }
         
         .btn-start { background-color: #0f8653; }
         .btn-finish { background-color: #e74c3c; }
-        .btn-disabled { background-color: #cdcdcd; color: #888; cursor: not-allowed; opacity: 0.6; }
-        .btn-disabled:hover { opacity: 0.6; }
+        
+        .btn-disabled { 
+            background-color: #f3f4f6; 
+            color: #9ca3af; 
+            cursor: not-allowed; 
+            border: 1px solid #e5e7eb;
+        }
+        .btn-disabled:hover { opacity: 1; }
 
         .btn-refresh {
             width: 100%;
             max-width: 1000px;
             padding: 12px;
-            background: #eef1f4;
+            background: #f3f4f6;
             border-radius: 8px;
-            color: #333;
+            color: #4b5563;
             font-size: 14px;
-            border: none;
+            border: 1px solid #e5e7eb;
             cursor: pointer;
             margin-top: 20px;
+            transition: 0.2s;
         }
-        .btn-refresh:hover { background: #dce0e4; }
+        .btn-refresh:hover { background: #e5e7eb; }
 
         .msg { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; display: none; }
         .msg.show { display: block; }
@@ -234,55 +272,44 @@
         let html = '';
 
         for (let l of letters) {
-            // Ищем этот стеллаж в данных
             let shelfData = dryingData?.find(d => d.shelf === l);
             let isOccupied = !!shelfData;
             
-            // Расчет свободных мест (макс 46)
             let freeBlocks = 46;
             let blocks = 0;
             let orderNumber = '';
-            let status = 'Свободно';
-            let shelfStatus = 'empty'; // empty, partial, full, drying
+            let stateClass = 'state-empty'; // По умолчанию ВСЕ ЗЕЛЕНЫЕ
+            let buttonHtml = `<button class="btn-drying btn-disabled" disabled>Начать сушку</button>`;
             
             if (isOccupied) {
                 blocks = shelfData.blocks || 0;
                 freeBlocks = 46 - blocks;
                 orderNumber = shelfData.order_number || '—';
-                status = shelfData.status === 'В работе' ? 'На сушке' : 'Ожидает';
                 
                 if (shelfData.status === 'В работе') {
-                    shelfStatus = 'drying';
-                } else if (freeBlocks === 0) {
-                    shelfStatus = 'full';
+                    stateClass = 'state-drying'; // Синий
+                    buttonHtml = `<button class="btn-drying btn-finish" onclick="finishDrying('${shelfData.id}', '${orderNumber}', ${blocks}, '${l}')">Завершить сушку</button>`;
                 } else {
-                    shelfStatus = 'partial';
+                    if (freeBlocks === 0) {
+                        stateClass = 'state-full'; // Серый (полностью занят)
+                    } else {
+                        stateClass = 'state-partial'; // Желтый (частично занят)
+                    }
+                    buttonHtml = `<button class="btn-drying btn-start" onclick="startDrying('${shelfData.id}')">Начать сушку</button>`;
                 }
             }
 
-            // Тексты и цвета
-            let ordersText = isOccupied ? orderNumber : '—';
+            // Тексты для полей
+            let ordersText = isOccupied ? '1' : '0';
+            let orderIdText = isOccupied ? orderNumber : '—';
             let freeText = isOccupied ? freeBlocks : '46';
-            
-            // Кнопка
-            let buttonHtml = '';
-            if (shelfStatus === 'empty') {
-                // Стеллаж пустой - серая неактивная кнопка
-                buttonHtml = `<button class="btn-drying btn-disabled" disabled>Начать сушку</button>`;
-            } else if (shelfStatus === 'partial' || shelfStatus === 'full') {
-                // Есть место (желтый) или занят (серый) - кнопка "Начать"
-                buttonHtml = `<button class="btn-drying btn-start" onclick="startDrying('${shelfData.id}')">Начать сушку</button>`;
-            } else if (shelfStatus === 'drying') {
-                // Уже на сушке (синий) - кнопка "Завершить"
-                buttonHtml = `<button class="btn-drying btn-finish" onclick="finishDrying('${shelfData.id}', '${orderNumber}', ${blocks}, '${l}')">Завершить сушку</button>`;
-            }
 
             html += `
-                <div class="shelf-card shelf-${l}">
+                <div class="shelf-card ${stateClass}">
                     <div class="shelf-header">${l}</div>
                     <div class="shelf-body">
-                        <div class="shelf-row"><span class="label">Кол-во заказов</span><span class="value">${isOccupied ? '1' : '0'}</span></div>
-                        <div class="shelf-row" style="font-size:13px; padding: 0 4px; height: 28px;"><span class="value" style="white-space:normal; max-width: 100%;">${ordersText}</span></div>
+                        <div class="shelf-row"><span class="label">Кол-во заказов</span><span class="value">${ordersText}</span></div>
+                        <div class="shelf-row order-id"><span class="value">${orderIdText}</span></div>
                         <div class="shelf-row"><span class="label">Кол-во блоков</span><span class="value">${blocks}</span></div>
                         <div class="shelf-row"><span class="label">Свободно</span><span class="value">${freeText}</span></div>
                         ${buttonHtml}
@@ -308,7 +335,6 @@
     }
 
     async function finishDrying(stageId, orderNumber, blocks, shelfLetter) {
-        // 1. Обновляем статус текущего этапа
         const { error: updateError } = await supabaseClient
             .from('stages')
             .update({ status: 'Выполнено' })
@@ -319,7 +345,6 @@
             return;
         }
 
-        // 2. Получаем данные заказа, чтобы понять, нужен ли Раскрой Р2
         const { data: orderData, error: orderError } = await supabaseClient
             .from('orders')
             .select('r1, r2, resin')
@@ -331,7 +356,6 @@
             return;
         }
 
-        // 3. Проверяем, есть ли еще незавершенные стеллажи этого заказа на сушке
         const { count, error: countError } = await supabaseClient
             .from('stages')
             .select('*', { count: 'exact', head: true })
@@ -344,32 +368,20 @@
             return;
         }
 
-        // 4. ЛОГИКА ПЕРЕХОДА:
-        // Если это был последний стеллаж (count === 0), то решаем, куда идти
         if (count === 0) {
             let nextStage = 'ОТК';
             let nextStageName = 'ОТК';
-            let needR2 = false;
 
-            // Если есть R2, идём на Раскрой Р2
             if (orderData.r2 === true) {
                 nextStage = 'Раскрой Р2';
                 nextStageName = 'Раскрой Р2';
-                needR2 = true;
             } 
-            // Иначе сразу на ОТК
-            else {
-                nextStage = 'ОТК';
-                nextStageName = 'ОТК';
-            }
 
-            // Обновляем таблицу orders (основной этап заказа)
             await supabaseClient
                 .from('orders')
                 .update({ stage: nextStage })
                 .eq('order_number', orderNumber);
 
-            // Создаём запись в stages для следующего этапа
             await supabaseClient
                 .from('stages')
                 .insert([
