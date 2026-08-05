@@ -304,33 +304,22 @@
         }
 
         if (newStatus === 'Выполнено') {
-            // Получаем данные заказа, чтобы узнать куда идти
-            const { data: orderData, error: orderError } = await supabaseClient
-                .from('orders')
-                .select('r1, r2, resin')
+            // Считаем сколько еще рулонов НЕ ВЫПОЛНЕНО
+            const { count, error: countError } = await supabaseClient
+                .from('stages')
+                .select('*', { count: 'exact', head: true })
                 .eq('order_number', itemData.order_number)
-                .single();
+                .eq('stage', 'Каттер')
+                .neq('status', 'Выполнено');
 
-            if (orderError || !orderData) {
-                showMessage('Ошибка получения данных заказа', 'err');
+            if (countError) {
+                showMessage('Ошибка подсчёта рулонов', 'err');
                 return;
             }
 
-            let nextStage = 'ОТК';
-            let nextStageName = 'ОТК';
+            // ЗАПУСКАЕМ РУЛОН НА СЛЕДУЮЩИЙ ЭТАП
+            let nextStage = 'Раскрой'; // По умолчанию
 
-            if (orderData.r1 === true) {
-                nextStage = 'Раскрой';
-                nextStageName = 'Раскрой';
-            } else if (orderData.resin === true) {
-                nextStage = 'Смола';
-                nextStageName = 'Смола';
-            } else if (orderData.r2 === true) {
-                nextStage = 'Раскрой';
-                nextStageName = 'Раскрой';
-            }
-
-            // 1. Сразу кидаем этот рулон на следующий этап в статусе Ожидание
             await supabaseClient
                 .from('stages')
                 .insert([
@@ -343,29 +332,16 @@
                     }
                 ]);
 
-            // 2. Считаем, сколько рулонов всё еще НЕ ВЫПОЛНЕНО на Каттере (Ожидание или В работе)
-            const { count, error: countError } = await supabaseClient
-                .from('stages')
-                .select('*', { count: 'exact', head: true })
-                .eq('order_number', itemData.order_number)
-                .eq('stage', 'Каттер')
-                .neq('status', 'Выполнено'); // ВСЕ, КРОМЕ Выполнено
-
-            if (countError) {
-                showMessage('Ошибка подсчёта рулонов', 'err');
-                return;
-            }
-
-            // 3. Если это был последний рулон, только тогда обновляем этап заказа в orders
+            // Если это был последний рулон -> обновляем orders
             if (count === 0) {
                 await supabaseClient
                     .from('orders')
                     .update({ stage: nextStage })
                     .eq('order_number', itemData.order_number);
                 
-                showMessage(`Последний рулон завершён! Заказ окончательно переведён на ${nextStageName}`, 'ok');
+                showMessage(`Последний рулон завершён! Заказ переведён на ${nextStage}`, 'ok');
             } else {
-                showMessage(`Рулон ${itemData.shelf} завершён и уже ожидает на ${nextStageName}. Осталось ещё ${count} рулон(ов) на Каттере.`, 'ok');
+                showMessage(`Рулон ${itemData.shelf} завершён. Осталось ещё ${count} рулон(ов) на Каттере.`, 'ok');
             }
         } else {
             showMessage('Рулон обновлён', 'ok');
