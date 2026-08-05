@@ -99,7 +99,7 @@
             white-space: nowrap;
         }
 
-        .col-shelf { width: 140px; }
+        .col-shelf { width: 180px; } /* Немного расширили, чтобы поместилось */
         .col-order { width: 140px; }
         .col-type { width: 100px; }
         .col-blocks { width: 160px; }
@@ -277,7 +277,7 @@
             html += `
                 <div class="row">
                     <div class="col col-shelf">
-                        <div class="label">Стеллаж</div>
+                        <div class="label">ID рулона / Стеллаж</div>
                         <div class="value">${displayId}</div>
                     </div>
                     <div class="col col-order">
@@ -393,7 +393,6 @@
 
             } else {
                 // ИДЕМ НА ОТК
-                // 1. Получаем общее кол-во блоков из таблицы rolls (суммируем все рулоны заказа)
                 const { data: rollsData } = await supabaseClient
                     .from('rolls')
                     .select('blocks')
@@ -404,7 +403,6 @@
                     rollsData.forEach(r => { totalBlocks += (r.blocks || 0); });
                 }
                 
-                // 2. Создаем или обновляем запись в otk_orders
                 const { data: existingOtk } = await supabaseClient
                     .from('otk_orders')
                     .select('id, completion_note')
@@ -412,12 +410,10 @@
                     .maybeSingle();
 
                 if (existingOtk) {
-                    // Если уже есть, просто обновляем пометку о полноте
                     let newNote = 'Еще часть';
                     if (count === 0) {
                         newNote = 'Полный';
                     }
-                    // Проверим, если уже "Полный", не меняем
                     if (existingOtk.completion_note !== 'Полный') {
                         await supabaseClient
                             .from('otk_orders')
@@ -425,7 +421,6 @@
                             .eq('id', existingOtk.id);
                     }
                 } else {
-                    // Если нет, создаем
                     let note = '1 часть';
                     if (count === 0) {
                         note = 'Полный';
