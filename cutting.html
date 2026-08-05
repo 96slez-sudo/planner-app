@@ -244,27 +244,7 @@
             return;
         }
 
-        const orderNumbers = [...new Set(data.map(d => d.order_number))];
-        let ordersData = [];
-        let ordersError = null;
-        
-        // Ищем заказы в базе. Если заказ не найден (ошибка), просто пропускаем.
-        try {
-            const result = await supabaseClient
-                .from('orders')
-                .select('order_number, r1, r2, resin')
-                .in('order_number', orderNumbers);
-            ordersData = result.data;
-            ordersError = result.error;
-        } catch (e) {
-            // Игнорируем ошибки выборки заказов (например, для стеллажей с "1.1, 1")
-        }
-
-        const orderMap = {};
-        if (ordersData && !ordersError) {
-            ordersData.forEach(o => { orderMap[o.order_number] = o; });
-        }
-
+        // ГЛАВНОЕ ИСПРАВЛЕНИЕ: Сначала определяем, стеллаж это или рулон, по ПОЛЮ shelf
         const sorted = [...data].sort((a, b) => {
             if (a.status === 'Ожидание' && b.status !== 'Ожидание') return -1;
             if (a.status !== 'Ожидание' && b.status === 'Ожидание') return 1;
@@ -273,25 +253,19 @@
 
         let html = '';
         sorted.forEach(item => {
-            const orderSettings = orderMap[item.order_number];
-            const r1 = orderSettings?.r1 || false;
-            const r2 = orderSettings?.r2 || false;
-            const resin = orderSettings?.resin || false;
+            const displayId = item.shelf || '—';
+            const isSingleLetterShelf = /^[A-H]$/.test(displayId);
 
             let routeType = '—';
             let idColumnLabel = 'ID рулона';
-            let displayId = item.shelf || '—';
             
-            const isSingleLetterShelf = /^[A-H]$/.test(displayId);
-            
-            if (r1) {
-                routeType = 'Р1';
-            } else if (isSingleLetterShelf && resin) {
-                // Это стеллаж, пришедший после смолы
+            // ЕСЛИ ЭТО БУКВА (A-H) -> ЭТО СТЕЛЛАЖ. Точка.
+            if (isSingleLetterShelf) {
                 routeType = 'Р2';
                 idColumnLabel = 'Стеллаж';
-            } else if (r2) {
-                routeType = 'Р2';
+            } else {
+                // Иначе это обычный рулон (Р1)
+                routeType = 'Р1';
             }
 
             let statusClass = 'status-wait';
@@ -372,14 +346,11 @@
             }
 
             if (count === 0) {
-                // Определяем, нужна ли Смола, или сразу ОТК
+                const isShelf = /^[A-H]$/.test(stageData.shelf);
                 let needsResin = false;
                 
-                // Если это Р1 и есть смола, идём на смолу.
-                // Если это стеллаж (Р2) - всегда на ОТК.
-                const isShelf = /^[A-H]$/.test(stageData.shelf);
+                // Для рулонов (Р1) проверяем, нужна ли смола
                 if (!isShelf) {
-                    // Это может быть Р1. Проверяем базу.
                     const { data: orderData } = await supabaseClient
                         .from('orders')
                         .select('resin')
@@ -391,7 +362,7 @@
                 }
 
                 if (needsResin) {
-                    // Идем на Смолу (массово переносим рулоны)
+                    // Идем на Смолу (по рулонам)
                     const { data: completedItems } = await supabaseClient
                         .from('stages')
                         .select('shelf, blocks')
