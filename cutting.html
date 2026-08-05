@@ -105,9 +105,9 @@
             text-overflow: ellipsis;
         }
 
+        .col-type { width: 100px; flex-shrink: 0; }
         .col-shelf { width: 200px; flex-shrink: 0; }
         .col-order { width: 140px; flex-shrink: 0; }
-        .col-type { width: 100px; flex-shrink: 0; }
         .col-blocks { width: 160px; flex-shrink: 0; }
         .col-status { width: 200px; flex-shrink: 0; }
         .col-actions { width: 160px; flex-shrink: 0; }
@@ -177,7 +177,7 @@
         @media (max-width: 1100px) {
             .row { gap: 12px; }
             .col { flex: 1 1 100%; max-width: 100%; }
-            .col-shelf, .col-order, .col-type, .col-blocks, .col-status, .col-actions { width: 100%; }
+            .col-type, .col-shelf, .col-order, .col-blocks, .col-status, .col-actions { width: 100%; }
             .btn-green, .btn-red { width: 100%; height: 36px; }
             .col .value { height: 36px; }
         }
@@ -240,28 +240,57 @@
 
     // Функция для определения типа на основе shelf
     function getDisplayType(shelf, routeType) {
-        // Если shelf - буква от A до H (после сушки) -> Р2
-        if (shelf && /^[A-H]$/.test(shelf)) {
-            return 'Р2';
-        }
-        // Если shelf начинается с R (R1_01, R2_01 и т.д.) -> Р2
-        if (shelf && shelf.startsWith('R')) {
-            return 'Р2';
-        }
-        // Если route_type = 'Р2' -> Р2
-        if (routeType === 'Р2') {
-            return 'Р2';
-        }
-        // Во всех остальных случаях -> Р1
+        if (shelf && /^[A-H]$/.test(shelf)) return 'Р2';
+        if (shelf && shelf.startsWith('R')) return 'Р2';
+        if (routeType === 'Р2') return 'Р2';
         return 'Р1';
     }
 
-    // Функция для определения CSS класса типа
     function getTypeClass(displayType) {
         if (displayType === 'Р2') return 'type-r2';
         return 'type-r1';
     }
 
+    function isR2Order(shelf, routeType) {
+        if (shelf && /^[A-H]$/.test(shelf)) return true;
+        if (shelf && shelf.startsWith('R')) return true;
+        if (routeType === 'Р2') return true;
+        return false;
+    }
+
+    // Функция для получения общего количества частей заказа (на всех этапах)
+    async function getTotalPartsForOrder(orderNumber) {
+        const { data, error } = await supabaseClient
+            .from('stages')
+            .select('shelf')
+            .eq('order_number', orderNumber)
+            .in('stage', ['Раскрой', 'Сушка', 'Смола']);
+
+        if (error || !data) return 0;
+        
+        const parts = new Set();
+        data.forEach(item => {
+            if (item.shelf) {
+                parts.add(item.shelf);
+            }
+        });
+        return parts.size;
+    }
+
+    // Функция для получения количества завершенных частей на Раскрое
+    async function getCompletedPartsOnCutting(orderNumber) {
+        const { data, error } = await supabaseClient
+            .from('stages')
+            .select('id')
+            .eq('order_number', orderNumber)
+            .eq('stage', 'Раскрой')
+            .eq('status', 'Выполнено');
+
+        if (error || !data) return 0;
+        return data.length;
+    }
+
+    // Функция для получения общего количества блоков заказа
     async function getTotalBlocksForOrder(orderNumber) {
         const { data, error } = await supabaseClient
             .from('rolls')
@@ -272,24 +301,6 @@
         let total = 0;
         data.forEach(r => { total += (r.blocks || 0); });
         return total;
-    }
-
-    async function getTotalRollsForOrder(orderNumber) {
-        const { data, error } = await supabaseClient
-            .from('rolls')
-            .select('id')
-            .eq('order_number', orderNumber);
-
-        if (error || !data) return 0;
-        return data.length;
-    }
-
-    // Функция для проверки, является ли заказ Р2 (для логики)
-    function isR2Order(shelf, routeType) {
-        if (shelf && /^[A-H]$/.test(shelf)) return true;
-        if (shelf && shelf.startsWith('R')) return true;
-        if (routeType === 'Р2') return true;
-        return false;
     }
 
     async function loadCuttingOrders() {
@@ -324,7 +335,6 @@
             const displayId = item.shelf || '—';
             const routeType = item.route_type || 'Р1';
             
-            // Определяем тип для отображения
             const displayType = getDisplayType(item.shelf, routeType);
             const typeClass = getTypeClass(displayType);
 
@@ -337,6 +347,10 @@
 
             html += `
                 <div class="row">
+                    <div class="col col-type">
+                        <div class="label">Тип</div>
+                        <div class="value ${typeClass}" style="font-size: 15px;">${displayType}</div>
+                    </div>
                     <div class="col col-shelf">
                         <div class="label">ID рулона / Стеллаж</div>
                         <div class="value" title="${displayId}">${displayId}</div>
@@ -344,10 +358,6 @@
                     <div class="col col-order">
                         <div class="label">№ заказа</div>
                         <div class="value">${item.order_number}</div>
-                    </div>
-                    <div class="col col-type">
-                        <div class="label">Тип</div>
-                        <div class="value ${typeClass}" style="font-size: 15px;">${displayType}</div>
                     </div>
                     <div class="col col-blocks">
                         <div class="label">Кол-во блоков</div>
@@ -382,7 +392,6 @@
             return;
         }
 
-        // Определяем является ли заказ Р2
         const isR2 = isR2Order(stageData.shelf, stageData.route_type);
 
         const { error: updateError } = await supabaseClient
@@ -396,40 +405,47 @@
         }
 
         if (newStatus === 'Выполнено') {
-            const { count, error: countError } = await supabaseClient
+            // Получаем общее количество частей заказа (на всех этапах)
+            const totalParts = await getTotalPartsForOrder(stageData.order_number);
+            
+            // Получаем количество завершенных частей на Раскрое
+            const completedOnCutting = await getCompletedPartsOnCutting(stageData.order_number);
+
+            // Проверяем, есть ли активные части на Раскрое
+            const { data: activeParts, error: activeError } = await supabaseClient
                 .from('stages')
-                .select('*', { count: 'exact', head: true })
+                .select('id')
                 .eq('order_number', stageData.order_number)
                 .eq('stage', 'Раскрой')
-                .neq('status', 'Выполнено');
+                .in('status', ['Ожидание', 'В работе']);
 
-            if (countError) {
-                showMessage('Ошибка подсчёта оставшихся', 'err');
+            if (activeError) {
+                showMessage('Ошибка проверки активных частей', 'err');
                 return;
             }
 
+            const hasActiveParts = activeParts && activeParts.length > 0;
+
             if (isR2) {
-                // Р2: каждый рулон создает/обновляет запись на ОТК
                 const totalBlocks = await getTotalBlocksForOrder(stageData.order_number);
-                const totalRolls = await getTotalRollsForOrder(stageData.order_number);
                 
-                const { data: completedRolls } = await supabaseClient
-                    .from('stages')
-                    .select('id')
-                    .eq('order_number', stageData.order_number)
-                    .eq('stage', 'Раскрой')
-                    .eq('status', 'Выполнено');
+                // Формируем completion_note: "1/10", "2/10", ... "10/10"
+                const completionNote = `${completedOnCutting}/${totalParts}`;
 
-                const currentCount = completedRolls ? completedRolls.length + 1 : 1;
-                const completionNote = `${currentCount}/${totalRolls}`;
-
-                const { data: existingOtk } = await supabaseClient
+                // Проверяем, есть ли уже запись на ОТК для этого заказа
+                const { data: existingOtk, error: otkCheckError } = await supabaseClient
                     .from('otk_orders')
                     .select('id')
                     .eq('order_number', stageData.order_number)
                     .maybeSingle();
 
+                if (otkCheckError) {
+                    showMessage('Ошибка проверки ОТК', 'err');
+                    return;
+                }
+
                 if (existingOtk) {
+                    // Обновляем существующую запись
                     await supabaseClient
                         .from('otk_orders')
                         .update({ 
@@ -438,6 +454,7 @@
                         })
                         .eq('id', existingOtk.id);
                 } else {
+                    // Создаем новую запись на ОТК
                     await supabaseClient
                         .from('otk_orders')
                         .insert([
@@ -450,23 +467,26 @@
                         ]);
                 }
 
-                if (count === 0) {
+                // Если нет активных частей на Раскрое - все части прошли раскрой
+                if (!hasActiveParts) {
                     await supabaseClient
                         .from('orders')
                         .update({ stage: 'ОТК' })
                         .eq('order_number', stageData.order_number);
                     
-                    showMessage(`Последний рулон Р2 завершен! Заказ ${stageData.order_number} отправлен на ОТК (${completionNote})`, 'ok');
+                    showMessage(`Все ${totalParts} частей Р2 завершили раскрой! Заказ ${stageData.order_number} отправлен на ОТК (${completionNote})`, 'ok');
                 } else {
-                    showMessage(`Рулон ${stageData.shelf} завершен (${completionNote}). Осталось ${count} рулон(ов) на раскрое.`, 'ok');
+                    const remaining = activeParts.length;
+                    showMessage(`Часть ${stageData.shelf} завершена (${completionNote}). Осталось ${remaining} частей на раскрое.`, 'ok');
                 }
 
             } else {
-                // Р1: после раскроя на Смолу или ОТК
+                // Р1 логика
                 const routeType = stageData.route_type || 'Р1';
                 
                 if (routeType === 'Р1+Смола' || routeType === 'Р1+Смола+Р2') {
-                    if (count === 0) {
+                    if (!hasActiveParts) {
+                        // Все части завершили раскрой - идем на Смолу
                         const { data: completedItems } = await supabaseClient
                             .from('stages')
                             .select('shelf, blocks')
@@ -497,15 +517,14 @@
                             .update({ stage: 'Смола' })
                             .eq('order_number', stageData.order_number);
 
-                        showMessage(`Все части завершены! Заказ ${stageData.order_number} переведён на Смолу`, 'ok');
+                        showMessage(`Все ${totalParts} частей завершили раскрой! Заказ ${stageData.order_number} переведён на Смолу`, 'ok');
                     } else {
-                        showMessage(`Стеллаж ${stageData.shelf} завершён. Осталось ещё ${count} частей на раскрое.`, 'ok');
+                        showMessage(`Часть ${stageData.shelf} завершена. Осталось ${activeParts.length} частей на раскрое.`, 'ok');
                     }
                 } else {
                     // Р1 без смолы -> на ОТК
-                    if (count === 0) {
+                    if (!hasActiveParts) {
                         const totalBlocks = await getTotalBlocksForOrder(stageData.order_number);
-                        const totalRolls = await getTotalRollsForOrder(stageData.order_number);
 
                         await supabaseClient
                             .from('otk_orders')
@@ -513,7 +532,7 @@
                                 { 
                                     order_number: stageData.order_number,
                                     total_blocks: totalBlocks,
-                                    completion_note: `${totalRolls}/${totalRolls}`,
+                                    completion_note: `${totalParts}/${totalParts}`,
                                     status: 'Ожидание'
                                 }
                             ]);
@@ -523,13 +542,12 @@
                             .update({ stage: 'ОТК' })
                             .eq('order_number', stageData.order_number);
 
-                        showMessage(`Все части завершены! Заказ ${stageData.order_number} отправлен на ОТК`, 'ok');
+                        showMessage(`Все ${totalParts} частей завершили раскрой! Заказ ${stageData.order_number} отправлен на ОТК`, 'ok');
                     } else {
-                        showMessage(`Стеллаж ${stageData.shelf} завершён. Осталось ещё ${count} частей на раскрое.`, 'ok');
+                        showMessage(`Часть ${stageData.shelf} завершена. Осталось ${activeParts.length} частей на раскрое.`, 'ok');
                     }
                 }
             }
-
         } else {
             showMessage('Статус обновлён', 'ok');
         }
