@@ -61,53 +61,76 @@
         .grid {
             display: flex;
             flex-direction: column;
-            gap: 16px;
-            max-width: 1050px;
+            gap: 12px;
+            max-width: 1200px;
             width: 100%;
         }
 
+        /* Хедер таблицы */
+        .table-header {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            gap: 16px;
+            padding: 8px 0 12px 0;
+            border-bottom: 2px solid #d1d5db;
+            font-weight: 600;
+            font-size: 14px;
+            color: #555;
+            letter-spacing: 0.3px;
+        }
+        .table-header .col-label {
+            flex-shrink: 0;
+            text-align: left;
+        }
+        .col-label-shelf { width: 200px; }
+        .col-label-order { width: 120px; }
+        .col-label-type { width: 160px; }
+        .col-label-blocks { width: 130px; }
+        .col-label-status { width: 140px; }
+        .col-label-actions { width: 160px; }
+
+        /* Строка данных */
         .row {
             display: flex;
-            flex-wrap: wrap; 
-            align-items: center; 
-            gap: 20px 28px;
+            flex-wrap: nowrap;
+            align-items: center;
+            gap: 16px;
             width: 100%;
-            padding-bottom: 16px;
+            padding: 6px 0;
             border-bottom: 1px solid #eeeeee;
+            min-height: 52px;
         }
         .row:last-child { border-bottom: none; }
 
         .col {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 2px;
             flex-shrink: 0;
-        }
-        .col .label { 
-            font-size: 18px; 
-            color: #161616; 
-            white-space: nowrap;
         }
         .col .value {
             display: flex;
             align-items: center;
-            padding: 0 12px;
-            border: 1px solid #6c6c6c;
-            border-radius: 8px;
+            padding: 0 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
             font-family: 'Science Gothic', sans-serif;
-            font-size: 15px;
+            font-size: 14px;
             background: #fff;
-            height: 40px;
+            height: 36px;
             width: 100%;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .col-shelf { width: 180px; }
-        .col-order { width: 140px; }
-        .col-type { width: 100px; }
-        .col-blocks { width: 160px; }
-        .col-status { width: 200px; }
-        .col-actions { width: 160px; }
+        .col-shelf { width: 200px; flex-shrink: 0; }
+        .col-order { width: 120px; flex-shrink: 0; }
+        .col-type { width: 160px; flex-shrink: 0; }
+        .col-blocks { width: 130px; flex-shrink: 0; }
+        .col-status { width: 140px; flex-shrink: 0; }
+        .col-actions { width: 160px; flex-shrink: 0; }
 
         .status-wait { background: #e0e0e0 !important; border-color: #b0b0b0 !important; color: #555 !important; }
         .status-work { background: #ffe066 !important; border-color: #d4b300 !important; color: #1a1a1a !important; }
@@ -116,13 +139,13 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            padding: 0;
-            height: 40px;
-            width: 160px; 
+            padding: 0 16px;
+            height: 36px;
+            width: 100%;
             background-color: #0f8653;
-            border-radius: 8px;
+            border-radius: 6px;
             color: #ffffff;
-            font-size: 15px;
+            font-size: 14px;
             border: none;
             cursor: pointer;
             transition: 0.2s;
@@ -134,13 +157,13 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            padding: 0;
-            height: 40px;
-            width: 160px;
+            padding: 0 16px;
+            height: 36px;
+            width: 100%;
             background-color: #e74c3c;
-            border-radius: 8px;
+            border-radius: 6px;
             color: #ffffff;
-            font-size: 15px;
+            font-size: 14px;
             border: none;
             cursor: pointer;
             transition: 0.2s;
@@ -151,6 +174,7 @@
 
         .btn-refresh {
             width: 100%;
+            max-width: 1200px;
             padding: 12px;
             background: #eef1f4;
             border-radius: 8px;
@@ -167,24 +191,29 @@
         .msg.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .msg.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
-        @media (max-width: 992px) {
-            .row { gap: 12px; }
-            .col { flex: 1 1 100%; max-width: 100%; }
-            .col-shelf, .col-order, .col-type, .col-blocks, .col-status, .col-actions { width: 100%; }
-            .btn-green, .btn-red { width: 100%; height: 36px; }
+        @media (max-width: 1100px) {
+            .table-header { display: none; }
+            .row { flex-wrap: wrap; gap: 10px; }
+            .col-shelf { width: 100%; }
+            .col-order { width: calc(50% - 5px); }
+            .col-type { width: calc(50% - 5px); }
+            .col-blocks { width: calc(33.33% - 7px); }
+            .col-status { width: calc(33.33% - 7px); }
+            .col-actions { width: calc(33.33% - 7px); }
         }
         @media (max-width: 600px) {
             .header .title { font-size: 16px; }
             .header .subtitle { font-size: 14px; }
             .stage-btn { font-size: 14px; padding: 6px 12px; }
             .page-title { font-size: 26px; }
-            .col .value { height: 36px; }
+            .col .value { font-size: 13px; height: 32px; }
+            .col-order, .col-type, .col-blocks, .col-status, .col-actions { width: 100%; }
+            .btn-green, .btn-red { height: 32px; }
         }
         @media (max-width: 480px) {
             .header { flex-direction: column; align-items: flex-start; gap: 4px; }
-            .col .label { font-size: 16px; }
-            .col .value { font-size: 13px; height: 32px; }
-            .btn-green, .btn-red { height: 32px; }
+            .col .value { font-size: 12px; height: 30px; }
+            .btn-green, .btn-red { height: 30px; font-size: 12px; }
         }
     </style>
 </head>
@@ -228,6 +257,37 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
+    // Функция для получения общего количества блоков заказа
+    async function getTotalBlocksForOrder(orderNumber) {
+        const { data, error } = await supabaseClient
+            .from('rolls')
+            .select('blocks')
+            .eq('order_number', orderNumber);
+
+        if (error || !data) {
+            console.error('Ошибка получения блоков:', error);
+            return 0;
+        }
+
+        let total = 0;
+        data.forEach(r => { total += (r.blocks || 0); });
+        return total;
+    }
+
+    // Функция для получения общего количества рулонов заказа
+    async function getTotalRollsForOrder(orderNumber) {
+        const { data, error } = await supabaseClient
+            .from('rolls')
+            .select('id')
+            .eq('order_number', orderNumber);
+
+        if (error || !data) {
+            console.error('Ошибка получения рулонов:', error);
+            return 0;
+        }
+        return data.length;
+    }
+
     async function loadCuttingOrders() {
         const container = document.getElementById('list');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
@@ -257,8 +317,19 @@
             return orderA.localeCompare(orderB);
         });
 
-        let html = '';
-        sorted.forEach(item => {
+        // Заголовки таблицы
+        let html = `
+            <div class="table-header">
+                <div class="col-label col-label-shelf">ID рулона / Стеллаж</div>
+                <div class="col-label col-label-order">№ заказа</div>
+                <div class="col-label col-label-type">Тип</div>
+                <div class="col-label col-label-blocks">Кол-во блоков</div>
+                <div class="col-label col-label-status">Статус</div>
+                <div class="col-label col-label-actions"></div>
+            </div>
+        `;
+
+        for (const item of sorted) {
             const displayId = item.shelf || '—';
             
             // Используем route_type из таблицы stages
@@ -266,10 +337,6 @@
             
             // Определяем тип для отображения
             let typeDisplay = routeType;
-            // Если это Р2 заказ, но shelf начинается с R - показываем Р2
-            if (routeType === 'Р2' || (item.shelf && item.shelf.startsWith('R'))) {
-                typeDisplay = 'Р2';
-            }
 
             let statusClass = 'status-wait';
             let statusText = 'Ожидает';
@@ -281,27 +348,21 @@
             html += `
                 <div class="row">
                     <div class="col col-shelf">
-                        <div class="label">ID рулона / Стеллаж</div>
-                        <div class="value">${displayId}</div>
+                        <div class="value" title="${displayId}">${displayId}</div>
                     </div>
                     <div class="col col-order">
-                        <div class="label">№ заказа</div>
                         <div class="value">${item.order_number}</div>
                     </div>
                     <div class="col col-type">
-                        <div class="label">Тип</div>
-                        <div class="value" style="font-size: 14px;">${typeDisplay}</div>
+                        <div class="value" style="font-size: 12px;" title="${typeDisplay}">${typeDisplay}</div>
                     </div>
                     <div class="col col-blocks">
-                        <div class="label">Кол-во блоков</div>
                         <div class="value">${item.blocks || 0}</div>
                     </div>
                     <div class="col col-status">
-                        <div class="label">Статус</div>
                         <div class="value ${statusClass}">${statusText}</div>
                     </div>
                     <div class="col col-actions">
-                        <div class="label">&nbsp;</div>
                         ${item.status === 'Ожидание' 
                             ? `<button class="btn-green" onclick="updateCuttingOrder('${item.id}', 'В работе')">Взять в работу</button>` 
                             : `<button class="btn-red" onclick="updateCuttingOrder('${item.id}', 'Выполнено')">Завершить</button>`
@@ -309,7 +370,7 @@
                     </div>
                 </div>
             `;
-        });
+        }
         container.innerHTML = html;
     }
 
@@ -354,36 +415,75 @@
 
             // ЛОГИКА В ЗАВИСИМОСТИ ОТ ТИПА ЗАКАЗА
             if (routeType === 'Р2') {
-                // Р2: после раскроя сразу на ОТК
-                const { data: rollData } = await supabaseClient
-                    .from('rolls')
-                    .select('blocks')
-                    .eq('order_number', stageData.order_number);
+                // Р2: каждый рулон создает/обновляет запись на ОТК
+                const totalBlocks = await getTotalBlocksForOrder(stageData.order_number);
+                const totalRolls = await getTotalRollsForOrder(stageData.order_number);
+                
+                // Получаем все выполненные рулоны на раскрое для этого заказа
+                const { data: completedRolls, error: completedError } = await supabaseClient
+                    .from('stages')
+                    .select('id')
+                    .eq('order_number', stageData.order_number)
+                    .eq('stage', 'Раскрой')
+                    .eq('status', 'Выполнено');
 
-                let totalBlocks = 0;
-                if (rollData) {
-                    rollData.forEach(r => { totalBlocks += (r.blocks || 0); });
+                if (completedError) {
+                    showMessage('Ошибка получения завершенных рулонов', 'err');
+                    return;
                 }
 
-                // Создаем запись на ОТК
-                await supabaseClient
+                // Текущий номер завершенного рулона (включая этот)
+                const currentCount = completedRolls ? completedRolls.length + 1 : 1;
+                
+                // Формируем completion_note: "1/3", "2/3", "3/3"
+                const completionNote = `${currentCount}/${totalRolls}`;
+
+                // Проверяем, есть ли уже запись на ОТК для этого заказа
+                const { data: existingOtk, error: otkCheckError } = await supabaseClient
                     .from('otk_orders')
-                    .insert([
-                        { 
-                            order_number: stageData.order_number,
+                    .select('id')
+                    .eq('order_number', stageData.order_number)
+                    .maybeSingle();
+
+                if (otkCheckError) {
+                    showMessage('Ошибка проверки ОТК', 'err');
+                    return;
+                }
+
+                if (existingOtk) {
+                    // Обновляем существующую запись
+                    await supabaseClient
+                        .from('otk_orders')
+                        .update({ 
                             total_blocks: totalBlocks,
-                            completion_note: 'Полный',
-                            status: 'Ожидание'
-                        }
-                    ]);
+                            completion_note: completionNote 
+                        })
+                        .eq('id', existingOtk.id);
+                } else {
+                    // Создаем новую запись на ОТК
+                    await supabaseClient
+                        .from('otk_orders')
+                        .insert([
+                            { 
+                                order_number: stageData.order_number,
+                                total_blocks: totalBlocks,
+                                completion_note: completionNote,
+                                status: 'Ожидание'
+                            }
+                        ]);
+                }
 
-                // Обновляем заказ в orders
-                await supabaseClient
-                    .from('orders')
-                    .update({ stage: 'ОТК' })
-                    .eq('order_number', stageData.order_number);
-
-                showMessage(`Заказ ${stageData.order_number} (Р2) завершил раскрой и отправлен на ОТК`, 'ok');
+                // Если это был последний рулон, обновляем orders
+                if (count === 0) {
+                    await supabaseClient
+                        .from('orders')
+                        .update({ stage: 'ОТК' })
+                        .eq('order_number', stageData.order_number);
+                    
+                    showMessage(`Последний рулон Р2 завершен! Заказ ${stageData.order_number} отправлен на ОТК (${completionNote})`, 'ok');
+                } else {
+                    showMessage(`Рулон ${stageData.shelf} завершен (${completionNote}). Осталось ${count} рулон(ов) на раскрое.`, 'ok');
+                }
 
             } else if (routeType === 'Р1+Смола' || routeType === 'Р1+Смола+Р2') {
                 // Р1 с смолой: после раскроя на Смолу (когда все части завершены)
@@ -427,15 +527,8 @@
             } else {
                 // Р1 (без смолы): после раскроя на ОТК (когда все части завершены)
                 if (count === 0) {
-                    const { data: rollData } = await supabaseClient
-                        .from('rolls')
-                        .select('blocks')
-                        .eq('order_number', stageData.order_number);
-
-                    let totalBlocks = 0;
-                    if (rollData) {
-                        rollData.forEach(r => { totalBlocks += (r.blocks || 0); });
-                    }
+                    const totalBlocks = await getTotalBlocksForOrder(stageData.order_number);
+                    const totalRolls = await getTotalRollsForOrder(stageData.order_number);
 
                     await supabaseClient
                         .from('otk_orders')
@@ -443,7 +536,7 @@
                             { 
                                 order_number: stageData.order_number,
                                 total_blocks: totalBlocks,
-                                completion_note: 'Полный',
+                                completion_note: `${totalRolls}/${totalRolls}`,
                                 status: 'Ожидание'
                             }
                         ]);
@@ -453,7 +546,7 @@
                         .update({ stage: 'ОТК' })
                         .eq('order_number', stageData.order_number);
 
-                    showMessage(`Все части завершены! Заказ ${stageData.order_number} отправлен на ОТК`, 'ok');
+                    showMessage(`Все части завершены! Заказ ${stageData.order_number} отправлен на ОТК (${totalRolls}/${totalRolls})`, 'ok');
                 } else {
                     showMessage(`Стеллаж ${stageData.shelf} завершён. Осталось ещё ${count} частей на раскрое.`, 'ok');
                 }
