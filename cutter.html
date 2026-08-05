@@ -229,14 +229,6 @@
         return data.path;
     }
 
-    // Функция для создания ID рулона для Р2 (R1_01, R1_02, R2_01 и т.д.)
-    async function getR2RollId(orderNumber, rollIndex) {
-        // Получаем номер заказа
-        const orderNum = orderNumber;
-        // Формируем ID: R{номер заказа}_{номер рулона с ведущим нулем}
-        return `R${orderNum}_${String(rollIndex).padStart(2, '0')}`;
-    }
-
     async function loadRolls() {
         const container = document.getElementById('list');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
@@ -347,13 +339,10 @@
             let nextStage = 'Раскрой';
             let nextShelf = itemData.shelf; // По умолчанию сохраняем ID рулона
 
-            // Для Р2 заказов формируем ID рулона R{номер}_{номер}
+            // Для Р2 заказов сохраняем ID как есть (он уже в формате R{номер}_{номер})
             if (routeType === 'Р2') {
-                // Извлекаем номер рулона из shelf (формат {order_number}_{roll_index})
-                const parts = itemData.shelf.split('_');
-                const rollIndex = parseInt(parts[1]) || 1;
-                // Формируем новый ID: R{order_number}_{roll_index}
-                nextShelf = `R${itemData.order_number}_${String(rollIndex).padStart(2, '0')}`;
+                // Просто сохраняем текущий shelf (он уже R1_01, R1_02 и т.д.)
+                nextShelf = itemData.shelf;
             }
 
             // Создаем запись на следующем этапе
