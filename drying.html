@@ -296,12 +296,12 @@
             let totalBlocks = 0;
             let orderIds = [];
             let isDrying = false;
-            let allIds = [];
+            let firstId = null;
 
             if (isOccupied) {
                 shelvesOnLetter.forEach(item => {
                     totalBlocks += (item.blocks || 0);
-                    allIds.push(item.id);
+                    if (firstId === null) firstId = item.id;
                     if (item.status === 'В работе') {
                         isDrying = true;
                     }
@@ -321,8 +321,7 @@
             if (isOccupied) {
                 if (isDrying) {
                     stateClass = 'state-drying';
-                    const firstId = allIds[0];
-                    buttonHtml = `<button class="btn-drying btn-finish" onclick="finishDrying('${firstId}', '${orderIds.join(', ')}', ${totalBlocks}, '${l}')">Завершить сушку</button>`;
+                    buttonHtml = `<button class="btn-drying btn-finish" onclick="finishDrying('${firstId}', '${l}', ${totalBlocks}, '${orderIds.join(', ')}')">Завершить сушку</button>`;
                     zoneHtml = `<div style="text-align:center; font-size:13px; margin-top:4px; color:#4a6fa5;">Зона выбрана</div>`;
                 } else {
                     if (freeBlocks === 0) {
@@ -330,8 +329,6 @@
                     } else {
                         stateClass = 'state-partial';
                     }
-                    
-                    const firstId = allIds[0];
                     
                     zoneHtml = `
                         <div class="zone-selector" id="zone-selector-${firstId}">
@@ -407,7 +404,7 @@
         }
     }
 
-    async function finishDrying(stageId, orderNumbersList, totalBlocks, shelfLetter) {
+    async function finishDrying(stageId, shelfLetter, totalBlocks, orderIdsString) {
         // Получаем зону
         const { data: stageData, error: getError } = await supabaseClient
             .from('stages')
@@ -421,8 +418,7 @@
         }
         const zone = stageData.zone || 'Не указана';
 
-        // Завершаем ВСЕ записи на этом стеллаже для указанных заказов
-        const orderNumbers = orderNumbersList.split(', ');
+        // Завершаем ВСЕ записи на этом стеллаже
         const { error: updateError } = await supabaseClient
             .from('stages')
             .update({ status: 'Выполнено' })
@@ -435,22 +431,37 @@
             return;
         }
 
-        // Обрабатываем каждый заказ отдельно
-        for (let singleOrder of orderNumbers) {
-            // 1. Сразу отправляем этот стеллаж на Раскрой (Р2) в статусе Ожидание
-            await supabaseClient
-                .from('stages')
-                .insert([
-                    { 
-                        order_number: singleOrder, 
-                        stage: 'Раскрой', 
-                        status: 'Ожидание',
-                        shelf: shelfLetter,
-                        blocks: totalBlocks // Здесь totalBlocks - это сколько было на этом конкретном стеллаже
-                    }
-                ]);
+        // Разбиваем строку с заказами обратно в массив
+        const orderIds = orderIdsString.split(', ');
 
-            // 2. Проверяем, остались ли у этого заказа еще стеллажи на сушке
+        // ========================================================
+        // ГЛАВНАЯ ЛОГИКА ПЕРЕХОДА НА РАСКРОЙ Р2
+        // Мы передаем ОДНУ запись для всего стеллажа!
+        // ========================================================
+        
+        // 1. Создаем ОДНУ запись на Раскрое (Р2) для всего стеллажа.
+        // В поле shelf записываем букву (например, "B"), а в blocks - сумму блоков (например, 40).
+        // В поле shelf мы передаем букву стеллажа (shelfLetter).
+        // В поле order_number мы передаем строку с заказами (например, "5, 6").
+        // Это будет отображаться на Раскрое как "Стеллаж B" с 40 блоками и заказами 5, 6 внутри.
+        
+        await supabaseClient
+            .from('stages')
+            .insert([
+                { 
+                    order_number: orderIdsString, // Сохраняем список заказов как строку
+                    stage: 'Раскрой', 
+                    status: 'Ожидание',
+                    shelf: shelfLetter, // Буква стеллажа
+                    blocks: totalBlocks // Общее кол-во блоков
+                }
+            ]);
+
+        // 2. Проверяем для КАЖДОГО заказа, не осталось ли у него стеллажей на сушке
+        // Если у всех заказов больше нет стеллажей на сушке -> переводим заказы на Раскрой
+        let allOrdersFinished = true;
+        
+        for (let singleOrder of orderIds) {
             const { count, error: countError } = await supabaseClient
                 .from('stages')
                 .select('*', { count: 'exact', head: true })
@@ -463,58 +474,22 @@
                 return;
             }
 
-            // 3. Если это был ПОСЛЕДНИЙ стеллаж, переводим весь заказ в orders
-            if (count === 0) {
-                const { data: orderData, error: orderError } = await supabaseClient
-                    .from('orders')
-                    .select('r2')
-                    .eq('order_number', singleOrder)
-                    .single();
-
-                if (orderError || !orderData) {
-                    showMessage('Ошибка получения настроек заказа ' + singleOrder, 'err');
-                    return;
-                }
-
-                if (orderData.r2 === true) {
-                    await supabaseClient
-                        .from('orders')
-                        .update({ stage: 'Раскрой' })
-                        .eq('order_number', singleOrder);
-                    showMessage(`Для заказа ${singleOrder} все стеллажи завершены! Заказ переведён на Раскрой (Р2).`, 'ok');
-                } else {
-                    // Если Р2 нет (хотя по логике он должен быть), отправляем на ОТК
-                    const { data: totals } = await supabaseClient
-                        .from('stages')
-                        .select('blocks')
-                        .eq('order_number', singleOrder)
-                        .eq('stage', 'Сушка')
-                        .eq('status', 'Выполнено');
-
-                    let totalBlocksForOrder = 0;
-                    if (totals) {
-                        totals.forEach(item => { totalBlocksForOrder += (item.blocks || 0); });
-                    }
-
-                    await supabaseClient
-                        .from('otk_orders')
-                        .insert([
-                            { 
-                                order_number: singleOrder,
-                                total_blocks: totalBlocksForOrder,
-                                status: 'Ожидание'
-                            }
-                        ]);
-
-                    await supabaseClient
-                        .from('orders')
-                        .update({ stage: 'ОТК' })
-                        .eq('order_number', singleOrder);
-                    showMessage(`Для заказа ${singleOrder} все стеллажи завершены! Заказ переведён на ОТК.`, 'ok');
-                }
-            } else {
-                showMessage(`Стеллаж ${shelfLetter} заказа ${singleOrder} отправлен на Раскрой. Осталось ещё ${count} стеллажей на сушке.`, 'ok');
+            if (count > 0) {
+                allOrdersFinished = false;
             }
+        }
+
+        // 3. Если все заказы завершили сушку, обновляем их этап в orders
+        if (allOrdersFinished) {
+            for (let singleOrder of orderIds) {
+                await supabaseClient
+                    .from('orders')
+                    .update({ stage: 'Раскрой' })
+                    .eq('order_number', singleOrder);
+            }
+            showMessage(`Все стеллажи всех заказов (${orderIdsString}) завершены! Заказы переведены на Раскрой.`, 'ok');
+        } else {
+            showMessage(`Стеллаж ${shelfLetter} с заказами (${orderIdsString}) отправлен на Раскрой. Остальные стеллажи этих заказов еще сушатся.`, 'ok');
         }
 
         loadDryingShelves();
