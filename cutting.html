@@ -78,7 +78,11 @@
             flex-direction: column;
             gap: 4px;
         }
-        .col .label { font-size: 18px; color: #161616; }
+        .col .label { 
+            font-size: 18px; 
+            color: #161616; 
+            white-space: nowrap; /* Чтобы подписи не переносились */
+        }
         .col .value {
             display: flex;
             align-items: center;
@@ -89,6 +93,7 @@
             font-size: 15px;
             background: #fff;
             height: 40px;
+            width: 100%;
         }
         
         /* Чтобы текст переносился */
@@ -101,12 +106,15 @@
             font-size: 14px;
         }
 
-        .col-order { width: 140px; }
-        .col-type { width: 120px; }
-        .col-id { width: 180px; }
-        .col-blocks { width: 140px; }
-        .col-status { width: 160px; }
-        .col-actions { width: 160px; }
+        .col-order { width: 140px; flex-shrink: 0; }
+        .col-type { width: 100px; flex-shrink: 0; }
+        .col-id { width: 180px; flex-shrink: 0; }
+        .col-blocks { 
+            flex: 1; /* Растягиваем, чтобы блоки всегда были в одну строку */
+            min-width: 140px; 
+        }
+        .col-status { width: 160px; flex-shrink: 0; }
+        .col-actions { width: 160px; flex-shrink: 0; }
 
         .status-wait { background: #e0e0e0 !important; border-color: #b0b0b0 !important; color: #555 !important; }
         .status-work { background: #ffe066 !important; border-color: #d4b300 !important; color: #1a1a1a !important; }
@@ -166,7 +174,9 @@
 
         @media (max-width: 992px) {
             .row { align-items: flex-start; }
-            .col-order, .col-type, .col-id, .col-blocks, .col-status, .col-actions { width: 100%; max-width: 100%; }
+            .col-order, .col-type, .col-id, .col-blocks, .col-status, .col-actions { 
+                width: 100%; max-width: 100%; flex: none; 
+            }
             .btn-green, .btn-red { height: 36px; }
         }
         @media (max-width: 600px) {
@@ -229,7 +239,6 @@
         const container = document.getElementById('list');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
-        // 1. Получаем ВСЕ записи на раскрое
         const { data, error } = await supabaseClient
             .from('stages')
             .select('*')
@@ -245,7 +254,6 @@
             return;
         }
 
-        // 2. Чтобы понять "тип" (Р1 или Р2), нам нужны данные из orders
         const orderNumbers = [...new Set(data.map(d => d.order_number))];
         const { data: ordersData, error: ordersError } = await supabaseClient
             .from('orders')
@@ -260,7 +268,6 @@
         const orderMap = {};
         ordersData.forEach(o => { orderMap[o.order_number] = o; });
 
-        // 3. ГРУППИРУЕМ по номерам заказов
         const groupedOrders = {};
         data.forEach(item => {
             const orderNum = item.order_number;
@@ -275,7 +282,6 @@
             }
             groupedOrders[orderNum].ids.push(item.id);
             
-            // Если пришло со стеллажа (resin = true) - показываем просто букву. Иначе рулон.
             const orderSettings = orderMap[orderNum];
             const isFromResin = orderSettings?.resin === true;
             const idLabel = isFromResin ? (item.shelf || '—') : (item.shelf || '—');
@@ -283,7 +289,6 @@
             groupedOrders[orderNum].totalBlocks += (item.blocks || 0);
         });
 
-        // 4. Сортируем группы
         const sortedGroups = Object.values(groupedOrders).sort((a, b) => {
             if (a.status === 'Ожидание' && b.status !== 'Ожидание') return -1;
             if (a.status !== 'Ожидание' && b.status === 'Ожидание') return 1;
@@ -297,12 +302,10 @@
             const r2 = orderSettings?.r2 || false;
             const resin = orderSettings?.resin || false;
 
-            // ОПРЕДЕЛЯЕМ ТИП МАРШРУТА (Просто Р1 или Р2)
             let routeType = '—';
             if (r1) routeType = 'Р1';
             else if (r2) routeType = 'Р2';
             
-            // Если идет из смолы - показываем просто стеллаж (в данном случае он уже один)
             const isFromResin = resin === true;
             const displayValue = isFromResin ? group.idLabels[0] : group.idLabels.join(', ');
             
@@ -320,7 +323,7 @@
                         <div class="value">${group.order_number}</div>
                     </div>
                     <div class="col col-type">
-                        <div class="label">Тип маршрута</div>
+                        <div class="label">Тип</div>
                         <div class="value" style="font-size: 14px;">${routeType}</div>
                     </div>
                     <div class="col col-id">
@@ -329,7 +332,7 @@
                     </div>
                     <div class="col col-blocks">
                         <div class="label">Кол-во блоков</div>
-                        <div class="value">${group.totalBlocks}</div>
+                        <div class="value" style="white-space: nowrap;">${group.totalBlocks}</div>
                     </div>
                     <div class="col col-status">
                         <div class="label">Статус</div>
