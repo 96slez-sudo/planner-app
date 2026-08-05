@@ -102,8 +102,8 @@
             white-space: nowrap;
         }
 
-        .col-order { width: 160px; }
-        .col-blocks { width: 160px; }
+        .col-order { width: 140px; }
+        .col-blocks { width: 140px; }
         .col-status { width: 200px; }
         .col-actions { width: 160px; }
 
@@ -301,7 +301,24 @@
     }
 
     async function finishPacking(packingId, orderNumber) {
-        // 1. Завершаем Упаковку
+        // 1. ПРОВЕРКА: Есть ли еще активные заказы на ОТК для этого номера?
+        const { count: otkCount, error: otkError } = await supabaseClient
+            .from('otk_orders')
+            .select('*', { count: 'exact', head: true })
+            .eq('order_number', orderNumber)
+            .in('status', ['Ожидание', 'В работе']);
+
+        if (otkError) {
+            showMessage('Ошибка проверки ОТК', 'err');
+            return;
+        }
+
+        if (otkCount > 0) {
+            showMessage(`Нельзя завершить! Заказ еще проходит ОТК.`, 'err');
+            return;
+        }
+
+        // 2. Завершаем Упаковку
         const { error } = await supabaseClient
             .from('packing_orders')
             .update({ status: 'Завершено' })
@@ -312,7 +329,7 @@
             return;
         }
 
-        // 2. Помечаем заказ как полностью завершенный
+        // 3. Помечаем заказ как полностью завершенный в orders
         await supabaseClient
             .from('orders')
             .update({ status: 'Завершено', stage: 'Завершено' })
