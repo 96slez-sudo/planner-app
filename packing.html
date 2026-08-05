@@ -109,7 +109,6 @@
 
         .status-wait { background: #e0e0e0 !important; border-color: #b0b0b0 !important; color: #555 !important; }
         .status-work { background: #ffe066 !important; border-color: #d4b300 !important; color: #1a1a1a !important; }
-        .status-done { background: #d4edda !important; border-color: #c3e6cb !important; color: #155724 !important; }
 
         .btn-green {
             display: inline-flex;
@@ -333,7 +332,7 @@
         // 3. Помечаем заказ как полностью завершенный
         await supabaseClient
             .from('orders')
-            .update({ stage: 'Завершено', status: 'Завершено' })
+            .update({ status: 'Завершено', stage: 'Завершено' })
             .eq('order_number', orderNumber);
 
         showMessage(`Заказ ${orderNumber} полностью завершен!`, 'ok');
