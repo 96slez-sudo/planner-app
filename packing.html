@@ -147,6 +147,24 @@
         }
         .btn-red:hover { opacity: 0.8; }
 
+        .btn-disabled {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            height: 40px;
+            width: 160px;
+            background-color: #f3f4f6;
+            color: #9ca3af;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            cursor: not-allowed;
+            box-sizing: border-box;
+            flex-shrink: 0;
+            font-family: 'Science Gothic', sans-serif;
+            font-size: 15px;
+        }
+
         .btn-refresh {
             width: 100%;
             padding: 12px;
@@ -169,7 +187,7 @@
             .row { gap: 12px; }
             .col { flex: 1 1 100%; max-width: 100%; }
             .col-order, .col-blocks, .col-status, .col-actions { width: 100%; }
-            .btn-green, .btn-red { width: 100%; height: 36px; }
+            .btn-green, .btn-red, .btn-disabled { width: 100%; height: 36px; }
         }
         @media (max-width: 600px) {
             .header .title { font-size: 16px; }
@@ -182,7 +200,7 @@
             .header { flex-direction: column; align-items: flex-start; gap: 4px; }
             .col .label { font-size: 16px; }
             .col .value { font-size: 13px; height: 32px; }
-            .btn-green, .btn-red { height: 32px; }
+            .btn-green, .btn-red, .btn-disabled { height: 32px; }
         }
     </style>
 </head>
@@ -251,13 +269,26 @@
         });
 
         let html = '';
-        sorted.forEach(item => {
+        for (const item of sorted) {
             let statusClass = 'status-wait';
             let statusText = 'Ожидает';
             if (item.status === 'В работе') {
                 statusClass = 'status-work';
                 statusText = 'В работе';
             }
+
+            // Проверяем, все ли части заказа завершены на ОТК
+            const { count: otkActiveCount, error: otkError } = await supabaseClient
+                .from('otk_orders')
+                .select('*', { count: 'exact', head: true })
+                .eq('order_number', item.order_number)
+                .in('status', ['Ожидание', 'В работе']);
+
+            if (otkError) {
+                console.error('Ошибка проверки ОТК:', otkError);
+            }
+
+            const hasActiveOtk = otkActiveCount > 0;
 
             html += `
                 <div class="row">
@@ -277,12 +308,14 @@
                         <div class="label">&nbsp;</div>
                         ${item.status === 'Ожидание' 
                             ? `<button class="btn-green" onclick="startPacking('${item.id}', '${item.order_number}')">Взять в работу</button>` 
-                            : `<button class="btn-red" id="finish-btn-${item.id}" onclick="finishPacking('${item.id}', '${item.order_number}')">Завершить</button>`
+                            : hasActiveOtk
+                                ? `<button class="btn-disabled" disabled>Ожидание ОТК</button>`
+                                : `<button class="btn-red" id="finish-btn-${item.id}" onclick="finishPacking('${item.id}', '${item.order_number}')">Завершить</button>`
                         }
                     </div>
                 </div>
             `;
-        });
+        }
         container.innerHTML = html;
     }
 
@@ -309,12 +342,12 @@
             .in('status', ['Ожидание', 'В работе']);
 
         if (otkError) {
-            showMessage('Ошибка проверки ОТК', 'err');
+            showMessage('Ошибка проверки ОТК: ' + otkError.message, 'err');
             return;
         }
 
         if (otkCount > 0) {
-            showMessage(`Нельзя завершить! Заказ еще проходит ОТК.`, 'err');
+            showMessage(`Нельзя завершить! Заказ еще проходит ОТК. Осталось ${otkCount} частей.`, 'err');
             return;
         }
 
@@ -325,17 +358,34 @@
             .eq('id', packingId);
 
         if (error) {
-            showMessage('Ошибка завершения Упаковки', 'err');
+            showMessage('Ошибка завершения Упаковки: ' + error.message, 'err');
             return;
         }
 
-        // 3. Помечаем заказ как полностью завершенный в orders
-        await supabaseClient
-            .from('orders')
-            .update({ status: 'Завершено', stage: 'Завершено' })
-            .eq('order_number', orderNumber);
+        // 3. Проверяем, есть ли еще активные записи на Упаковке для этого заказа
+        const { count: packingActiveCount, error: packingCheckError } = await supabaseClient
+            .from('packing_orders')
+            .select('*', { count: 'exact', head: true })
+            .eq('order_number', orderNumber)
+            .in('status', ['Ожидание', 'В работе']);
 
-        showMessage(`Заказ ${orderNumber} полностью завершен!`, 'ok');
+        if (packingCheckError) {
+            showMessage('Ошибка проверки Упаковки: ' + packingCheckError.message, 'err');
+            return;
+        }
+
+        // 4. Если все части завершены на Упаковке, помечаем заказ как полностью завершенный
+        if (packingActiveCount === 0) {
+            await supabaseClient
+                .from('orders')
+                .update({ status: 'Завершено', stage: 'Завершено' })
+                .eq('order_number', orderNumber);
+            
+            showMessage(`Заказ ${orderNumber} полностью завершен! 🎉`, 'ok');
+        } else {
+            showMessage(`Часть заказа ${orderNumber} упакована. Осталось ${packingActiveCount} частей.`, 'ok');
+        }
+
         loadPackingOrders();
     }
 
