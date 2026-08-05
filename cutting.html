@@ -368,4 +368,144 @@
         }
 
         try {
-            const { error }
+            const { error } = await supabaseClient
+                .from('stages')
+                .update({ status: 'В работе', zone: selectedZone })
+                .eq('id', stageId);
+
+            if (error) {
+                showMessage('Ошибка БД: ' + error.message, 'err');
+            } else {
+                showMessage(`Сушка запущена в зоне ${selectedZone}!`, 'ok');
+                loadDryingShelves();
+            }
+        } catch (err) {
+            showMessage('Критическая ошибка: ' + err.message, 'err');
+        }
+    }
+
+    async function finishDrying(stageId, orderNumber, blocks, shelfLetter) {
+        const { data: stageData, error: getError } = await supabaseClient
+            .from('stages')
+            .select('zone')
+            .eq('id', stageId)
+            .single();
+
+        if (getError || !stageData) {
+            showMessage('Ошибка получения зоны', 'err');
+            return;
+        }
+        const zone = stageData.zone || 'Не указана';
+
+        const { error: updateError } = await supabaseClient
+            .from('stages')
+            .update({ status: 'Выполнено' })
+            .eq('id', stageId);
+
+        if (updateError) {
+            showMessage('Ошибка завершения этапа', 'err');
+            return;
+        }
+
+        const { count, error: countError } = await supabaseClient
+            .from('stages')
+            .select('*', { count: 'exact', head: true })
+            .eq('order_number', orderNumber)
+            .eq('stage', 'Сушка')
+            .neq('status', 'Выполнено');
+
+        if (countError) {
+            showMessage('Ошибка проверки оставшихся стеллажей', 'err');
+            return;
+        }
+
+        if (count === 0) {
+            const { data: orderData, error: orderError } = await supabaseClient
+                .from('orders')
+                .select('r2')
+                .eq('order_number', orderNumber)
+                .single();
+
+            if (orderError || !orderData) {
+                showMessage('Ошибка получения настроек заказа', 'err');
+                return;
+            }
+
+            // ============================================================
+            // ЕСЛИ Р2 (после смолы) - ИДЕМ НА РАСКРОЙ
+            // ============================================================
+            if (orderData.r2 === true) {
+                // 1. Получаем список ВСЕХ завершенных стеллажей этого заказа
+                const { data: completedShelves, error: fetchError } = await supabaseClient
+                    .from('stages')
+                    .select('shelf, blocks')
+                    .eq('order_number', orderNumber)
+                    .eq('stage', 'Сушка')
+                    .eq('status', 'Выполнено');
+
+                if (fetchError || !completedShelves) {
+                    showMessage('Ошибка получения данных стеллажей', 'err');
+                    return;
+                }
+
+                // 2. Подготавливаем массив для вставки на Раскрой
+                // Важно: сохраняем shelf как БУКВУ (A, B, C...)
+                const insertPromises = completedShelves.map(item => {
+                    return supabaseClient
+                        .from('stages')
+                        .insert([
+                            { 
+                                order_number: orderNumber, 
+                                stage: 'Раскрой', 
+                                status: 'Ожидание',
+                                shelf: item.shelf, // Сохраняем букву стеллажа
+                                blocks: item.blocks
+                            }
+                        ]);
+                });
+
+                await Promise.all(insertPromises);
+                
+                // 3. Обновляем заказ в orders
+                await supabaseClient
+                    .from('orders')
+                    .update({ stage: 'Раскрой' })
+                    .eq('order_number', orderNumber);
+
+                showMessage(`Сушка завершена! Все стеллажи отправлены обратно на Раскрой (Р2)`, 'ok');
+
+            } else {
+                // ============================================================
+                // ЕСЛИ НЕТ Р2 - ИДЕМ НА ОТК
+                // ============================================================
+                await supabaseClient
+                    .from('otk_queue')
+                    .insert([
+                        { 
+                            order_number: orderNumber, 
+                            shelf: shelfLetter, 
+                            zone: zone,
+                            blocks: blocks,
+                            status: 'Ожидание'
+                        }
+                    ]);
+
+                await supabaseClient
+                    .from('orders')
+                    .update({ stage: 'ОТК' })
+                    .eq('order_number', orderNumber);
+
+                showMessage(`Сушка завершена! Заказ отправлен на ОТК (Зона: ${zone})`, 'ok');
+            }
+
+        } else {
+            showMessage(`Стеллаж ${shelfLetter} завершён. Осталось ещё ${count} стеллажей на сушке`, 'ok');
+        }
+
+        loadDryingShelves();
+    }
+
+    document.addEventListener('DOMContentLoaded', loadDryingShelves);
+</script>
+</body>
+</html>
