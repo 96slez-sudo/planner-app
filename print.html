@@ -214,6 +214,21 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
+    // Функция для получения типа заказа из таблицы orders
+    async function getOrderRouteType(orderNumber) {
+        const { data, error } = await supabaseClient
+            .from('orders')
+            .select('path')
+            .eq('order_number', orderNumber)
+            .single();
+        
+        if (error || !data) {
+            console.error('Ошибка получения типа заказа:', error);
+            return null;
+        }
+        return data.path;
+    }
+
     async function loadPrintRolls() {
         const container = document.getElementById('list');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
@@ -239,8 +254,17 @@
         });
 
         let html = '';
-        sorted.forEach(item => {
-            const rollId = `${item.order_number}_${String(item.roll_index).padStart(2, '0')}`;
+        for (const item of sorted) {
+            // Получаем тип заказа
+            const routeType = await getOrderRouteType(item.order_number);
+            
+            // Формируем ID рулона в зависимости от типа
+            let rollId;
+            if (routeType === 'Р2') {
+                rollId = `R${item.order_number}_${String(item.roll_index).padStart(2, '0')}`;
+            } else {
+                rollId = `${item.order_number}_${String(item.roll_index).padStart(2, '0')}`;
+            }
             
             let statusClass = 'status-wait';
             let statusText = 'Ожидает';
@@ -276,7 +300,7 @@
                     </div>
                 </div>
             `;
-        });
+        }
         container.innerHTML = html;
     }
 
@@ -301,7 +325,16 @@
         }
 
         if (newStatus === 'Выполнено') {
-            const rollIdFormatted = `${rollData.order_number}_${String(rollData.roll_index).padStart(2, '0')}`;
+            // Получаем тип заказа
+            const routeType = await getOrderRouteType(rollData.order_number);
+            
+            // Формируем ID рулона в зависимости от типа
+            let rollIdFormatted;
+            if (routeType === 'Р2') {
+                rollIdFormatted = `R${rollData.order_number}_${String(rollData.roll_index).padStart(2, '0')}`;
+            } else {
+                rollIdFormatted = `${rollData.order_number}_${String(rollData.roll_index).padStart(2, '0')}`;
+            }
             
             // Запись в order_history
             await supabaseClient
@@ -328,14 +361,11 @@
                     }
                 ]);
 
-            // ====================================================
-            // ВАЖНОЕ ДОБАВЛЕНИЕ: ОБНОВЛЯЕМ ТАБЛИЦУ orders
-            // ====================================================
+            // Обновляем таблицу orders
             await supabaseClient
                 .from('orders')
                 .update({ stage: 'Каттер' })
                 .eq('order_number', rollData.order_number);
-            // ====================================================
 
             showMessage(`Рулон ${rollIdFormatted} (${rollData.blocks} блоков) переведён на Каттер`, 'ok');
         } else {
