@@ -60,11 +60,12 @@
         
         .order-card {
             display: flex;
-            flex-wrap: wrap; 
-            align-items: center;
+            flex-wrap: nowrap; /* ЗАПРЕТ ПЕРЕНОСА */
+            align-items: center; 
             gap: 16px 24px;
             padding: 8px 0;
             border-bottom: 1px solid #eeeeee;
+            overflow-x: auto; /* Если не влезает - скролл */
         }
         .order-card:last-child { border-bottom: none; }
 
@@ -89,6 +90,7 @@
             white-space: nowrap;
         }
 
+        /* ЖЕСТКИЕ ШИРИНЫ ДЛЯ ВЫРАВНИВАНИЯ */
         .col-order { width: 160px; }
         .col-roll { width: 180px; }
         .col-blocks { width: 140px; }
@@ -112,6 +114,7 @@
             border: none;
             cursor: pointer;
             transition: 0.2s;
+            flex-shrink: 0;
         }
         .btn-green:hover { opacity: 0.8; }
 
@@ -139,18 +142,18 @@
             padding: 4px 10px;
             border: 1px solid #cccccc;
             border-radius: 6px;
-            background: #ffffff; /* ВСЕ СВОБОДНЫЕ СТЕЛЛАЖИ БЕЛЫЕ */
+            background: #ffffff; /* БЕЛЫЙ ФОН */
             min-height: 48px;
             transition: border-color 0.2s;
         }
-        /* Когда стеллаж выбран (клик по букве) - рамка становится зеленой */
+        /* Рамка при выборе */
         .shelf-item.selected-shelf {
             border-color: #0f8653;
             border-width: 2px;
             box-shadow: 0 0 0 1px #0f8653;
         }
 
-        /* Цвета стеллажей */
+        /* Цвета стеллажей (только для занятого серого фона) */
         .shelf-item.state-grey { 
             background-color: #a0a0a0; 
             border-color: #888; 
@@ -158,7 +161,7 @@
         .shelf-item.state-grey .state-text { color: #444; }
         .shelf-item.state-grey .input-blocks { background: #e0e0e0; border-color: #aaa; color: #666; }
 
-        /* БУКВЫ СТЕЛЛАЖЕЙ (меняют цвет, а не фон карточки) */
+        /* БУКВЫ (меняют цвет, а не фон карточки) */
         .letter {
             display: flex;
             align-items: center;
@@ -177,7 +180,7 @@
         .letter.state-yellow { background-color: #ffd966; color: #161616; }
         .letter.state-grey { background-color: #777; color: #fff; cursor: not-allowed; }
 
-        /* При выборе зеленая заливка */
+        /* Выбранная буква */
         .letter.selected {
             background-color: #0f8653 !important;
             color: #ffffff !important;
@@ -258,6 +261,7 @@
         .msg.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .msg.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
+        /* АДАПТИВ */
         @media (max-width: 992px) {
             .col-order, .col-roll, .col-blocks, .col-status, .col-actions { width: 100%; max-width: 100%; flex: 1 1 100%; }
             .btn-green, .btn-auto, .btn-assign { width: 100%; }
@@ -275,7 +279,7 @@
             .header { flex-direction: column; align-items: flex-start; gap: 4px; }
             .col .label { font-size: 16px; }
             .col .value { font-size: 13px; height: 32px; }
-            .btn-auto, .btn-assign { height: 32px; }
+            .btn-auto, .btn-assign, .btn-green { height: 32px; }
         }
     </style>
 </head>
@@ -319,9 +323,6 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
-    /* ============================================================
-       ФУНКЦИЯ ОТРИСОВКИ ПАНЕЛИ СТЕЛЛАЖЕЙ ДЛЯ КОНКРЕТНОГО РУЛОНА
-       ============================================================ */
     async function renderShelfPanel(stageId, orderNumber, totalBlocks) {
         const { data: drying, error } = await supabaseClient
             .from('stages')
