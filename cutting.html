@@ -90,8 +90,9 @@
             background: #fff;
             height: 40px;
         }
-        /* Для списка рулонов, чтобы текст переносился */
-        .col-roll .value {
+        
+        /* Для списка рулонов/стеллажей, чтобы текст переносился */
+        .col-id .value {
             flex-wrap: wrap;
             height: auto;
             min-height: 40px;
@@ -101,7 +102,8 @@
         }
 
         .col-order { width: 160px; }
-        .col-roll { width: 240px; }
+        .col-type { width: 180px; }
+        .col-id { width: 200px; }
         .col-blocks { width: 160px; }
         .col-status { width: 180px; }
         .col-actions { width: 160px; }
@@ -164,7 +166,7 @@
 
         @media (max-width: 992px) {
             .row { align-items: flex-start; }
-            .col-order, .col-roll, .col-blocks, .col-status, .col-actions { width: 100%; max-width: 100%; }
+            .col-order, .col-type, .col-id, .col-blocks, .col-status, .col-actions { width: 100%; max-width: 100%; }
             .btn-green, .btn-red { width: 100%; }
         }
         @media (max-width: 600px) {
@@ -180,7 +182,7 @@
             .col .label { font-size: 16px; }
             .col .value { font-size: 13px; height: 32px; }
             .btn-green, .btn-red { height: 32px; }
-            .col-roll .value { min-height: 32px; }
+            .col-id .value { min-height: 32px; }
         }
     </style>
 </head>
@@ -228,7 +230,7 @@
         const container = document.getElementById('list');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
-        // Получаем ВСЕ записи на раскрое
+        // 1. Получаем ВСЕ записи на раскрое
         const { data, error } = await supabaseClient
             .from('stages')
             .select('*')
@@ -244,7 +246,23 @@
             return;
         }
 
-        // ГРУППИРУЕМ рулоны по номерам заказов
+        // 2. Чтобы понять "тип" (Р1 или Р2) и "проходил ли через смолу", нам нужны данные из orders
+        const orderNumbers = [...new Set(data.map(d => d.order_number))];
+        const { data: ordersData, error: ordersError } = await supabaseClient
+            .from('orders')
+            .select('order_number, r1, r2, resin')
+            .in('order_number', orderNumbers);
+
+        if (ordersError) {
+            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #c0392b;">Ошибка загрузки типов заказов</div>';
+            return;
+        }
+
+        // Создаем мапу для быстрого поиска настроек заказа
+        const orderMap = {};
+        ordersData.forEach(o => { orderMap[o.order_number] = o; });
+
+        // 3. ГРУППИРУЕМ рулоны / стеллажи по номерам заказов
         const groupedOrders = {};
         data.forEach(item => {
             const orderNum = item.order_number;
@@ -252,17 +270,20 @@
                 groupedOrders[orderNum] = {
                     order_number: orderNum,
                     ids: [],
-                    shelves: [],
+                    idLabels: [], // Здесь будут ID рулонов ИЛИ названия стеллажей
                     totalBlocks: 0,
-                    status: item.status // Берем статус из первого попавшегося рулона
+                    status: item.status
                 };
             }
             groupedOrders[orderNum].ids.push(item.id);
-            groupedOrders[orderNum].shelves.push(item.shelf || '—');
+            
+            // Если это пришло со стеллажа (из смолы) - показываем стеллаж. Если из рулона - показываем рулон.
+            const idLabel = item.shelf && item.shelf.includes('_') ? item.shelf : (item.shelf || '—');
+            groupedOrders[orderNum].idLabels.push(idLabel);
             groupedOrders[orderNum].totalBlocks += (item.blocks || 0);
         });
 
-        // Сортируем группы (Ожидание -> В работе)
+        // 4. Сортируем группы (Ожидание -> В работе)
         const sortedGroups = Object.values(groupedOrders).sort((a, b) => {
             if (a.status === 'Ожидание' && b.status !== 'Ожидание') return -1;
             if (a.status !== 'Ожидание' && b.status === 'Ожидание') return 1;
@@ -271,7 +292,22 @@
 
         let html = '';
         sortedGroups.forEach(group => {
-            const rollIds = group.shelves.join(', ');
+            const orderSettings = orderMap[group.order_number];
+            const r1 = orderSettings?.r1 || false;
+            const r2 = orderSettings?.r2 || false;
+            const resin = orderSettings?.resin || false;
+
+            // ОПРЕДЕЛЯЕМ ТИП МАРШРУТА
+            let routeType = '—';
+            if (resin && r2) {
+                routeType = 'Р2 (из смолы, стеллаж)';
+            } else if (r2) {
+                routeType = 'Р2 (без смолы)';
+            } else if (r1) {
+                routeType = 'Р1 (без смолы)';
+            }
+            
+            const idList = group.idLabels.join(', ');
             
             let statusClass = 'status-wait';
             let statusText = 'Ожидает';
@@ -286,9 +322,13 @@
                         <div class="label">№ заказа</div>
                         <div class="value">${group.order_number}</div>
                     </div>
-                    <div class="col col-roll">
-                        <div class="label">ID рулонов</div>
-                        <div class="value">${rollIds}</div>
+                    <div class="col col-type">
+                        <div class="label">Тип маршрута</div>
+                        <div class="value" style="font-size: 13px;">${routeType}</div>
+                    </div>
+                    <div class="col col-id">
+                        <div class="label">${resin && r2 ? 'Стеллаж' : 'ID рулонов'}</div>
+                        <div class="value">${idList}</div>
                     </div>
                     <div class="col col-blocks">
                         <div class="label">Кол-во блоков</div>
@@ -312,7 +352,6 @@
     }
 
     async function updateCuttingOrder(orderNumber, newStatus) {
-        // 1. Получаем данные ВСЕХ рулонов этого заказа на Раскрое
         const { data: stagesData, error: getError } = await supabaseClient
             .from('stages')
             .select('id, shelf, blocks')
@@ -325,7 +364,6 @@
             return;
         }
 
-        // 2. Обновляем статус сразу для всех рулонов этого заказа
         const ids = stagesData.map(item => item.id);
         const { error: updateError } = await supabaseClient
             .from('stages')
@@ -337,9 +375,7 @@
             return;
         }
 
-        // 3. Если статус стал "Выполнено" — определяем следующий этап
         if (newStatus === 'Выполнено') {
-            // Загружаем чекбоксы из таблицы orders 
             const { data: orderData, error: orderError } = await supabaseClient
                 .from('orders')
                 .select('r1, resin, r2')
@@ -354,7 +390,6 @@
             let nextStage = 'ОТК';
             let nextStageName = 'ОТК';
 
-            // ЛОГИКА: 
             if (orderData.r1 === true) {
                 nextStage = 'Смола';
                 nextStageName = 'Смола';
@@ -363,18 +398,16 @@
                 nextStageName = 'Раскрой Р2';
             }
 
-            // Обновляем orders (этап на следующий)
             await supabaseClient
                 .from('orders')
                 .update({ stage: nextStage })
                 .eq('order_number', orderNumber);
 
-            // Создаём записи в stages для следующего этапа (для каждого рулона)
             const newStages = stagesData.map(item => ({
                 order_number: orderNumber, 
                 stage: nextStage, 
                 status: 'Ожидание',
-                shelf: item.shelf, // Переносим тот же ID рулона
+                shelf: item.shelf,
                 blocks: item.blocks
             }));
 
