@@ -244,7 +244,6 @@
             return;
         }
 
-        // ГЛАВНОЕ ИСПРАВЛЕНИЕ: Сначала определяем, стеллаж это или рулон, по ПОЛЮ shelf
         const sorted = [...data].sort((a, b) => {
             if (a.status === 'Ожидание' && b.status !== 'Ожидание') return -1;
             if (a.status !== 'Ожидание' && b.status === 'Ожидание') return 1;
@@ -259,12 +258,10 @@
             let routeType = '—';
             let idColumnLabel = 'ID рулона';
             
-            // ЕСЛИ ЭТО БУКВА (A-H) -> ЭТО СТЕЛЛАЖ. Точка.
             if (isSingleLetterShelf) {
                 routeType = 'Р2';
                 idColumnLabel = 'Стеллаж';
             } else {
-                // Иначе это обычный рулон (Р1)
                 routeType = 'Р1';
             }
 
@@ -395,35 +392,48 @@
                     showMessage(`Все завершены! Заказ переведён на Смолу`, 'ok');
 
                 } else {
-                    // Идем на ОТК (целым заказом)
-                    const { data: totals } = await supabaseClient
-                        .from('stages')
+                    // Идем на ОТК (целым заказом, берем общее кол-во блоков из orders)
+                    const { data: orderData } = await supabaseClient
+                        .from('orders')
                         .select('blocks')
                         .eq('order_number', stageData.order_number)
-                        .eq('stage', 'Раскрой')
-                        .eq('status', 'Выполнено');
+                        .single();
 
-                    let totalBlocks = 0;
-                    if (totals) {
-                        totals.forEach(item => { totalBlocks += (item.blocks || 0); });
-                    }
+                    let totalBlocks = orderData?.blocks || 0;
 
-                    await supabaseClient
+                    // ПРОВЕРКА: Есть ли уже запись этого заказа в otk_orders?
+                    const { data: existingOtk } = await supabaseClient
                         .from('otk_orders')
-                        .insert([
-                            { 
-                                order_number: stageData.order_number,
-                                total_blocks: totalBlocks,
-                                status: 'Ожидание'
-                            }
-                        ]);
+                        .select('id, status')
+                        .eq('order_number', stageData.order_number);
+
+                    if (existingOtk && existingOtk.length > 0) {
+                        // Если запись уже есть - мы ничего не делаем с блоками, 
+                        // просто убеждаемся, что статус правильный.
+                        if (existingOtk[0].status === 'Завершено') {
+                            // Если заказ уже завершен на ОТК, не трогаем его.
+                        } else {
+                            // Если запись есть, но она в процессе - просто оставляем как есть.
+                        }
+                    } else {
+                        // Если записи НЕТ, создаем новую запись с общим кол-вом блоков из orders
+                        await supabaseClient
+                            .from('otk_orders')
+                            .insert([
+                                { 
+                                    order_number: stageData.order_number,
+                                    total_blocks: totalBlocks,
+                                    status: 'Ожидание'
+                                }
+                            ]);
+                    }
 
                     await supabaseClient
                         .from('orders')
                         .update({ stage: 'ОТК' })
                         .eq('order_number', stageData.order_number);
 
-                    showMessage(`Все завершены! Заказ переведён на ОТК (суммарно ${totalBlocks} блоков)`, 'ok');
+                    showMessage(`Все завершены! Заказ переведён на ОТК (всего ${totalBlocks} блоков)`, 'ok');
                 }
 
             } else {
