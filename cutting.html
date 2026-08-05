@@ -275,8 +275,6 @@
             let idColumnLabel = 'ID рулона';
             let displayId = item.shelf || '—';
             
-            // ЛОГИКА ТИПА: Приоритет отдаем реальным данным.
-            // Если в поле shelf лежит 1 буква (A, B, C...) И заказ проходил смолу (resin: true) -> это стеллаж Р2
             const isSingleLetterShelf = /^[A-H]$/.test(displayId);
             
             if (r1) {
@@ -288,7 +286,6 @@
                 routeType = 'Р2';
             } 
             
-            // ПЕРЕОПРЕДЕЛЕНИЕ: Если заказ пришел как стеллаж, но в базе r1=true или r2=false, мы все равно показываем его как стеллаж
             if (resin && isSingleLetterShelf) {
                 routeType = 'Р2';
                 idColumnLabel = 'Стеллаж';
@@ -371,63 +368,38 @@
                 return;
             }
 
-            if (count === 0) {
-                const { data: orderData, error: orderError } = await supabaseClient
-                    .from('orders')
-                    .select('r1, r2, resin')
-                    .eq('order_number', stageData.order_number)
-                    .single();
+            // ВАЖНО: ДОБАВЛЯЕМ БЛОКИ В otk_orders И ПЕРЕВОДИМ ЗАКАЗ НА ОТК
+            const { data: existingOtk } = await supabaseClient
+                .from('otk_orders')
+                .select('id, total_blocks')
+                .eq('order_number', stageData.order_number)
+                .in('status', ['Ожидание', 'В работе']);
 
-                if (orderError || !orderData) {
-                    showMessage('Ошибка получения данных заказа', 'err');
-                    return;
-                }
-
-                let nextStage = 'ОТК';
-                let nextStageName = 'ОТК';
-
-                if (orderData.r1 === true) {
-                    nextStage = 'Смола';
-                    nextStageName = 'Смола';
-                } else if (orderData.r2 === true) {
-                    nextStage = 'Сушка';
-                    nextStageName = 'Сушка';
-                }
-
+            if (existingOtk && existingOtk.length > 0) {
+                const newTotal = (existingOtk[0].total_blocks || 0) + stageData.blocks;
                 await supabaseClient
-                    .from('orders')
-                    .update({ stage: nextStage })
-                    .eq('order_number', stageData.order_number);
-
-                const { data: completedItems } = await supabaseClient
-                    .from('stages')
-                    .select('shelf, blocks')
-                    .eq('order_number', stageData.order_number)
-                    .eq('stage', 'Раскрой')
-                    .eq('status', 'Выполнено');
-
-                if (completedItems && completedItems.length > 0) {
-                    const insertPromises = completedItems.map(item => {
-                        return supabaseClient
-                            .from('stages')
-                            .insert([
-                                { 
-                                    order_number: stageData.order_number, 
-                                    stage: nextStage, 
-                                    status: 'Ожидание',
-                                    shelf: item.shelf,
-                                    blocks: item.blocks
-                                }
-                            ]);
-                    });
-
-                    await Promise.all(insertPromises);
-                }
-
-                showMessage(`Все завершены! Заказ переведён на ${nextStageName}`, 'ok');
+                    .from('otk_orders')
+                    .update({ total_blocks: newTotal })
+                    .eq('id', existingOtk[0].id);
             } else {
-                showMessage(`Элемент ${stageData.shelf} завершён. Осталось ещё ${count}`, 'ok');
+                await supabaseClient
+                    .from('otk_orders')
+                    .insert([
+                        { 
+                            order_number: stageData.order_number,
+                            total_blocks: stageData.blocks,
+                            status: 'Ожидание'
+                        }
+                    ]);
             }
+
+            // Меняем этап заказа на ОТК (только если он еще не ОТК)
+            await supabaseClient
+                .from('orders')
+                .update({ stage: 'ОТК' })
+                .eq('order_number', stageData.order_number);
+
+            showMessage(`Стеллаж ${stageData.shelf} завершён. Заказ переведён на ОТК. Осталось ещё ${count} стеллажей.`, 'ok');
         } else {
             showMessage('Статус обновлён', 'ok');
         }
