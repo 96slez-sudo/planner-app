@@ -345,16 +345,13 @@
     }
 
     function selectZone(stageId, zoneNumber) {
-        // 1. Снимаем выделение со всех кнопок зон у этого стеллажа
         const container = document.getElementById(`zone-selector-${stageId}`);
         const buttons = container.querySelectorAll('.zone-btn');
         buttons.forEach(btn => btn.classList.remove('selected'));
         
-        // 2. Подсвечиваем выбранную
         const clickedBtn = container.querySelector(`.zone-btn:nth-child(${zoneNumber})`);
         if(clickedBtn) clickedBtn.classList.add('selected');
 
-        // 3. Активируем кнопку "Начать сушку" и сохраняем зону
         const startBtn = document.getElementById(`start-btn-${stageId}`);
         startBtn.disabled = false;
         startBtn.textContent = 'Начать сушку';
@@ -370,16 +367,20 @@
             return;
         }
 
-        const { error } = await supabaseClient
-            .from('stages')
-            .update({ status: 'В работе', zone: selectedZone })
-            .eq('id', stageId);
+        try {
+            const { error } = await supabaseClient
+                .from('stages')
+                .update({ status: 'В работе', zone: selectedZone })
+                .eq('id', stageId);
 
-        if (error) {
-            showMessage('Ошибка запуска сушки: ' + error.message, 'err');
-        } else {
-            showMessage(`Сушка запущена в зоне ${selectedZone}!`, 'ok');
-            loadDryingShelves();
+            if (error) {
+                showMessage('Ошибка БД: ' + error.message, 'err');
+            } else {
+                showMessage(`Сушка запущена в зоне ${selectedZone}!`, 'ok');
+                loadDryingShelves();
+            }
+        } catch (err) {
+            showMessage('Критическая ошибка: ' + err.message, 'err');
         }
     }
 
@@ -430,27 +431,53 @@
                 return;
             }
 
+            // ============================================================
+            // ЕСЛИ Р2 (после смолы) - ИДЕМ НА РАСКРОЙ
+            // ============================================================
             if (orderData.r2 === true) {
-                await supabaseClient
+                // 1. Получаем список ВСЕХ завершенных стеллажей этого заказа
+                const { data: completedShelves, error: fetchError } = await supabaseClient
                     .from('stages')
-                    .insert([
-                        { 
-                            order_number: orderNumber, 
-                            stage: 'Раскрой', 
-                            status: 'Ожидание',
-                            shelf: shelfLetter,
-                            blocks: blocks
-                        }
-                    ]);
+                    .select('shelf, blocks')
+                    .eq('order_number', orderNumber)
+                    .eq('stage', 'Сушка')
+                    .eq('status', 'Выполнено');
+
+                if (fetchError || !completedShelves) {
+                    showMessage('Ошибка получения данных стеллажей', 'err');
+                    return;
+                }
+
+                // 2. Подготавливаем массив для вставки на Раскрой
+                // Важно: сохраняем shelf как БУКВУ (A, B, C...)
+                const insertPromises = completedShelves.map(item => {
+                    return supabaseClient
+                        .from('stages')
+                        .insert([
+                            { 
+                                order_number: orderNumber, 
+                                stage: 'Раскрой', 
+                                status: 'Ожидание',
+                                shelf: item.shelf, // Сохраняем букву стеллажа
+                                blocks: item.blocks
+                            }
+                        ]);
+                });
+
+                await Promise.all(insertPromises);
                 
+                // 3. Обновляем заказ в orders
                 await supabaseClient
                     .from('orders')
                     .update({ stage: 'Раскрой' })
                     .eq('order_number', orderNumber);
 
-                showMessage(`Сушка завершена! Заказ отправлен обратно на Раскрой (Р2)`, 'ok');
+                showMessage(`Сушка завершена! Все стеллажи отправлены обратно на Раскрой (Р2)`, 'ok');
 
             } else {
+                // ============================================================
+                // ЕСЛИ НЕТ Р2 - ИДЕМ НА ОТК
+                // ============================================================
                 await supabaseClient
                     .from('otk_queue')
                     .insert([
