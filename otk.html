@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Упаковка</title>
+    <title>ОТК</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Science+Gothic&display=swap" rel="stylesheet">
@@ -202,15 +202,15 @@
         <a href="/planner-app/cutting.html" class="stage-btn">Раскрой</a>
         <a href="/planner-app/resin.html" class="stage-btn">Смола</a>
         <a href="/planner-app/drying.html" class="stage-btn">Сушка</a>
-        <a href="/planner-app/otk.html" class="stage-btn">ОТК</a>
-        <a href="/planner-app/packing.html" class="stage-btn active">Упаковка</a>
+        <a href="/planner-app/otk.html" class="stage-btn active">ОТК</a>
+        <a href="/planner-app/packing.html" class="stage-btn">Упаковка</a>
     </div>
 
-    <div class="page-title">Очередь на упаковку</div>
+    <div class="page-title">Очередь на ОТК</div>
     <div class="grid" id="list">
         <div style="text-align: center; padding: 40px 0; color: #999;">Загрузка заказов...</div>
     </div>
-    <button class="btn-refresh" onclick="loadPackingOrders()">Обновить</button>
+    <button class="btn-refresh" onclick="loadOtkOrders()">Обновить</button>
 </div>
 
 <script>
@@ -226,12 +226,12 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
-    async function loadPackingOrders() {
+    async function loadOtkOrders() {
         const container = document.getElementById('list');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
         const { data, error } = await supabaseClient
-            .from('packing_orders')
+            .from('otk_orders')
             .select('*')
             .in('status', ['Ожидание', 'В работе']);
 
@@ -240,7 +240,7 @@
             return;
         }
         if (!data || data.length === 0) {
-            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Нет заказов на упаковке</div>';
+            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Нет заказов на ОТК</div>';
             return;
         }
 
@@ -276,8 +276,8 @@
                     <div class="col col-actions">
                         <div class="label">&nbsp;</div>
                         ${item.status === 'Ожидание' 
-                            ? `<button class="btn-green" onclick="startPacking('${item.id}', '${item.order_number}')">Взять в работу</button>` 
-                            : `<button class="btn-red" id="finish-btn-${item.id}" onclick="finishPacking('${item.id}', '${item.order_number}')">Завершить</button>`
+                            ? `<button class="btn-green" onclick="startOtk('${item.id}', '${item.order_number}')">Взять в работу</button>` 
+                            : `<button class="btn-red" id="finish-btn-${item.id}" onclick="finishOtk('${item.id}', '${item.order_number}')">Завершить</button>`
                         }
                     </div>
                 </div>
@@ -286,60 +286,94 @@
         container.innerHTML = html;
     }
 
-    async function startPacking(packingId, orderNumber) {
+    async function startOtk(otkId, orderNumber) {
         const { error } = await supabaseClient
-            .from('packing_orders')
+            .from('otk_orders')
             .update({ status: 'В работе' })
-            .eq('id', packingId);
+            .eq('id', otkId);
 
         if (error) {
             showMessage('Ошибка: ' + error.message, 'err');
         } else {
             showMessage(`Заказ ${orderNumber} взят в работу`, 'ok');
-            loadPackingOrders();
+            loadOtkOrders();
         }
     }
 
-    async function finishPacking(packingId, orderNumber) {
-        // 1. ПРОВЕРКА: Есть ли еще активные заказы на ОТК для этого номера?
-        const { count: otkCount, error: otkError } = await supabaseClient
-            .from('otk_orders')
+    async function finishOtk(otkId, orderNumber) {
+        // 1. ПРОВЕРКА: Есть ли стеллажи на Сушке или Раскрое Р2?
+        const { count: dryingCount, error: dryingError } = await supabaseClient
+            .from('stages')
             .select('*', { count: 'exact', head: true })
             .eq('order_number', orderNumber)
-            .in('status', ['Ожидание', 'В работе']);
+            .eq('stage', 'Сушка')
+            .neq('status', 'Выполнено');
 
-        if (otkError) {
-            showMessage('Ошибка проверки ОТК', 'err');
+        if (dryingError) {
+            showMessage('Ошибка проверки Сушки', 'err');
             return;
         }
 
-        if (otkCount > 0) {
-            showMessage(`Нельзя завершить! Заказ еще на ОТК (осталось ${otkCount} активных записей).`, 'err');
+        const { count: cuttingCount, error: cuttingError } = await supabaseClient
+            .from('stages')
+            .select('*', { count: 'exact', head: true })
+            .eq('order_number', orderNumber)
+            .eq('stage', 'Раскрой')
+            .neq('status', 'Выполнено');
+
+        if (cuttingError) {
+            showMessage('Ошибка проверки Раскроя', 'err');
             return;
         }
 
-        // 2. Завершаем Упаковку
+        if (dryingCount > 0 || cuttingCount > 0) {
+            let msg = 'Нельзя завершить! Заказ еще на этапах:';
+            if (dryingCount > 0) msg += ` Сушка (${dryingCount})`;
+            if (cuttingCount > 0) msg += ` Раскрой (${cuttingCount})`;
+            showMessage(msg, 'err');
+            return;
+        }
+
+        // 2. Завершаем ОТК
         const { error } = await supabaseClient
-            .from('packing_orders')
+            .from('otk_orders')
             .update({ status: 'Завершено' })
-            .eq('id', packingId);
+            .eq('id', otkId);
 
         if (error) {
-            showMessage('Ошибка завершения Упаковки', 'err');
+            showMessage('Ошибка завершения ОТК', 'err');
             return;
         }
 
-        // 3. Помечаем заказ как полностью завершенный
+        // 3. Получаем общее кол-во блоков перед отправкой на Упаковку
+        const { data: otkData } = await supabaseClient
+            .from('otk_orders')
+            .select('total_blocks')
+            .eq('id', otkId)
+            .single();
+
+        // 4. Отправляем на Упаковку
+        await supabaseClient
+            .from('packing_orders')
+            .insert([
+                {
+                    order_number: orderNumber,
+                    total_blocks: otkData?.total_blocks || 0,
+                    status: 'Ожидание'
+                }
+            ]);
+
+        // 5. Обновляем статус в orders
         await supabaseClient
             .from('orders')
-            .update({ status: 'Завершено', stage: 'Завершено' })
+            .update({ stage: 'Упаковка' })
             .eq('order_number', orderNumber);
 
-        showMessage(`Заказ ${orderNumber} полностью завершен!`, 'ok');
-        loadPackingOrders();
+        showMessage(`Заказ ${orderNumber} завершил ОТК и перешел на Упаковку!`, 'ok');
+        loadOtkOrders();
     }
 
-    document.addEventListener('DOMContentLoaded', loadPackingOrders);
+    document.addEventListener('DOMContentLoaded', loadOtkOrders);
 </script>
 </body>
 </html>
