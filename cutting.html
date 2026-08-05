@@ -66,18 +66,25 @@
             width: 100%;
         }
 
-        /* ОСНОВНОЕ ИЗМЕНЕНИЕ: flex-wrap: nowrap убран, ширина подстраивается */
+        /* ========================================================= */
+        /* ГЛАВНОЕ ИСПРАВЛЕНИЕ: ЗАПРЕЩАЕМ ПЕРЕНОС НА ШИРОКИХ ЭКРАНАХ */
+        /* ========================================================= */
         .row {
             display: flex;
-            flex-wrap: wrap; /* Разрешаем перенос, но только если совсем нет места */
+            flex-wrap: nowrap; /* Строго в одну линию */
             align-items: center; 
             gap: 16px 24px;
+            width: 100%;
+            /* Если экран узкий, появится горизонтальный скролл у всей строки */
+            overflow-x: auto; 
+            padding-bottom: 8px; /* Отступ для скролла */
         }
 
         .col {
             display: flex;
             flex-direction: column;
             gap: 4px;
+            flex-shrink: 0; /* Запрет сжиматься */
         }
         .col .label { 
             font-size: 18px; 
@@ -96,13 +103,13 @@
             width: 100%;
         }
 
-        /* Ширины колонок (гибкие) */
-        .col-order { flex: 0 0 160px; }
-        .col-type { flex: 0 0 100px; }
-        .col-id { flex: 0 0 180px; }
-        .col-blocks { flex: 0 0 140px; }
-        .col-status { flex: 0 0 200px; }
-        .col-actions { flex: 0 0 160px; }
+        /* Жесткие ширины колонок (фиксируем, чтобы ровно стояли) */
+        .col-order { width: 140px; }
+        .col-type { width: 100px; }
+        .col-id { width: 180px; }
+        .col-blocks { width: 140px; }
+        .col-status { width: 200px; }
+        .col-actions { width: 160px; }
 
         .status-wait { background: #e0e0e0 !important; border-color: #b0b0b0 !important; color: #555 !important; }
         .status-work { background: #ffe066 !important; border-color: #d4b300 !important; color: #1a1a1a !important; }
@@ -122,6 +129,7 @@
             cursor: pointer;
             transition: 0.2s;
             box-sizing: border-box;
+            flex-shrink: 0;
         }
         .btn-green:hover { opacity: 0.8; }
         .btn-red {
@@ -139,6 +147,7 @@
             cursor: pointer;
             transition: 0.2s;
             box-sizing: border-box;
+            flex-shrink: 0;
         }
         .btn-red:hover { opacity: 0.8; }
 
@@ -160,20 +169,17 @@
         .msg.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .msg.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
-        /* Адаптивность */
-        @media (max-width: 1200px) {
-            .col-order { flex: 0 0 140px; }
-            .col-id { flex: 0 0 160px; }
-            .col-blocks { flex: 0 0 120px; }
-            .col-status { flex: 0 0 160px; }
-            .col-actions { flex: 0 0 150px; }
-            .btn-green, .btn-red { width: 150px; }
-        }
+        /* ========================================================= */
+        /* АДАПТИВ: ОТКЛЮЧАЕМ ФИКСИРОВАННЫЕ ШИРИНЫ НА МОБИЛЬНЫХ */
+        /* ========================================================= */
         @media (max-width: 992px) {
-            .row { gap: 12px; }
-            .col-order, .col-type, .col-id, .col-blocks, .col-status, .col-actions { 
-                flex: 1 1 100%; max-width: 100%; 
+            .row { 
+                flex-wrap: wrap; /* Разрешаем перенос на планшетах */
+                overflow-x: visible;
+                gap: 12px; 
             }
+            .col { flex-shrink: 1; flex: 1 1 100%; max-width: 100%; }
+            .col-order, .col-type, .col-id, .col-blocks, .col-status, .col-actions { width: 100%; }
             .btn-green, .btn-red { width: 100%; height: 36px; }
         }
         @media (max-width: 600px) {
