@@ -60,7 +60,7 @@
         
         .order-card {
             display: flex;
-            flex-wrap: wrap; /* Разрешаем перенос на мобильных */
+            flex-wrap: wrap; 
             align-items: center;
             gap: 16px 24px;
             padding: 8px 0;
@@ -114,14 +114,109 @@
         }
         .btn-green:hover { opacity: 0.8; }
 
-        .btn-red {
+        /* ===== ПАНЕЛЬ ВЫБОРА СТЕЛЛАЖЕЙ ===== */
+        .shelf-panel {
+            width: 100%;
+            padding-top: 12px;
+            margin-top: 4px;
+            border-top: 1px solid #eeeeee;
+        }
+        .shelf-title-row { margin-bottom: 12px; }
+        .shelf-title-row h4 { font-size: 20px; font-weight: 400; color: #161616; }
+
+        .shelf-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .shelf-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 8px;
+            border: 1px solid #6c6c6c;
+            border-radius: 6px;
+            background: #ffffff;
+            min-height: 48px;
+            transition: border-color 0.2s;
+        }
+        /* Когда стеллаж выбран (клик по букве) */
+        .shelf-item.selected-shelf {
+            border-color: #0f8653;
+            border-width: 2px;
+            box-shadow: 0 0 0 1px #0f8653;
+        }
+
+        /* Цвета стеллажей (ПО ВАШЕЙ ЛОГИКЕ) */
+        .shelf-item.state-green { background-color: #1e8449; border-color: #1e8449; }
+        .shelf-item.state-green .letter { background: #146b3b; color: #fff; }
+        .shelf-item.state-green .state-text { color: #fff; }
+        .shelf-item.state-green .input-blocks { background: #fff; }
+
+        .shelf-item.state-yellow { background-color: #ffe066; border-color: #d4b300; }
+        .shelf-item.state-yellow .letter { background: #d4b300; color: #161616; }
+        .shelf-item.state-yellow .state-text { color: #7d6608; }
+        .shelf-item.state-yellow .input-blocks { background: #fff; }
+
+        .shelf-item.state-grey { background-color: #a0a0a0; border-color: #888; }
+        .shelf-item.state-grey .letter { background: #777; color: #fff; }
+        .shelf-item.state-grey .state-text { color: #444; }
+        .shelf-item.state-grey .input-blocks { background: #e0e0e0; border-color: #aaa; color: #666; }
+
+        .letter {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: 0.2s;
+            flex-shrink: 0;
+        }
+        .letter:hover:not(.state-grey .letter) { background: #b0b0b0; }
+        .letter.selected {
+            background: #0f8653 !important;
+            color: #ffffff !important;
+        }
+
+        .state-text {
+            flex: 1;
+            font-size: 14px;
+        }
+        /* У серого стеллажа текст неактивный */
+        .state-grey .state-text { opacity: 0.7; }
+
+        .input-blocks {
+            width: 44px;
+            height: 28px;
+            padding: 2px;
+            border: 1px solid #6c6c6c;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 14px;
+            font-family: 'Science Gothic', sans-serif;
+            background: #fff;
+            flex-shrink: 0;
+        }
+
+        .bottom-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 4px;
+        }
+        .btn-auto {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            padding: 0;
+            padding: 0 20px;
             height: 40px;
-            width: 160px;
-            background-color: #e74c3c;
+            background-color: #0f8653;
             border-radius: 8px;
             color: #ffffff;
             font-size: 15px;
@@ -129,90 +224,7 @@
             cursor: pointer;
             transition: 0.2s;
         }
-        .btn-red:hover { opacity: 0.8; }
-
-        /* ===== ПАНЕЛЬ ВЫБОРА СТЕЛЛАЖЕЙ (ПОКАЗЫВАЕМ ТОЛЬКО ДЛЯ ВЗЯТОГО В РАБОТУ РУЛОНА) ===== */
-        .shelf-panel {
-            width: 100%;
-            padding: 16px;
-            margin-top: 8px;
-            margin-bottom: 16px;
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-        }
-        .shelf-title-row h4 { font-size: 20px; font-weight: 400; color: #161616; margin-bottom: 12px; }
-
-        .shelf-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-            max-width: 800px;
-        }
-        .shelf-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 8px;
-            border: 1px solid #6c6c6c;
-            border-radius: 6px;
-            background: #ffffff;
-            min-height: 48px;
-        }
-
-        .shelf-item.occupied {
-            background-color: #a0a0a0;
-            border-color: #888;
-            opacity: 0.6;
-        }
-        .shelf-item.occupied .letter { background: #777; color: #fff; }
-        .shelf-item.occupied .state-text { color: #444; }
-
-        .shelf-item.partial {
-            background-color: #ffe066;
-            border-color: #d4b300;
-        }
-        .shelf-item.partial .state-text { color: #7d6608; }
-
-        .letter {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 32px;
-            height: 32px;
-            border-radius: 6px;
-            background: #cdcdcd;
-            color: #161616;
-            font-weight: 600;
-            font-size: 16px;
-            cursor: pointer;
-            transition: 0.2s;
-            flex-shrink: 0;
-        }
-        .letter:hover { background: #b0b0b0; }
-        .letter.selected {
-            background: #0f8653;
-            color: #ffffff;
-        }
-
-        .state-text {
-            flex: 1;
-            font-size: 15px;
-            color: #161616;
-        }
-
-        .shelf-item .input-blocks {
-            width: 50px;
-            padding: 4px;
-            border: 1px solid #6c6c6c;
-            border-radius: 4px;
-            text-align: center;
-            font-size: 15px;
-            font-family: 'Science Gothic', sans-serif;
-            background: #fff;
-        }
-
-        .assign-btn-wrap { margin-top: 12px; }
+        .btn-auto:hover { opacity: 0.8; }
         .btn-assign {
             display: inline-flex;
             align-items: center;
@@ -249,7 +261,7 @@
 
         @media (max-width: 992px) {
             .col-order, .col-roll, .col-blocks, .col-status, .col-actions { width: 100%; max-width: 100%; }
-            .btn-green, .btn-red, .btn-assign { width: 100%; }
+            .btn-green, .btn-auto, .btn-assign { width: 100%; }
             .shelf-grid { grid-template-columns: repeat(2, 1fr); }
         }
         @media (max-width: 600px) {
@@ -264,7 +276,7 @@
             .header { flex-direction: column; align-items: flex-start; gap: 4px; }
             .col .label { font-size: 16px; }
             .col .value { font-size: 13px; height: 32px; }
-            .btn-green, .btn-red, .btn-assign { height: 32px; }
+            .btn-auto, .btn-assign { height: 32px; }
         }
     </style>
 </head>
@@ -312,47 +324,71 @@
        ФУНКЦИЯ ОТРИСОВКИ ПАНЕЛИ СТЕЛЛАЖЕЙ ДЛЯ КОНКРЕТНОГО РУЛОНА
        ============================================================ */
     async function renderShelfPanel(stageId, orderNumber, totalBlocks) {
-        const { data: drying } = await supabaseClient
+        // 1. Получаем ВСЕ активные сушки, чтобы посчитать занятые блоки в каждом стеллаже
+        const { data: drying, error } = await supabaseClient
             .from('stages')
-            .select('*')
+            .select('shelf, blocks')
             .eq('stage', 'Сушка')
             .in('status', ['Ожидание', 'В работе']);
+
+        // 2. Формируем карту занятых блоков (суммируем, если вдруг несколько заказов на одном стеллаже)
+        const shelfUsage = {
+            'A': 0, 'B': 0, 'C': 0, 'D': 0,
+            'E': 0, 'F': 0, 'G': 0, 'H': 0
+        };
+        
+        if (drying && !error) {
+            drying.forEach(item => {
+                const s = item.shelf;
+                if (shelfUsage[s] !== undefined) {
+                    shelfUsage[s] += (item.blocks || 0);
+                }
+            });
+        }
 
         const letters = ['A','B','C','D','E','F','G','H'];
         let html = `
             <div class="shelf-panel" id="panel-${stageId}">
                 <div class="shelf-title-row">
-                    <h4>Заказ ${orderNumber} (${totalBlocks} блоков). Выберите стеллаж:</h4>
+                    <h4>Назначьте стеллаж</h4>
                 </div>
-                <div class="shelf-grid">
+                <div class="shelf-grid" id="grid-${stageId}">
         `;
 
         for (let l of letters) {
-            const occupied = drying?.find(d => d.shelf === l);
-            let stateText = 'Свободен';
-            let mainClass = '';
-            let taken = false;
+            const currentBlocks = shelfUsage[l] || 0;
+            const freeBlocks = 46 - currentBlocks;
+            
+            let stateClass = 'state-green';
+            let stateText = `Свободен (${freeBlocks})`;
+            let inputDisabled = false;
+            let letterClickable = true;
 
-            if (occupied) {
+            if (currentBlocks === 46) {
+                stateClass = 'state-grey';
                 stateText = 'Занят';
-                mainClass = 'occupied';
-                taken = true;
+                inputDisabled = true;
+                letterClickable = false;
+            } else if (currentBlocks > 0 && currentBlocks < 46) {
+                stateClass = 'state-yellow';
+                stateText = `Свободен (${freeBlocks})`;
             }
 
             html += `
-                <div class="shelf-item ${mainClass}" id="shelf-${stageId}-${l}">
-                    <div class="letter" id="letter-${stageId}-${l}" data-stage="${stageId}" data-shelf="${l}" data-taken="${taken}" onclick="${taken ? '' : `selectShelf('${stageId}', '${l}')`}" style="${taken ? 'cursor:not-allowed;' : ''}">
+                <div class="shelf-item ${stateClass}" id="shelf-${stageId}-${l}">
+                    <div class="letter" id="letter-${stageId}-${l}" data-stage="${stageId}" data-shelf="${l}" onclick="${letterClickable ? `selectShelf('${stageId}', '${l}')` : ''}" style="${!letterClickable ? 'cursor:not-allowed;' : ''}">
                         ${l}
                     </div>
                     <span class="state-text">${stateText}</span>
-                    <input type="number" class="input-blocks" id="input-${stageId}-${l}" min="1" max="46" placeholder="0" ${taken ? 'disabled' : ''} />
+                    <input type="number" class="input-blocks" id="input-${stageId}-${l}" min="1" max="${freeBlocks}" placeholder="0" value="" ${inputDisabled ? 'disabled' : ''} />
                 </div>
             `;
         }
 
         html += `
                 </div>
-                <div class="assign-btn-wrap">
+                <div class="bottom-actions">
+                    <button class="btn-auto" onclick="autoAssign('${stageId}', ${totalBlocks})">Распределить автоматически</button>
                     <button class="btn-assign" onclick="manualAssignAndFinish('${stageId}')">Назначить и завершить</button>
                 </div>
             </div>
@@ -365,6 +401,57 @@
         const letter = panel.querySelector(`#letter-${stageId}-${shelf}`);
         if (!letter) return;
         letter.classList.toggle('selected');
+        
+        // Подсвечиваем рамку всего стеллажа
+        const shelfItem = letter.closest('.shelf-item');
+        if(shelfItem) shelfItem.classList.toggle('selected-shelf');
+    }
+
+    async function autoAssign(stageId, totalBlocks) {
+        const panel = document.getElementById(`panel-${stageId}`);
+        const letters = panel.querySelectorAll('.letter');
+        
+        // Сбрасываем текущий выбор
+        letters.forEach(el => el.classList.remove('selected'));
+        panel.querySelectorAll('.shelf-item').forEach(el => el.classList.remove('selected-shelf'));
+        panel.querySelectorAll('.input-blocks').forEach(inp => inp.value = '');
+
+        let remaining = totalBlocks;
+        let assignedCount = 0;
+
+        for (let el of letters) {
+            if (remaining <= 0) break;
+            
+            // Получаем родительский блок стеллажа
+            const shelfItem = el.closest('.shelf-item');
+            if (!shelfItem) continue;
+            
+            // Если стеллаж серый (занят) - пропускаем
+            if (shelfItem.classList.contains('state-grey')) continue;
+
+            // Получаем максимально возможное значение из input
+            const input = shelfItem.querySelector('.input-blocks');
+            if (!input || input.disabled) continue;
+            
+            const maxBlocks = parseInt(input.max) || 0;
+            if (maxBlocks === 0) continue;
+
+            const take = Math.min(remaining, maxBlocks);
+            if (take > 0) {
+                el.classList.add('selected');
+                shelfItem.classList.add('selected-shelf');
+                input.value = take;
+                remaining -= take;
+                assignedCount++;
+            }
+        }
+
+        if (remaining > 0) {
+            showMessage(`Не хватает свободных мест на стеллажах! Не хватает ${remaining} блоков.`, 'err');
+            return;
+        }
+
+        showMessage(`Стеллажи распределены автоматически (${assignedCount} стеллажей).`, 'ok');
     }
 
     async function manualAssignAndFinish(stageId) {
@@ -375,20 +462,20 @@
         let totalAssigned = 0;
         for (let el of letters) {
             const shelf = el.dataset.shelf;
-            const input = panel.querySelector(`#input-${stageId}-${shelf}`);
+            const shelfItem = el.closest('.shelf-item');
+            const input = shelfItem.querySelector('.input-blocks');
             const blocks = parseInt(input?.value) || 0;
-            if (blocks > 0 && blocks <= 46) {
+            if (blocks > 0) {
                 assignments.push({ shelf, blocks });
                 totalAssigned += blocks;
             }
         }
 
         if (assignments.length === 0) {
-            showMessage('Выберите хотя бы один стеллаж', 'err');
+            showMessage('Выберите хотя бы один стеллаж (нажмите на букву) и укажите кол-во блоков.', 'err');
             return;
         }
 
-        // Получаем номер заказа, чтобы обновить его позже
         const { data: stageData, error: getError } = await supabaseClient
             .from('stages')
             .select('order_number, blocks')
@@ -463,7 +550,6 @@
         const container = document.getElementById('resinList');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
-        // Вытаскиваем ВСЕ рулоны со статусами Ожидание и В работе
         const { data: stages, error: stageError } = await supabaseClient
             .from('stages')
             .select('*')
@@ -479,7 +565,6 @@
             return;
         }
 
-        // Сортируем: сначала Ожидание
         const sorted = [...stages].sort((a, b) => {
             if (a.status === 'Ожидание' && b.status !== 'Ожидание') return -1;
             if (a.status !== 'Ожидание' && b.status === 'Ожидание') return 1;
@@ -522,13 +607,13 @@
                         <div class="label">&nbsp;</div>
                         ${status === 'Ожидание' || status === 'Ожидает'
                             ? `<button class="btn-green" onclick="startResin('${item.id}')">Взять в работу</button>`
-                            : `<button class="btn-red" onclick="manualAssignAndFinish('${item.id}')">Назначить и завершить</button>`
+                            : ``
                         }
                     </div>
                 </div>
             `;
 
-            // Если статус "В работе", разворачиваем выбор стеллажа ПРЯМО ПОД ЭТИМ РУЛОНОМ
+            // Если статус "В работе", разворачиваем выбор стеллажа
             if (status === 'В работе') {
                 html += await renderShelfPanel(item.id, orderNumber, blocks);
             }
