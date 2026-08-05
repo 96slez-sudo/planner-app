@@ -164,9 +164,6 @@
             background: #fff;
         }
 
-        /* ======================== */
-        /* ЦВЕТА ТОЛЬКО ДЛЯ СТАТУСА */
-        /* ======================== */
         .status-wait { background: #e0e0e0 !important; border-color: #b0b0b0 !important; color: #555 !important; }
         .status-work { background: #ffe066 !important; border-color: #d4b300 !important; color: #1a1a1a !important; }
 
@@ -284,6 +281,8 @@
         var r1 = document.getElementById('r1').checked;
         var resin = document.getElementById('resin').checked;
         var r2 = document.getElementById('r2').checked;
+        
+        // Формируем путь для отображения
         var path = '';
         if (r1 && resin && r2) path = 'Р1+Смола+Р2';
         else if (r1 && resin) path = 'Р1+Смола';
@@ -294,6 +293,12 @@
         else if (r2) path = 'Р2';
         else path = '';
 
+        // Определяем тип маршрута для логики
+        // Если выбран только Р2 -> тип "Р2"
+        // Если выбран Р1 с смолой или без -> тип "Р1"
+        // Если выбран Р1+Смола+Р2 -> тип "Р1+Смола+Р2"
+        let routeType = path;
+
         const { data, error } = await supabaseClient
             .from('orders')
             .insert([
@@ -302,8 +307,11 @@
                     creation_date: creationDate, 
                     plan_date: planDate, 
                     priority: priority,
-                    r1: r1, resin: resin, r2: r2,
+                    r1: r1, 
+                    resin: resin, 
+                    r2: r2,
                     path: path,
+                    route_type: routeType, // Добавляем поле для типа маршрута
                     status: 'Ожидает', 
                     stage: 'Подготовка'
                 }
@@ -329,7 +337,7 @@
         if (error) {
             showMessage('Ошибка: ' + error.message, 'err');
         } else {
-            showMessage('Заказ ' + orderNumber + ' создан', 'ok');
+            showMessage('Заказ ' + orderNumber + ' создан (тип: ' + path + ')', 'ok');
             document.getElementById('orderNumber').value = '';
             document.getElementById('creationDate').value = '';
             document.getElementById('planDate').value = '';
@@ -374,6 +382,10 @@
                     <div class="col">
                         <div class="label">№ заказа</div>
                         <div class="value">${item.order_number}</div>
+                    </div>
+                    <div class="col">
+                        <div class="label">Тип</div>
+                        <div class="value" style="font-size: 13px;">${item.route_type || item.path || '—'}</div>
                     </div>
                     <div class="col">
                         <div class="label">Этап</div>
