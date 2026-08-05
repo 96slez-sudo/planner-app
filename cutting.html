@@ -356,67 +356,70 @@
         }
 
         if (newStatus === 'Выполнено') {
-            // СЧИТАЕМ, СКОЛЬКО ЕЩЕ В РАБОТЕ НА РАСКРОЕ
             const { count, error: countError } = await supabaseClient
                 .from('stages')
                 .select('*', { count: 'exact', head: true })
                 .eq('order_number', stageData.order_number)
                 .eq('stage', 'Раскрой')
-                .eq('status', 'В работе');
+                .neq('status', 'Выполнено');
 
             if (countError) {
                 showMessage('Ошибка подсчёта оставшихся', 'err');
                 return;
             }
 
-            // ВСЕГДА ОТПРАВЛЯЕМ РУЛОН НА СЛЕДУЮЩИЙ ЭТАП
-            const { data: orderData, error: orderError } = await supabaseClient
-                .from('orders')
-                .select('r1, r2, resin')
-                .eq('order_number', stageData.order_number)
-                .single();
-
-            if (orderError || !orderData) {
-                showMessage('Ошибка получения данных заказа', 'err');
-                return;
-            }
-
-            let nextStage = 'ОТК';
-            let nextStageName = 'ОТК';
-
-            // Р1 + Смола -> идем на Смолу
-            if (orderData.r1 === true && orderData.resin === true) {
-                nextStage = 'Смола';
-                nextStageName = 'Смола';
-            } 
-            // В остальных случаях (просто Р1, или Р2 после смолы) -> идем на ОТК
-            else {
-                nextStage = 'ОТК';
-                nextStageName = 'ОТК';
-            }
-
-            // 1. Сразу кидаем рулон (или стеллаж) на следующий этап
-            await supabaseClient
-                .from('stages')
-                .insert([
-                    { 
-                        order_number: stageData.order_number, 
-                        stage: nextStage, 
-                        status: 'Ожидание',
-                        shelf: stageData.shelf,
-                        blocks: stageData.blocks
-                    }
-                ]);
-
-            // 2. Обновляем заказ в orders (ТОЛЬКО ЕСЛИ ЭТО БЫЛ ПОСЛЕДНИЙ)
             if (count === 0) {
-                await supabaseClient
+                const { data: orderData, error: orderError } = await supabaseClient
                     .from('orders')
-                    .update({ stage: nextStage })
-                    .eq('order_number', stageData.order_number);
+                    .select('r1, r2, resin')
+                    .eq('order_number', stageData.order_number)
+                    .single();
+
+                if (orderError || !orderData) {
+                    showMessage('Ошибка получения данных заказа', 'err');
+                    return;
+                }
+
+                // ============================================================
+                // ФИНАЛЬНАЯ И ПРАВИЛЬНАЯ ЛОГИКА МАРШРУТА
+                // ============================================================
                 
-                if (nextStage === 'ОТК') {
-                    // Если это ОТК (целый заказ), нужно еще создать запись в otk_orders
+                // 1. Если есть r1 И есть resin -> Идем на Смолу
+                if (orderData.r1 === true && orderData.resin === true) {
+                    const { data: completedItems } = await supabaseClient
+                        .from('stages')
+                        .select('shelf, blocks')
+                        .eq('order_number', stageData.order_number)
+                        .eq('stage', 'Раскрой')
+                        .eq('status', 'Выполнено');
+
+                    if (completedItems && completedItems.length > 0) {
+                        const insertPromises = completedItems.map(item => {
+                            return supabaseClient
+                                .from('stages')
+                                .insert([
+                                    { 
+                                        order_number: stageData.order_number, 
+                                        stage: 'Смола', 
+                                        status: 'Ожидание',
+                                        shelf: item.shelf,
+                                        blocks: item.blocks
+                                    }
+                                ]);
+                        });
+                        await Promise.all(insertPromises);
+                    }
+
+                    await supabaseClient
+                        .from('orders')
+                        .update({ stage: 'Смола' })
+                        .eq('order_number', stageData.order_number);
+
+                    showMessage(`Все завершены! Заказ переведён на Смолу`, 'ok');
+
+                // 2. Во всех остальных случаях -> Идем на ОТК
+                // (сюда попадает и просто Р1 без смолы, и Р2 после смолы)
+                } else {
                     const { data: totals } = await supabaseClient
                         .from('stages')
                         .select('blocks')
@@ -438,11 +441,17 @@
                                 status: 'Ожидание'
                             }
                         ]);
+
+                    await supabaseClient
+                        .from('orders')
+                        .update({ stage: 'ОТК' })
+                        .eq('order_number', stageData.order_number);
+
+                    showMessage(`Все завершены! Заказ переведён на ОТК (суммарно ${totalBlocks} блоков)`, 'ok');
                 }
 
-                showMessage(`Все завершены! Заказ переведён на ${nextStageName}`, 'ok');
             } else {
-                showMessage(`Элемент ${stageData.shelf} завершён и ожидает на ${nextStageName}. Осталось ещё ${count} в работе.`, 'ok');
+                showMessage(`Элемент ${stageData.shelf} завершён. Осталось ещё ${count}`, 'ok');
             }
         } else {
             showMessage('Статус обновлён', 'ok');
