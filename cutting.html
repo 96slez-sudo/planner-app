@@ -70,7 +70,7 @@
             display: flex;
             flex-wrap: wrap; 
             align-items: center; 
-            gap: 16px 24px;
+            gap: 20px 28px; /* УВЕЛИЧИЛИ ОТСТУПЫ МЕЖДУ ЭЛЕМЕНТАМИ */
             width: 100%;
         }
 
@@ -99,10 +99,11 @@
             white-space: nowrap;
         }
 
-        .col-order { width: 120px; }
-        .col-type { width: 80px; }
-        .col-shelf { width: 120px; }
-        .col-blocks { width: 120px; }
+        /* ШИРИНЫ КОЛОНОК (РАСШИРИЛИ, ЧТОБЫ НЕ СЛИПАЛОСЬ) */
+        .col-shelf { width: 140px; }
+        .col-order { width: 140px; }
+        .col-type { width: 100px; }
+        .col-blocks { width: 160px; } /* БЫЛО 120, СТАЛО 160 */
         .col-status { width: 200px; }
         .col-actions { width: 160px; }
 
@@ -167,7 +168,7 @@
         @media (max-width: 992px) {
             .row { gap: 12px; }
             .col { flex: 1 1 100%; max-width: 100%; }
-            .col-order, .col-type, .col-shelf, .col-blocks, .col-status, .col-actions { width: 100%; }
+            .col-shelf, .col-order, .col-type, .col-blocks, .col-status, .col-actions { width: 100%; }
             .btn-green, .btn-red { width: 100%; height: 36px; }
         }
         @media (max-width: 600px) {
@@ -244,13 +245,12 @@
             return;
         }
 
-        // НОВАЯ СОРТИРОВКА: Сначала по стеллажу (по алфавиту), затем по номеру заказа
+        // СОРТИРОВКА: Сначала по стеллажу, затем по номеру заказа
         const sorted = [...data].sort((a, b) => {
             const shelfA = a.shelf || '';
             const shelfB = b.shelf || '';
             if (shelfA < shelfB) return -1;
             if (shelfA > shelfB) return 1;
-            // Если стеллажи одинаковые, сортируем по номеру заказа
             const orderA = a.order_number || '';
             const orderB = b.order_number || '';
             return orderA.localeCompare(orderB);
@@ -262,11 +262,9 @@
             const isSingleLetterShelf = /^[A-H]$/.test(displayId);
 
             let routeType = '—';
-            let idColumnLabel = 'ID рулона';
             
             if (isSingleLetterShelf) {
                 routeType = 'Р2';
-                idColumnLabel = 'Стеллаж';
             } else {
                 routeType = 'Р1';
             }
@@ -278,7 +276,6 @@
                 statusText = 'В работе';
             }
 
-            // Переставили колонки: Стеллаж теперь сразу после Типа
             html += `
                 <div class="row">
                     <div class="col col-shelf">
@@ -350,7 +347,6 @@
             }
 
             if (count === 0) {
-                // Проверяем, нужна ли смола для этого заказа (только для рулонов Р1)
                 const isShelf = /^[A-H]$/.test(stageData.shelf);
                 let needsResin = false;
                 
@@ -399,14 +395,13 @@
                     showMessage(`Все завершены! Заказ переведён на Смолу`, 'ok');
 
                 } else {
-                    // ИДЕМ НА ОТК. СОЗДАЕМ ЗАПИСЬ В otk_orders
+                    // Идем на ОТК
                     const { data: orderData } = await supabaseClient
                         .from('orders')
                         .select('blocks')
                         .eq('order_number', stageData.order_number)
                         .single();
                     
-                    // Создаем запись в ОТК (если ее еще нет)
                     const { data: existingOtk } = await supabaseClient
                         .from('otk_orders')
                         .select('id')
