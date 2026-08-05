@@ -392,48 +392,14 @@
                     showMessage(`Все завершены! Заказ переведён на Смолу`, 'ok');
 
                 } else {
-                    // Идем на ОТК (целым заказом, берем общее кол-во блоков из orders)
-                    const { data: orderData } = await supabaseClient
-                        .from('orders')
-                        .select('blocks')
-                        .eq('order_number', stageData.order_number)
-                        .single();
-
-                    let totalBlocks = orderData?.blocks || 0;
-
-                    // ПРОВЕРКА: Есть ли уже запись этого заказа в otk_orders?
-                    const { data: existingOtk } = await supabaseClient
-                        .from('otk_orders')
-                        .select('id, status')
-                        .eq('order_number', stageData.order_number);
-
-                    if (existingOtk && existingOtk.length > 0) {
-                        // Если запись уже есть - мы ничего не делаем с блоками, 
-                        // просто убеждаемся, что статус правильный.
-                        if (existingOtk[0].status === 'Завершено') {
-                            // Если заказ уже завершен на ОТК, не трогаем его.
-                        } else {
-                            // Если запись есть, но она в процессе - просто оставляем как есть.
-                        }
-                    } else {
-                        // Если записи НЕТ, создаем новую запись с общим кол-вом блоков из orders
-                        await supabaseClient
-                            .from('otk_orders')
-                            .insert([
-                                { 
-                                    order_number: stageData.order_number,
-                                    total_blocks: totalBlocks,
-                                    status: 'Ожидание'
-                                }
-                            ]);
-                    }
-
+                    // Идем на ОТК. Просто обновляем stage в orders. 
+                    // otk_orders больше не используется для хранения заказов.
                     await supabaseClient
                         .from('orders')
                         .update({ stage: 'ОТК' })
                         .eq('order_number', stageData.order_number);
 
-                    showMessage(`Все завершены! Заказ переведён на ОТК (всего ${totalBlocks} блоков)`, 'ok');
+                    showMessage(`Все завершены! Заказ переведён на ОТК`, 'ok');
                 }
 
             } else {
