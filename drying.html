@@ -121,14 +121,19 @@
         .shelf-row.order-id {
             font-size: 13px;
             padding: 0 6px;
-            height: 30px;
+            height: auto;
+            min-height: 30px;
             background: #fff;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            padding-top: 4px;
+            padding-bottom: 4px;
+            gap: 4px;
         }
         .shelf-row.order-id .value { 
-            white-space: nowrap; 
-            overflow: hidden; 
-            text-overflow: ellipsis; 
-            max-width: 100px; 
+            white-space: normal; 
+            max-width: 100%; 
+            overflow: visible;
         }
 
         .zone-selector {
@@ -269,6 +274,7 @@
         const container = document.getElementById('shelfGrid');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
+        // Получаем ВСЕ активные записи на сушке
         const { data: dryingData, error: stageError } = await supabaseClient
             .from('stages')
             .select('*')
@@ -284,24 +290,48 @@
         let html = '';
 
         for (let l of letters) {
-            let shelfData = dryingData?.find(d => d.shelf === l);
-            let isOccupied = !!shelfData;
+            // Фильтруем ВСЕ записи для этого стеллажа
+            let shelvesOnLetter = dryingData?.filter(d => d.shelf === l) || [];
             
-            let freeBlocks = 46;
-            let blocks = 0;
-            let orderNumber = '';
+            let isOccupied = shelvesOnLetter.length > 0;
+            
+            let totalBlocks = 0;
+            let orderIds = [];
+            let isDrying = false; // Если хоть один в работе
+            let allIds = [];
+
+            if (isOccupied) {
+                shelvesOnLetter.forEach(item => {
+                    totalBlocks += (item.blocks || 0);
+                    allIds.push(item.id);
+                    if (item.status === 'В работе') {
+                        isDrying = true;
+                    }
+                    // Добавляем номер заказа в список (если его там еще нет)
+                    if (!orderIds.includes(item.order_number)) {
+                        orderIds.push(item.order_number);
+                    }
+                });
+            }
+
+            let freeBlocks = 46 - totalBlocks;
+            if (freeBlocks < 0) freeBlocks = 0; // Не может быть меньше 0
+            
             let stateClass = 'state-empty';
             let buttonHtml = `<button class="btn-drying btn-disabled" disabled>Начать сушку</button>`;
             let zoneHtml = `<div style="color:#9ca3af; text-align:center; font-size:13px; margin-top:4px;">—</div>`;
             
             if (isOccupied) {
-                blocks = shelfData.blocks || 0;
-                freeBlocks = 46 - blocks;
-                orderNumber = shelfData.order_number || '—';
-                
-                if (shelfData.status === 'В работе') {
+                if (isDrying) {
                     stateClass = 'state-drying';
-                    buttonHtml = `<button class="btn-drying btn-finish" onclick="finishDrying('${shelfData.id}', '${orderNumber}', ${blocks}, '${l}')">Завершить сушку</button>`;
+                    // Показываем кнопку завершить только если у этого стеллажа ВСЕ записи в работе? 
+                    // Или если хоть одна? По вашей логике - если взяли в работу, завершаем.
+                    // Для кнопки нам нужен ID конкретной записи. 
+                    // Если несколько записей - берем первую попавшуюся для завершения? 
+                    // Или завершаем все сразу?
+                    // Упростим: берем первую запись из списка для завершения сушки.
+                    const firstId = allIds[0];
+                    buttonHtml = `<button class="btn-drying btn-finish" onclick="finishDrying('${firstId}', '${orderIds.join(', ')}', ${totalBlocks}, '${l}')">Завершить сушку</button>`;
                     zoneHtml = `<div style="text-align:center; font-size:13px; margin-top:4px; color:#4a6fa5;">Зона выбрана</div>`;
                 } else {
                     if (freeBlocks === 0) {
@@ -310,21 +340,24 @@
                         stateClass = 'state-partial';
                     }
                     
+                    // Для кнопки "Начать" берем первую запись
+                    const firstId = allIds[0];
+                    
                     zoneHtml = `
-                        <div class="zone-selector" id="zone-selector-${shelfData.id}">
-                            <button class="zone-btn" onclick="selectZone('${shelfData.id}', '1')">1</button>
-                            <button class="zone-btn" onclick="selectZone('${shelfData.id}', '2')">2</button>
-                            <button class="zone-btn" onclick="selectZone('${shelfData.id}', '3')">3</button>
-                            <button class="zone-btn" onclick="selectZone('${shelfData.id}', '4')">4</button>
+                        <div class="zone-selector" id="zone-selector-${firstId}">
+                            <button class="zone-btn" onclick="selectZone('${firstId}', '1')">1</button>
+                            <button class="zone-btn" onclick="selectZone('${firstId}', '2')">2</button>
+                            <button class="zone-btn" onclick="selectZone('${firstId}', '3')">3</button>
+                            <button class="zone-btn" onclick="selectZone('${firstId}', '4')">4</button>
                         </div>
                     `;
                     
-                    buttonHtml = `<button class="btn-drying btn-start" id="start-btn-${shelfData.id}" onclick="startDrying('${shelfData.id}')" disabled>Выберите зону</button>`;
+                    buttonHtml = `<button class="btn-drying btn-start" id="start-btn-${firstId}" onclick="startDrying('${firstId}')" disabled>Выберите зону</button>`;
                 }
             }
 
-            let ordersText = isOccupied ? '1' : '0';
-            let orderIdText = isOccupied ? orderNumber : '—';
+            let ordersText = isOccupied ? orderIds.length : '0';
+            let orderIdText = isOccupied ? orderIds.join(', ') : '—';
             let freeText = isOccupied ? freeBlocks : '46';
 
             html += `
@@ -333,7 +366,7 @@
                     <div class="shelf-body">
                         <div class="shelf-row"><span class="label">Кол-во заказов</span><span class="value">${ordersText}</span></div>
                         <div class="shelf-row order-id"><span class="value">${orderIdText}</span></div>
-                        <div class="shelf-row"><span class="label">Кол-во блоков</span><span class="value">${blocks}</span></div>
+                        <div class="shelf-row"><span class="label">Кол-во блоков</span><span class="value">${totalBlocks}</span></div>
                         <div class="shelf-row"><span class="label">Свободно</span><span class="value">${freeText}</span></div>
                         ${zoneHtml}
                         ${buttonHtml}
@@ -384,7 +417,10 @@
         }
     }
 
-    async function finishDrying(stageId, orderNumber, blocks, shelfLetter) {
+    async function finishDrying(stageId, orderNumbersList, totalBlocks, shelfLetter) {
+        // Получаем список заказов, которые есть на этом стеллаже
+        const orderNumbers = orderNumbersList.split(', ');
+        
         const { data: stageData, error: getError } = await supabaseClient
             .from('stages')
             .select('zone')
@@ -397,92 +433,123 @@
         }
         const zone = stageData.zone || 'Не указана';
 
+        // ЗАВЕРШАЕМ ВСЕ ЗАПИСИ НА ЭТОМ СТЕЛЛАЖЕ (для этого заказа, чтобы освободить стеллаж)
+        // Поскольку на стеллаже могут висеть разные заказы, мы завершаем все с этим shelf = shelfLetter, которые еще не выполнены
         const { error: updateError } = await supabaseClient
             .from('stages')
             .update({ status: 'Выполнено' })
-            .eq('id', stageId);
+            .eq('shelf', shelfLetter)
+            .eq('stage', 'Сушка')
+            .neq('status', 'Выполнено');
 
         if (updateError) {
             showMessage('Ошибка завершения этапа', 'err');
             return;
         }
 
-        const { count, error: countError } = await supabaseClient
-            .from('stages')
-            .select('*', { count: 'exact', head: true })
-            .eq('order_number', orderNumber)
-            .eq('stage', 'Сушка')
-            .neq('status', 'Выполнено');
-
-        if (countError) {
-            showMessage('Ошибка проверки оставшихся стеллажей', 'err');
-            return;
-        }
-
-        const { data: orderData, error: orderError } = await supabaseClient
-            .from('orders')
-            .select('r2')
-            .eq('order_number', orderNumber)
-            .single();
-
-        if (orderError || !orderData) {
-            showMessage('Ошибка получения настроек заказа', 'err');
-            return;
-        }
-
-        // ЕСЛИ ЕСТЬ Р2 -> ИДЕМ НА РАСКРОЙ Р2
-        if (orderData.r2 === true) {
-            await supabaseClient
+        // Для каждого заказа проверяем, остались ли у него еще стеллажи на сушке
+        // Обрабатываем список заказов по очереди.
+        // Но по вашей логике, если заказ разбит на 2 стеллажа, они завершаются независимо.
+        
+        // Проверяем для КАЖДОГО заказа, все ли его стеллажи завершены
+        for (let singleOrder of orderNumbers) {
+            const { count, error: countError } = await supabaseClient
                 .from('stages')
-                .insert([
-                    { 
-                        order_number: orderNumber, 
-                        stage: 'Раскрой', 
-                        status: 'Ожидание',
-                        shelf: shelfLetter,
-                        blocks: blocks
-                    }
-                ]);
-            
-            showMessage(`Стеллаж ${shelfLetter} отправлен на Раскрой Р2.`, 'ok');
+                .select('*', { count: 'exact', head: true })
+                .eq('order_number', singleOrder)
+                .eq('stage', 'Сушка')
+                .neq('status', 'Выполнено');
 
-        } else {
-            // ЕСЛИ НЕТ Р2 -> ОТПРАВЛЯЕМ НА ОТК (otk_orders)
-            // Проверяем, есть ли уже запись в otk_orders для этого заказа
-            const { data: existing } = await supabaseClient
-                .from('otk_orders')
-                .select('id, total_blocks')
-                .eq('order_number', orderNumber)
-                .in('status', ['Ожидание', 'В работе']);
-
-            if (existing && existing.length > 0) {
-                const newTotal = (existing[0].total_blocks || 0) + blocks;
-                await supabaseClient
-                    .from('otk_orders')
-                    .update({ total_blocks: newTotal })
-                    .eq('id', existing[0].id);
-                showMessage(`Блоки добавлены к существующему заказу на ОТК.`, 'ok');
-            } else {
-                await supabaseClient
-                    .from('otk_orders')
-                    .insert([
-                        { 
-                            order_number: orderNumber,
-                            total_blocks: blocks,
-                            status: 'Ожидание'
-                        }
-                    ]);
-                showMessage(`Заказ создан на ОТК.`, 'ok');
+            if (countError) {
+                showMessage('Ошибка проверки оставшихся стеллажей', 'err');
+                return;
             }
-        }
 
-        // Если это был последний стеллаж на сушке -> обновляем этап заказа на Раскрой (Р2)
-        if (count === 0 && orderData.r2 === true) {
-            await supabaseClient
-                .from('orders')
-                .update({ stage: 'Раскрой' })
-                .eq('order_number', orderNumber);
-            showMessage(`Все стеллажи завершены! Заказ переведён на Раскрой (Р2)`, 'ok');
+            // ЕСЛИ ЭТО БЫЛ ПОСЛЕДНИЙ СТЕЛЛАЖ ДЛЯ ЭТОГО ЗАКАЗА
+            if (count === 0) {
+                const { data: orderData, error: orderError } = await supabaseClient
+                    .from('orders')
+                    .select('r2')
+                    .eq('order_number', singleOrder)
+                    .single();
+
+                if (orderError || !orderData) {
+                    showMessage('Ошибка получения настроек заказа ' + singleOrder, 'err');
+                    return;
+                }
+
+                if (orderData.r2 === true) {
+                    // Идем на Раскрой Р2 (по стеллажам)
+                    // Нам нужно найти ВСЕ завершенные стеллажи ЭТОГО заказа
+                    const { data: completedShelves, error: fetchError } = await supabaseClient
+                        .from('stages')
+                        .select('shelf, blocks')
+                        .eq('order_number', singleOrder)
+                        .eq('stage', 'Сушка')
+                        .eq('status', 'Выполнено');
+
+                    if (fetchError || !completedShelves) {
+                        showMessage('Ошибка получения данных стеллажей для ' + singleOrder, 'err');
+                        return;
+                    }
+
+                    // Отправляем их на Раскрой
+                    const insertPromises = completedShelves.map(item => {
+                        return supabaseClient
+                            .from('stages')
+                            .insert([
+                                { 
+                                    order_number: singleOrder, 
+                                    stage: 'Раскрой', 
+                                    status: 'Ожидание',
+                                    shelf: item.shelf,
+                                    blocks: item.blocks
+                                }
+                            ]);
+                    });
+                    await Promise.all(insertPromises);
+                    
+                    await supabaseClient
+                        .from('orders')
+                        .update({ stage: 'Раскрой' })
+                        .eq('order_number', singleOrder);
+
+                    showMessage(`Стеллаж ${shelfLetter} завершён! Заказ ${singleOrder} отправлен на Раскрой (Р2)`, 'ok');
+
+                } else {
+                    // ЕСЛИ НЕТ Р2 -> ИДЕМ НА ОТК (целый заказ)
+                    const { data: totals, error: sumError } = await supabaseClient
+                        .from('stages')
+                        .select('blocks')
+                        .eq('order_number', singleOrder)
+                        .eq('stage', 'Сушка')
+                        .eq('status', 'Выполнено');
+
+                    let totalBlocksForOrder = 0;
+                    if (totals && !sumError) {
+                        totals.forEach(item => { totalBlocksForOrder += (item.blocks || 0); });
+                    }
+
+                    await supabaseClient
+                        .from('otk_orders')
+                        .insert([
+                            { 
+                                order_number: singleOrder,
+                                total_blocks: totalBlocksForOrder,
+                                status: 'Ожидание'
+                            }
+                        ]);
+
+                    await supabaseClient
+                        .from('orders')
+                        .update({ stage: 'ОТК' })
+                        .eq('order_number', singleOrder);
+
+                    showMessage(`Стеллаж ${shelfLetter} завершён! Заказ ${singleOrder} отправлен на ОТК`, 'ok');
+                }
+            } else {
+                showMessage(`Стеллаж ${shelfLetter} завершён для заказа ${singleOrder}. У заказа осталось ещё ${count} стеллажей на сушке.`, 'ok');
+            }
         }
 
         loadDryingShelves();
