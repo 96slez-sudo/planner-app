@@ -404,6 +404,21 @@
         }
     }
 
+    // Функция для определения типа заказа по номеру заказа
+    async function getOrderType(orderNumber) {
+        const { data, error } = await supabaseClient
+            .from('orders')
+            .select('type')
+            .eq('order_number', orderNumber)
+            .single();
+
+        if (error || !data) {
+            console.error(`Ошибка получения типа для заказа ${orderNumber}:`, error);
+            return null;
+        }
+        return data.type;
+    }
+
     async function finishDrying(stageId, shelfLetter, totalBlocks, orderIdsString) {
         // Получаем зону
         const { data: stageData, error: getError } = await supabaseClient
@@ -434,40 +449,51 @@
         // Разбиваем строку с заказами обратно в массив
         const orderIds = orderIdsString.split(', ');
 
-        // ========================================================
-        // ИСПРАВЛЕНИЕ: Для КАЖДОГО заказа создаем ОТДЕЛЬНУЮ строку на Раскрое
-        // ========================================================
-        
-        // Определяем общее кол-во блоков на этом стеллаже, чтобы распределить
-        // Если мы не знаем, сколько блоков принадлежит какому заказу, 
-        // распределяем поровну или по логике вашей системы. 
-        // В данном случае используем логику, что общее кол-во блоков (totalBlocks) 
-        // делится на количество заказов.
+        // Собираем информацию о типах заказов
+        const orderTypes = {};
+        for (let singleOrder of orderIds) {
+            const type = await getOrderType(singleOrder);
+            if (type) {
+                orderTypes[singleOrder] = type;
+            }
+        }
+
+        // Определяем, какой следующий этап для каждого заказа
+        // Р2 -> ОТК, все остальные -> Раскрой
         const blocksPerOrder = Math.floor(totalBlocks / orderIds.length);
         let remainingBlocks = totalBlocks;
 
         for (let i = 0; i < orderIds.length; i++) {
             const singleOrder = orderIds[i];
-            // Если это последний заказ, отдаем ему все оставшиеся блоки
+            const orderType = orderTypes[singleOrder] || '';
+            
+            // Определяем следующий этап
+            let nextStage = 'Раскрой'; // по умолчанию
+            if (orderType === 'Р2') {
+                nextStage = 'ОТК';
+            }
+
             const blocksForThisOrder = (i === orderIds.length - 1) ? remainingBlocks : blocksPerOrder;
             remainingBlocks -= blocksForThisOrder;
 
+            // Создаем запись на следующем этапе
             await supabaseClient
                 .from('stages')
                 .insert([
                     { 
-                        order_number: singleOrder, // КАЖДЫЙ заказ в отдельной строке
-                        stage: 'Раскрой', 
+                        order_number: singleOrder,
+                        stage: nextStage,
                         status: 'Ожидание',
                         shelf: shelfLetter,
-                        blocks: blocksForThisOrder // Кол-во блоков этого заказа на этом стеллаже
+                        blocks: blocksForThisOrder
                     }
                 ]);
         }
 
-        // 2. Проверяем для КАЖДОГО заказа, не осталось ли у него стеллажей на сушке
+        // Проверяем для КАЖДОГО заказа, не осталось ли у него стеллажей на сушке
         let allOrdersFinished = true;
-        
+        const ordersToUpdate = [];
+
         for (let singleOrder of orderIds) {
             const { count, error: countError } = await supabaseClient
                 .from('stages')
@@ -481,22 +507,33 @@
                 return;
             }
 
-            if (count > 0) {
+            if (count === 0) {
+                // Все стеллажи для этого заказа завершены
+                const orderType = orderTypes[singleOrder] || '';
+                let nextStage = 'Раскрой';
+                if (orderType === 'Р2') {
+                    nextStage = 'ОТК';
+                }
+                ordersToUpdate.push({ order_number: singleOrder, nextStage });
+            } else {
                 allOrdersFinished = false;
             }
         }
 
-        // 3. Если все заказы завершили сушку, обновляем их этап в orders
-        if (allOrdersFinished) {
-            for (let singleOrder of orderIds) {
-                await supabaseClient
-                    .from('orders')
-                    .update({ stage: 'Раскрой' })
-                    .eq('order_number', singleOrder);
-            }
-            showMessage(`Все стеллажи всех заказов (${orderIdsString}) завершены! Заказы переведены на Раскрой.`, 'ok');
+        // Обновляем этап в orders для полностью завершенных заказов
+        let updatedOrders = [];
+        for (let update of ordersToUpdate) {
+            await supabaseClient
+                .from('orders')
+                .update({ stage: update.nextStage })
+                .eq('order_number', update.order_number);
+            updatedOrders.push(`${update.order_number} (→${update.nextStage})`);
+        }
+
+        if (updatedOrders.length > 0) {
+            showMessage(`Стеллаж ${shelfLetter} завершен. Заказы ${updatedOrders.join(', ')} переведены на следующий этап.`, 'ok');
         } else {
-            showMessage(`Стеллаж ${shelfLetter} с заказами (${orderIdsString}) отправлен на Раскрой. Остальные стеллажи этих заказов еще сушатся.`, 'ok');
+            showMessage(`Стеллаж ${shelfLetter} с заказами (${orderIdsString}) завершен. Остальные стеллажи этих заказов еще сушатся.`, 'ok');
         }
 
         loadDryingShelves();
