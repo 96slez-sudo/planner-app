@@ -214,6 +214,73 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
+    // Функция для получения типа заказа из таблицы orders
+    async function getOrderRouteType(orderNumber) {
+        const { data, error } = await supabaseClient
+            .from('orders')
+            .select('path')
+            .eq('order_number', orderNumber)
+            .single();
+        
+        if (error || !data) {
+            console.error('Ошибка получения типа заказа:', error);
+            return null;
+        }
+        return data.path;
+    }
+
+    // Функция для подсчета количества рулонов для Р2 заказа
+    async function getR2RollCount(orderNumber) {
+        const { data, error } = await supabaseClient
+            .from('stages')
+            .select('id')
+            .eq('order_number', orderNumber)
+            .eq('stage', 'Каттер')
+            .in('status', ['Ожидание', 'В работе', 'Выполнено']);
+
+        if (error) {
+            console.error('Ошибка подсчета рулонов Р2:', error);
+            return 0;
+        }
+        return data.length;
+    }
+
+    // Функция для получения следующего номера рулона для Р2
+    async function getNextR2RollNumber(orderNumber) {
+        const { data, error } = await supabaseClient
+            .from('stages')
+            .select('shelf')
+            .eq('order_number', orderNumber)
+            .eq('stage', 'Каттер')
+            .in('status', ['Ожидание', 'В работе', 'Выполнено']);
+
+        if (error) {
+            console.error('Ошибка получения номеров рулонов Р2:', error);
+            return 1;
+        }
+
+        // Собираем все номера рулонов для Р2 (формат R{номер}_{номер_рулона})
+        const usedNumbers = new Set();
+        data.forEach(item => {
+            if (item.shelf && /^R\d+_\d+$/.test(item.shelf)) {
+                const parts = item.shelf.split('_');
+                if (parts.length === 2) {
+                    const rollNum = parseInt(parts[1]);
+                    if (!isNaN(rollNum)) {
+                        usedNumbers.add(rollNum);
+                    }
+                }
+            }
+        });
+
+        // Ищем минимальный свободный номер
+        let counter = 1;
+        while (usedNumbers.has(counter)) {
+            counter++;
+        }
+        return counter;
+    }
+
     async function loadRolls() {
         const container = document.getElementById('list');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
@@ -240,7 +307,7 @@
         });
 
         let html = '';
-        sorted.forEach(item => {
+        for (const item of sorted) {
             const rollId = item.shelf || '—';
             
             let statusClass = 'status-wait';
@@ -277,7 +344,7 @@
                     </div>
                 </div>
             `;
-        });
+        }
         container.innerHTML = html;
     }
 
@@ -304,7 +371,7 @@
         }
 
         if (newStatus === 'Выполнено') {
-            // Считаем сколько еще рулонов НЕ ВЫПОЛНЕНО
+            // Считаем сколько еще рулонов НЕ ВЫПОЛНЕНО на Каттере
             const { count, error: countError } = await supabaseClient
                 .from('stages')
                 .select('*', { count: 'exact', head: true })
@@ -317,9 +384,27 @@
                 return;
             }
 
-            // ЗАПУСКАЕМ РУЛОН НА СЛЕДУЮЩИЙ ЭТАП
-            let nextStage = 'Раскрой'; // По умолчанию
+            // Получаем тип маршрута заказа
+            const routeType = await getOrderRouteType(itemData.order_number);
+            
+            // Определяем следующий этап и shelf
+            let nextStage = 'Раскрой';
+            let nextShelf = itemData.shelf; // По умолчанию сохраняем ID рулона
 
+            // Для Р2 заказов назначаем новый ID рулона формата R{номер}_{номер_рулона}
+            if (routeType === 'Р2') {
+                // Получаем следующий номер рулона для этого заказа
+                const rollNumber = await getNextR2RollNumber(itemData.order_number);
+                // Получаем порядковый номер заказа (извлекаем из shelf или используем 1)
+                let orderNum = 1;
+                if (itemData.shelf && /^R\d+_\d+$/.test(itemData.shelf)) {
+                    const parts = itemData.shelf.split('_');
+                    orderNum = parseInt(parts[0].replace('R', '')) || 1;
+                }
+                nextShelf = `R${orderNum}_${String(rollNumber).padStart(2, '0')}`;
+            }
+
+            // Создаем запись на следующем этапе
             await supabaseClient
                 .from('stages')
                 .insert([
@@ -327,7 +412,7 @@
                         order_number: itemData.order_number,
                         stage: nextStage,
                         status: 'Ожидание',
-                        shelf: itemData.shelf,
+                        shelf: nextShelf,
                         blocks: itemData.blocks
                     }
                 ]);
@@ -339,7 +424,8 @@
                     .update({ stage: nextStage })
                     .eq('order_number', itemData.order_number);
                 
-                showMessage(`Последний рулон завершён! Заказ переведён на ${nextStage}`, 'ok');
+                const typeInfo = routeType === 'Р2' ? ` (Р2 → ID ${nextShelf})` : '';
+                showMessage(`Последний рулон завершён! Заказ переведён на ${nextStage}${typeInfo}`, 'ok');
             } else {
                 showMessage(`Рулон ${itemData.shelf} завершён. Осталось ещё ${count} рулон(ов) на Каттере.`, 'ok');
             }
