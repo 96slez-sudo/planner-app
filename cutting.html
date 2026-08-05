@@ -96,11 +96,12 @@
             width: 100%;
         }
 
-        .col-order { width: 140px; flex-shrink: 0; }
-        .col-type { width: 100px; flex-shrink: 0; }
+        /* Ширины колонок, чтобы совпадали с Печатью */
+        .col-order { width: 180px; flex-shrink: 0; }
+        .col-type { width: 120px; flex-shrink: 0; }
         .col-id { width: 180px; flex-shrink: 0; }
-        .col-blocks { width: 140px; flex-shrink: 0; }
-        .col-status { width: 160px; flex-shrink: 0; }
+        .col-blocks { width: 180px; flex-shrink: 0; }
+        .col-status { width: 200px; flex-shrink: 0; }
         .col-actions { width: 160px; flex-shrink: 0; }
 
         .status-wait { background: #e0e0e0 !important; border-color: #b0b0b0 !important; color: #555 !important; }
@@ -112,7 +113,7 @@
             justify-content: center;
             padding: 0;
             height: 40px;
-            width: 100%;
+            width: 160px; /* Кнопка фиксированной ширины, как и везде */
             background-color: #0f8653;
             border-radius: 8px;
             color: #ffffff;
@@ -129,7 +130,7 @@
             justify-content: center;
             padding: 0;
             height: 40px;
-            width: 100%;
+            width: 160px;
             background-color: #e74c3c;
             border-radius: 8px;
             color: #ffffff;
@@ -164,7 +165,7 @@
             .col-order, .col-type, .col-id, .col-blocks, .col-status, .col-actions { 
                 width: 100%; max-width: 100%; flex: none; 
             }
-            .btn-green, .btn-red { height: 36px; }
+            .btn-green, .btn-red { width: 100%; height: 36px; }
         }
         @media (max-width: 600px) {
             .header .title { font-size: 16px; }
@@ -224,7 +225,6 @@
         const container = document.getElementById('list');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
-        // 1. Берем все строки из stages на этапе Раскрой
         const { data, error } = await supabaseClient
             .from('stages')
             .select('*')
@@ -240,7 +240,6 @@
             return;
         }
 
-        // 2. Собираем все номера заказов и ищем их настройки в таблице orders
         const orderNumbers = [...new Set(data.map(d => d.order_number))];
         const { data: ordersData, error: ordersError } = await supabaseClient
             .from('orders')
@@ -252,11 +251,9 @@
             return;
         }
 
-        // Создаем быстрый словарь для поиска
         const orderMap = {};
         ordersData.forEach(o => { orderMap[o.order_number] = o; });
 
-        // 3. Сортируем строки (Ожидание -> В работе)
         const sorted = [...data].sort((a, b) => {
             if (a.status === 'Ожидание' && b.status !== 'Ожидание') return -1;
             if (a.status !== 'Ожидание' && b.status === 'Ожидание') return 1;
@@ -270,20 +267,19 @@
             const r2 = orderSettings?.r2 || false;
             const resin = orderSettings?.resin || false;
 
-            // ОПРЕДЕЛЯЕМ ТИП И НАЗВАНИЕ КОЛОНКИ
             let routeType = '—';
             let idColumnLabel = 'ID рулона';
+            let displayId = item.shelf || '—';
             
             if (r1) {
                 routeType = 'Р1';
             } else if (r2 && resin) {
-                routeType = 'Р2 (стеллаж)';
+                routeType = 'Р2';
                 idColumnLabel = 'Стеллаж';
             } else if (r2) {
                 routeType = 'Р2';
             }
 
-            // ОПРЕДЕЛЯЕМ СТАТУС
             let statusClass = 'status-wait';
             let statusText = 'Ожидает';
             if (item.status === 'В работе') {
@@ -303,7 +299,7 @@
                     </div>
                     <div class="col col-id">
                         <div class="label">${idColumnLabel}</div>
-                        <div class="value">${item.shelf || '—'}</div>
+                        <div class="value">${displayId}</div>
                     </div>
                     <div class="col col-blocks">
                         <div class="label">Кол-во блоков</div>
@@ -327,7 +323,6 @@
     }
 
     async function updateCuttingOrder(stageId, newStatus) {
-        // 1. Получаем данные этого конкретного рулона / стеллажа
         const { data: stageData, error: getError } = await supabaseClient
             .from('stages')
             .select('order_number, shelf, blocks')
@@ -339,7 +334,6 @@
             return;
         }
 
-        // 2. Обновляем статус текущей строки
         const { error: updateError } = await supabaseClient
             .from('stages')
             .update({ status: newStatus })
@@ -350,9 +344,7 @@
             return;
         }
 
-        // 3. Если статус стал "Выполнено" — смотрим, что делать дальше
         if (newStatus === 'Выполнено') {
-            // Проверяем, остались ли еще незавершенные рулоны/стеллажи этого заказа на раскрое
             const { count, error: countError } = await supabaseClient
                 .from('stages')
                 .select('*', { count: 'exact', head: true })
@@ -365,7 +357,7 @@
                 return;
             }
 
-            // Если это был ПОСЛЕДНИЙ рулон/стеллаж, переходим на следующий этап
+            // ВАЖНО: Переходим на следующий этап ТОЛЬКО если не осталось рулонов
             if (count === 0) {
                 const { data: orderData, error: orderError } = await supabaseClient
                     .from('orders')
@@ -381,23 +373,20 @@
                 let nextStage = 'ОТК';
                 let nextStageName = 'ОТК';
 
-                // ЛОГИКА ПЕРЕХОДА
                 if (orderData.r1 === true) {
                     nextStage = 'Смола';
                     nextStageName = 'Смола';
                 } else if (orderData.r2 === true) {
-                    // Если это Р2, идем на Сушку (по логике вашего приложения)
                     nextStage = 'Сушка';
                     nextStageName = 'Сушка';
                 }
 
-                // Обновляем основной этап в orders
                 await supabaseClient
                     .from('orders')
                     .update({ stage: nextStage })
                     .eq('order_number', stageData.order_number);
 
-                // Создаем запись в stages для следующего этапа (для этого конкретного рулона/стеллажа)
+                // Создаем запись на следующий этап для этого рулона
                 await supabaseClient
                     .from('stages')
                     .insert([
