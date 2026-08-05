@@ -407,6 +407,7 @@
             return;
         }
 
+        // Считаем, сколько стеллажей этого заказа ещё сушится
         const { count, error: countError } = await supabaseClient
             .from('stages')
             .select('*', { count: 'exact', head: true })
@@ -419,95 +420,76 @@
             return;
         }
 
-        if (count === 0) {
-            const { data: orderData, error: orderError } = await supabaseClient
-                .from('orders')
-                .select('r2')
+        // ЛОГИКА ПЕРЕХОДА
+        const { data: orderData, error: orderError } = await supabaseClient
+            .from('orders')
+            .select('r2')
+            .eq('order_number', orderNumber)
+            .single();
+
+        if (orderError || !orderData) {
+            showMessage('Ошибка получения настроек заказа', 'err');
+            return;
+        }
+
+        // ЕСЛИ ЕСТЬ Р2 -> ИДЕМ НА РАСКРОЙ Р2 (по стеллажам)
+        if (orderData.r2 === true) {
+            // Создаем запись на Раскрой Р2 для этого стеллажа
+            await supabaseClient
+                .from('stages')
+                .insert([
+                    { 
+                        order_number: orderNumber, 
+                        stage: 'Раскрой', 
+                        status: 'Ожидание',
+                        shelf: shelfLetter,
+                        blocks: blocks
+                    }
+                ]);
+            
+            showMessage(`Стеллаж ${shelfLetter} отправлен на Раскрой Р2.`, 'ok');
+
+        } else {
+            // ЕСЛИ НЕТ Р2 -> ИДЕМ НА ОТК (но только создаем запись в otk_orders, этап НЕ меняем!)
+            
+            // Проверяем, есть ли уже запись в otk_orders для этого заказа
+            const { data: existing } = await supabaseClient
+                .from('otk_orders')
+                .select('id, total_blocks')
                 .eq('order_number', orderNumber)
-                .single();
+                .in('status', ['Ожидание', 'В работе']);
 
-            if (orderError || !orderData) {
-                showMessage('Ошибка получения настроек заказа', 'err');
-                return;
-            }
-
-            // ============================================================
-            // ГЛАВНАЯ ЛОГИКА ПЕРЕХОДА
-            // ============================================================
-            if (orderData.r2 === true) {
-                // 1. ЕСЛИ ЕСТЬ Р2 -> ИДЕМ НА РАСКРОЙ (по стеллажам)
-                const { data: completedShelves, error: fetchError } = await supabaseClient
-                    .from('stages')
-                    .select('shelf, blocks')
-                    .eq('order_number', orderNumber)
-                    .eq('stage', 'Сушка')
-                    .eq('status', 'Выполнено');
-
-                if (fetchError || !completedShelves) {
-                    showMessage('Ошибка получения данных стеллажей', 'err');
-                    return;
-                }
-
-                const insertPromises = completedShelves.map(item => {
-                    return supabaseClient
-                        .from('stages')
-                        .insert([
-                            { 
-                                order_number: orderNumber, 
-                                stage: 'Раскрой', 
-                                status: 'Ожидание',
-                                shelf: item.shelf, // Важно: сохраняем букву стеллажа
-                                blocks: item.blocks
-                            }
-                        ]);
-                });
-
-                await Promise.all(insertPromises);
-                
+            if (existing && existing.length > 0) {
+                // Если запись уже есть, обновляем сумму блоков
+                const newTotal = (existing[0].total_blocks || 0) + blocks;
                 await supabaseClient
-                    .from('orders')
-                    .update({ stage: 'Раскрой' })
-                    .eq('order_number', orderNumber);
-
-                showMessage(`Сушка завершена! Все стеллажи отправлены обратно на Раскрой (Р2)`, 'ok');
-
+                    .from('otk_orders')
+                    .update({ total_blocks: newTotal })
+                    .eq('id', existing[0].id);
             } else {
-                // 2. ЕСЛИ НЕТ Р2 -> ИДЕМ НА ОТК (как целый заказ)
-                // Суммируем все блоки со всех стеллажей
-                const { data: totals, error: sumError } = await supabaseClient
-                    .from('stages')
-                    .select('blocks')
-                    .eq('order_number', orderNumber)
-                    .eq('stage', 'Сушка')
-                    .eq('status', 'Выполнено');
-
-                let totalBlocks = 0;
-                if (totals && !sumError) {
-                    totals.forEach(item => { totalBlocks += (item.blocks || 0); });
-                }
-
-                // Создаем запись в новой таблице otk_orders (целиком)
+                // Если записи нет (это первый стеллаж), создаем заказ на ОТК
                 await supabaseClient
                     .from('otk_orders')
                     .insert([
                         { 
                             order_number: orderNumber,
-                            total_blocks: totalBlocks,
+                            total_blocks: blocks,
                             status: 'Ожидание'
                         }
                     ]);
-
-                // Обновляем заказ в orders
-                await supabaseClient
-                    .from('orders')
-                    .update({ stage: 'ОТК' })
-                    .eq('order_number', orderNumber);
-
-                showMessage(`Сушка завершена! Заказ отправлен на ОТК (суммарно ${totalBlocks} блоков)`, 'ok');
             }
 
-        } else {
-            showMessage(`Стеллаж ${shelfLetter} завершён. Осталось ещё ${count} стеллажей на сушке`, 'ok');
+            // ВАЖНО: Этап заказа в таблице orders мы НЕ МЕНЯЕМ! 
+            // Он изменится только когда придет последний стеллаж с Раскроя Р2.
+        }
+
+        // Если это был последний стеллаж на сушке -> обновляем этап заказа на Раскрой (Р2)
+        if (count === 0 && orderData.r2 === true) {
+            await supabaseClient
+                .from('orders')
+                .update({ stage: 'Раскрой' })
+                .eq('order_number', orderNumber);
+            showMessage(`Все стеллажи завершены! Заказ переведён на Раскрой (Р2)`, 'ok');
         }
 
         loadDryingShelves();
