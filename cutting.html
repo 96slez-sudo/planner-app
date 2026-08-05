@@ -356,70 +356,67 @@
         }
 
         if (newStatus === 'Выполнено') {
+            // СЧИТАЕМ, СКОЛЬКО ЕЩЕ В РАБОТЕ НА РАСКРОЕ
             const { count, error: countError } = await supabaseClient
                 .from('stages')
                 .select('*', { count: 'exact', head: true })
                 .eq('order_number', stageData.order_number)
                 .eq('stage', 'Раскрой')
-                .neq('status', 'Выполнено');
+                .eq('status', 'В работе');
 
             if (countError) {
                 showMessage('Ошибка подсчёта оставшихся', 'err');
                 return;
             }
 
-            if (count === 0) {
-                const { data: orderData, error: orderError } = await supabaseClient
-                    .from('orders')
-                    .select('r1, r2, resin')
-                    .eq('order_number', stageData.order_number)
-                    .single();
+            // ВСЕГДА ОТПРАВЛЯЕМ РУЛОН НА СЛЕДУЮЩИЙ ЭТАП
+            const { data: orderData, error: orderError } = await supabaseClient
+                .from('orders')
+                .select('r1, r2, resin')
+                .eq('order_number', stageData.order_number)
+                .single();
 
-                if (orderError || !orderData) {
-                    showMessage('Ошибка получения данных заказа', 'err');
-                    return;
-                }
+            if (orderError || !orderData) {
+                showMessage('Ошибка получения данных заказа', 'err');
+                return;
+            }
 
-                // ============================================================
-                // ФИНАЛЬНАЯ ЛОГИКА ПЕРЕХОДА (Здесь всё верно!)
-                // ============================================================
-                
-                // 1. Если есть Р1 и Смола -> Идем на Смолу (по рулонам)
-                if (orderData.r1 === true && orderData.resin === true) {
-                    const { data: completedRolls } = await supabaseClient
-                        .from('stages')
-                        .select('shelf, blocks')
-                        .eq('order_number', stageData.order_number)
-                        .eq('stage', 'Раскрой')
-                        .eq('status', 'Выполнено');
+            let nextStage = 'ОТК';
+            let nextStageName = 'ОТК';
 
-                    if (completedRolls && completedRolls.length > 0) {
-                        const insertPromises = completedRolls.map(roll => {
-                            return supabaseClient
-                                .from('stages')
-                                .insert([
-                                    { 
-                                        order_number: stageData.order_number, 
-                                        stage: 'Смола', 
-                                        status: 'Ожидание',
-                                        shelf: roll.shelf,
-                                        blocks: roll.blocks
-                                    }
-                                ]);
-                        });
-                        await Promise.all(insertPromises);
+            // Р1 + Смола -> идем на Смолу
+            if (orderData.r1 === true && orderData.resin === true) {
+                nextStage = 'Смола';
+                nextStageName = 'Смола';
+            } 
+            // В остальных случаях (просто Р1, или Р2 после смолы) -> идем на ОТК
+            else {
+                nextStage = 'ОТК';
+                nextStageName = 'ОТК';
+            }
+
+            // 1. Сразу кидаем рулон (или стеллаж) на следующий этап
+            await supabaseClient
+                .from('stages')
+                .insert([
+                    { 
+                        order_number: stageData.order_number, 
+                        stage: nextStage, 
+                        status: 'Ожидание',
+                        shelf: stageData.shelf,
+                        blocks: stageData.blocks
                     }
+                ]);
 
-                    await supabaseClient
-                        .from('orders')
-                        .update({ stage: 'Смола' })
-                        .eq('order_number', stageData.order_number);
-
-                    showMessage(`Все рулоны завершены! Заказ переведён на Смолу`, 'ok');
-
-                // 2. Иначе (если нет Смолы, или это Р2 после смолы) -> Идем на ОТК (целым заказом)
-                } else {
-                    // Считаем общее кол-во блоков в этом заказе
+            // 2. Обновляем заказ в orders (ТОЛЬКО ЕСЛИ ЭТО БЫЛ ПОСЛЕДНИЙ)
+            if (count === 0) {
+                await supabaseClient
+                    .from('orders')
+                    .update({ stage: nextStage })
+                    .eq('order_number', stageData.order_number);
+                
+                if (nextStage === 'ОТК') {
+                    // Если это ОТК (целый заказ), нужно еще создать запись в otk_orders
                     const { data: totals } = await supabaseClient
                         .from('stages')
                         .select('blocks')
@@ -432,7 +429,6 @@
                         totals.forEach(item => { totalBlocks += (item.blocks || 0); });
                     }
 
-                    // Создаем заказ на ОТК
                     await supabaseClient
                         .from('otk_orders')
                         .insert([
@@ -442,17 +438,11 @@
                                 status: 'Ожидание'
                             }
                         ]);
-
-                    await supabaseClient
-                        .from('orders')
-                        .update({ stage: 'ОТК' })
-                        .eq('order_number', stageData.order_number);
-
-                    showMessage(`Все завершены! Заказ переведён на ОТК (суммарно ${totalBlocks} блоков)`, 'ok');
                 }
 
+                showMessage(`Все завершены! Заказ переведён на ${nextStageName}`, 'ok');
             } else {
-                showMessage(`Элемент ${stageData.shelf} завершён. Осталось ещё ${count}`, 'ok');
+                showMessage(`Элемент ${stageData.shelf} завершён и ожидает на ${nextStageName}. Осталось ещё ${count} в работе.`, 'ok');
             }
         } else {
             showMessage('Статус обновлён', 'ok');
