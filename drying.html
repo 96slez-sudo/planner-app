@@ -435,30 +435,37 @@
         const orderIds = orderIdsString.split(', ');
 
         // ========================================================
-        // ГЛАВНАЯ ЛОГИКА ПЕРЕХОДА НА РАСКРОЙ Р2
-        // Мы передаем ОДНУ запись для всего стеллажа!
+        // ИСПРАВЛЕНИЕ: Для КАЖДОГО заказа создаем ОТДЕЛЬНУЮ строку на Раскрое
         // ========================================================
         
-        // 1. Создаем ОДНУ запись на Раскрое (Р2) для всего стеллажа.
-        // В поле shelf записываем букву (например, "B"), а в blocks - сумму блоков (например, 40).
-        // В поле shelf мы передаем букву стеллажа (shelfLetter).
-        // В поле order_number мы передаем строку с заказами (например, "5, 6").
-        // Это будет отображаться на Раскрое как "Стеллаж B" с 40 блоками и заказами 5, 6 внутри.
-        
-        await supabaseClient
-            .from('stages')
-            .insert([
-                { 
-                    order_number: orderIdsString, // Сохраняем список заказов как строку
-                    stage: 'Раскрой', 
-                    status: 'Ожидание',
-                    shelf: shelfLetter, // Буква стеллажа
-                    blocks: totalBlocks // Общее кол-во блоков
-                }
-            ]);
+        // Определяем общее кол-во блоков на этом стеллаже, чтобы распределить
+        // Если мы не знаем, сколько блоков принадлежит какому заказу, 
+        // распределяем поровну или по логике вашей системы. 
+        // В данном случае используем логику, что общее кол-во блоков (totalBlocks) 
+        // делится на количество заказов.
+        const blocksPerOrder = Math.floor(totalBlocks / orderIds.length);
+        let remainingBlocks = totalBlocks;
+
+        for (let i = 0; i < orderIds.length; i++) {
+            const singleOrder = orderIds[i];
+            // Если это последний заказ, отдаем ему все оставшиеся блоки
+            const blocksForThisOrder = (i === orderIds.length - 1) ? remainingBlocks : blocksPerOrder;
+            remainingBlocks -= blocksForThisOrder;
+
+            await supabaseClient
+                .from('stages')
+                .insert([
+                    { 
+                        order_number: singleOrder, // КАЖДЫЙ заказ в отдельной строке
+                        stage: 'Раскрой', 
+                        status: 'Ожидание',
+                        shelf: shelfLetter,
+                        blocks: blocksForThisOrder // Кол-во блоков этого заказа на этом стеллаже
+                    }
+                ]);
+        }
 
         // 2. Проверяем для КАЖДОГО заказа, не осталось ли у него стеллажей на сушке
-        // Если у всех заказов больше нет стеллажей на сушке -> переводим заказы на Раскрой
         let allOrdersFinished = true;
         
         for (let singleOrder of orderIds) {
