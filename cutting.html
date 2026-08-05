@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Сушка</title>
+    <title>Раскрой</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Science+Gothic&display=swap" rel="stylesheet">
@@ -60,148 +60,104 @@
         
         .grid {
             display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            max-width: 1000px;
+            flex-direction: column;
+            gap: 16px;
+            max-width: 1050px;
             width: 100%;
         }
 
-        .shelf-card {
+        .row {
+            display: flex;
+            flex-wrap: wrap; 
+            align-items: center; 
+            gap: 16px 24px;
+            width: 100%;
+        }
+
+        .col {
             display: flex;
             flex-direction: column;
-            width: 220px;
-            background: #fff;
-            border-radius: 10px;
-            border: 1px solid #eaeaea;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-            padding: 0 0 12px 0;
-            overflow: hidden;
-            transition: transform 0.2s, box-shadow 0.2s;
+            gap: 4px;
+            flex-shrink: 0;
         }
-        .shelf-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        .col .label { 
+            font-size: 18px; 
+            color: #161616; 
+            white-space: nowrap;
         }
-
-        .shelf-header {
-            text-align: center;
-            padding: 12px 0;
-            font-size: 22px;
-            font-weight: 600;
-            color: #fff;
-            transition: background-color 0.3s;
-        }
-
-        .shelf-card.state-empty .shelf-header { background-color: #1e8449; } 
-        .shelf-card.state-partial .shelf-header { background-color: #ffd966; color: #161616; }
-        .shelf-card.state-full .shelf-header { background-color: #7f8c8d; }
-        .shelf-card.state-drying .shelf-header { background-color: #4a6fa5; }
-
-        .shelf-body {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            padding: 12px 16px;
-        }
-        
-        .shelf-row {
+        .col .value {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
-            padding: 0 10px;
-            height: 34px;
-            font-size: 14px;
-            background: #fafafa;
-        }
-        .shelf-row .label { color: #161616; font-weight: 500; font-size: 13px; }
-        .shelf-row .value { font-weight: 400; font-size: 14px; }
-        
-        .shelf-row.order-id {
-            font-size: 13px;
-            padding: 0 6px;
-            height: 30px;
-            background: #fff;
-        }
-        .shelf-row.order-id .value { 
-            white-space: nowrap; 
-            overflow: hidden; 
-            text-overflow: ellipsis; 
-            max-width: 100px; 
-        }
-
-        .zone-selector {
-            display: flex;
-            justify-content: space-between;
-            gap: 4px;
-            margin-top: 4px;
-            height: 34px;
-        }
-        .zone-btn {
-            flex: 1;
-            height: 100%;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
-            background: #fafafa;
+            padding: 0 12px;
+            border: 1px solid #6c6c6c;
+            border-radius: 8px;
             font-family: 'Science Gothic', sans-serif;
-            font-size: 14px;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        .zone-btn:hover {
-            background: #e5e7eb;
-        }
-        .zone-btn.selected {
-            background: #0f8653;
-            color: white;
-            border-color: #0f8653;
-        }
-        .zone-btn.selected:hover {
-            background: #0b6b43;
+            font-size: 15px;
+            background: #fff;
+            height: 40px;
+            width: 100%;
+            white-space: nowrap;
         }
 
-        .btn-drying {
-            display: flex;
+        .col-order { width: 140px; }
+        .col-type { width: 100px; }
+        .col-id { width: 180px; }
+        .col-blocks { width: 140px; }
+        .col-status { width: 200px; }
+        .col-actions { width: 160px; }
+
+        .status-wait { background: #e0e0e0 !important; border-color: #b0b0b0 !important; color: #555 !important; }
+        .status-work { background: #ffe066 !important; border-color: #d4b300 !important; color: #1a1a1a !important; }
+
+        .btn-green {
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            height: 36px;
-            width: 100%;
-            border-radius: 6px;
-            color: #fff;
-            font-size: 14px;
+            padding: 0;
+            height: 40px;
+            width: 160px; 
+            background-color: #0f8653;
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 15px;
             border: none;
             cursor: pointer;
             transition: 0.2s;
-            margin-top: 4px;
+            box-sizing: border-box;
+            flex-shrink: 0;
         }
-        .btn-drying:hover { opacity: 0.85; }
-        
-        .btn-start { background-color: #0f8653; }
-        .btn-finish { background-color: #e74c3c; }
-        
-        .btn-disabled { 
-            background-color: #f3f4f6; 
-            color: #9ca3af; 
-            cursor: not-allowed; 
-            border: 1px solid #e5e7eb;
+        .btn-green:hover { opacity: 0.8; }
+        .btn-red {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            height: 40px;
+            width: 160px;
+            background-color: #e74c3c;
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 15px;
+            border: none;
+            cursor: pointer;
+            transition: 0.2s;
+            box-sizing: border-box;
+            flex-shrink: 0;
         }
-        .btn-disabled:hover { opacity: 1; }
+        .btn-red:hover { opacity: 0.8; }
 
         .btn-refresh {
             width: 100%;
-            max-width: 1000px;
             padding: 12px;
-            background: #f3f4f6;
+            background: #eef1f4;
             border-radius: 8px;
-            color: #4b5563;
+            color: #333;
             font-size: 14px;
-            border: 1px solid #e5e7eb;
+            border: none;
             cursor: pointer;
             margin-top: 20px;
-            transition: 0.2s;
         }
-        .btn-refresh:hover { background: #e5e7eb; }
+        .btn-refresh:hover { background: #dce0e4; }
 
         .msg { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; display: none; }
         .msg.show { display: block; }
@@ -209,19 +165,23 @@
         .msg.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
         @media (max-width: 992px) {
-            .grid { justify-content: center; }
-            .shelf-card { width: 100%; max-width: 320px; }
+            .row { gap: 12px; }
+            .col { flex: 1 1 100%; max-width: 100%; }
+            .col-order, .col-type, .col-id, .col-blocks, .col-status, .col-actions { width: 100%; }
+            .btn-green, .btn-red { width: 100%; height: 36px; }
         }
         @media (max-width: 600px) {
             .header .title { font-size: 16px; }
             .header .subtitle { font-size: 14px; }
             .stage-btn { font-size: 14px; padding: 6px 12px; }
             .page-title { font-size: 26px; }
+            .col .value { height: 36px; }
         }
         @media (max-width: 480px) {
             .header { flex-direction: column; align-items: flex-start; gap: 4px; }
-            .shelf-card { max-width: 100%; }
-            .zone-btn { font-size: 12px; }
+            .col .label { font-size: 16px; }
+            .col .value { font-size: 13px; height: 32px; }
+            .btn-green, .btn-red { height: 32px; }
         }
     </style>
 </head>
@@ -238,18 +198,18 @@
         <a href="/planner-app/prep.html" class="stage-btn">Подготовка</a>
         <a href="/planner-app/print.html" class="stage-btn">Печать</a>
         <a href="/planner-app/cutter.html" class="stage-btn">Каттер</a>
-        <a href="/planner-app/cutting.html" class="stage-btn">Раскрой</a>
+        <a href="/planner-app/cutting.html" class="stage-btn active">Раскрой</a>
         <a href="/planner-app/resin.html" class="stage-btn">Смола</a>
-        <a href="/planner-app/drying.html" class="stage-btn active">Сушка</a>
+        <a href="/planner-app/drying.html" class="stage-btn">Сушка</a>
         <a href="/planner-app/otk.html" class="stage-btn">ОТК</a>
         <a href="/planner-app/packing.html" class="stage-btn">Упаковка</a>
     </div>
 
-    <div class="page-title">Сушка</div>
-    <div class="grid" id="shelfGrid">
-        <div style="text-align: center; padding: 40px 0; color: #999; width: 100%;">Загрузка стеллажей...</div>
+    <div class="page-title">Очередь на раскрое</div>
+    <div class="grid" id="list">
+        <div style="text-align: center; padding: 40px 0; color: #999;">Загрузка заказов...</div>
     </div>
-    <button class="btn-refresh" onclick="loadDryingShelves()">Обновить</button>
+    <button class="btn-refresh" onclick="loadCuttingOrders()">Обновить</button>
 </div>
 
 <script>
@@ -265,247 +225,194 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
-    async function loadDryingShelves() {
-        const container = document.getElementById('shelfGrid');
+    async function loadCuttingOrders() {
+        const container = document.getElementById('list');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
-        const { data: dryingData, error: stageError } = await supabaseClient
+        const { data, error } = await supabaseClient
             .from('stages')
             .select('*')
-            .eq('stage', 'Сушка')
+            .eq('stage', 'Раскрой')
             .in('status', ['Ожидание', 'В работе']);
 
-        if (stageError) {
+        if (error) {
             container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #c0392b;">Ошибка загрузки</div>';
             return;
         }
-
-        const letters = ['A','B','C','D','E','F','G','H'];
-        let html = '';
-
-        for (let l of letters) {
-            let shelfData = dryingData?.find(d => d.shelf === l);
-            let isOccupied = !!shelfData;
-            
-            let freeBlocks = 46;
-            let blocks = 0;
-            let orderNumber = '';
-            let stateClass = 'state-empty';
-            let buttonHtml = `<button class="btn-drying btn-disabled" disabled>Начать сушку</button>`;
-            let zoneHtml = `<div style="color:#9ca3af; text-align:center; font-size:13px; margin-top:4px;">—</div>`;
-            
-            if (isOccupied) {
-                blocks = shelfData.blocks || 0;
-                freeBlocks = 46 - blocks;
-                orderNumber = shelfData.order_number || '—';
-                
-                if (shelfData.status === 'В работе') {
-                    stateClass = 'state-drying';
-                    buttonHtml = `<button class="btn-drying btn-finish" onclick="finishDrying('${shelfData.id}', '${orderNumber}', ${blocks}, '${l}')">Завершить сушку</button>`;
-                    zoneHtml = `<div style="text-align:center; font-size:13px; margin-top:4px; color:#4a6fa5;">Зона выбрана</div>`;
-                } else {
-                    if (freeBlocks === 0) {
-                        stateClass = 'state-full';
-                    } else {
-                        stateClass = 'state-partial';
-                    }
-                    
-                    zoneHtml = `
-                        <div class="zone-selector" id="zone-selector-${shelfData.id}">
-                            <button class="zone-btn" onclick="selectZone('${shelfData.id}', '1')">1</button>
-                            <button class="zone-btn" onclick="selectZone('${shelfData.id}', '2')">2</button>
-                            <button class="zone-btn" onclick="selectZone('${shelfData.id}', '3')">3</button>
-                            <button class="zone-btn" onclick="selectZone('${shelfData.id}', '4')">4</button>
-                        </div>
-                    `;
-                    
-                    buttonHtml = `<button class="btn-drying btn-start" id="start-btn-${shelfData.id}" onclick="startDrying('${shelfData.id}')" disabled>Выберите зону</button>`;
-                }
-            }
-
-            let ordersText = isOccupied ? '1' : '0';
-            let orderIdText = isOccupied ? orderNumber : '—';
-            let freeText = isOccupied ? freeBlocks : '46';
-
-            html += `
-                <div class="shelf-card ${stateClass}">
-                    <div class="shelf-header">${l}</div>
-                    <div class="shelf-body">
-                        <div class="shelf-row"><span class="label">Кол-во заказов</span><span class="value">${ordersText}</span></div>
-                        <div class="shelf-row order-id"><span class="value">${orderIdText}</span></div>
-                        <div class="shelf-row"><span class="label">Кол-во блоков</span><span class="value">${blocks}</span></div>
-                        <div class="shelf-row"><span class="label">Свободно</span><span class="value">${freeText}</span></div>
-                        ${zoneHtml}
-                        ${buttonHtml}
-                    </div>
-                </div>
-            `;
-        }
-        container.innerHTML = html;
-    }
-
-    function selectZone(stageId, zoneNumber) {
-        const container = document.getElementById(`zone-selector-${stageId}`);
-        const buttons = container.querySelectorAll('.zone-btn');
-        buttons.forEach(btn => btn.classList.remove('selected'));
-        
-        const clickedBtn = container.querySelector(`.zone-btn:nth-child(${zoneNumber})`);
-        if(clickedBtn) clickedBtn.classList.add('selected');
-
-        const startBtn = document.getElementById(`start-btn-${stageId}`);
-        startBtn.disabled = false;
-        startBtn.textContent = 'Начать сушку';
-        startBtn.dataset.zone = zoneNumber;
-    }
-
-    async function startDrying(stageId) {
-        const startBtn = document.getElementById(`start-btn-${stageId}`);
-        const selectedZone = startBtn.dataset.zone;
-
-        if (!selectedZone) {
-            showMessage('Сначала выберите зону (1, 2, 3 или 4)!', 'err');
+        if (!data || data.length === 0) {
+            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Нет заказов на раскрое</div>';
             return;
         }
 
-        try {
-            const { error } = await supabaseClient
-                .from('stages')
-                .update({ status: 'В работе', zone: selectedZone })
-                .eq('id', stageId);
+        const orderNumbers = [...new Set(data.map(d => d.order_number))];
+        const { data: ordersData, error: ordersError } = await supabaseClient
+            .from('orders')
+            .select('order_number, r1, r2, resin')
+            .in('order_number', orderNumbers);
 
-            if (error) {
-                showMessage('Ошибка БД: ' + error.message, 'err');
-            } else {
-                showMessage(`Сушка запущена в зоне ${selectedZone}!`, 'ok');
-                loadDryingShelves();
-            }
-        } catch (err) {
-            showMessage('Критическая ошибка: ' + err.message, 'err');
+        if (ordersError) {
+            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #c0392b;">Ошибка загрузки типов заказов</div>';
+            return;
         }
+
+        const orderMap = {};
+        ordersData.forEach(o => { orderMap[o.order_number] = o; });
+
+        const sorted = [...data].sort((a, b) => {
+            if (a.status === 'Ожидание' && b.status !== 'Ожидание') return -1;
+            if (a.status !== 'Ожидание' && b.status === 'Ожидание') return 1;
+            return 0;
+        });
+
+        let html = '';
+        sorted.forEach(item => {
+            const orderSettings = orderMap[item.order_number];
+            const r1 = orderSettings?.r1 || false;
+            const r2 = orderSettings?.r2 || false;
+            const resin = orderSettings?.resin || false; // ВАЖНО: проверяем resin
+
+            let routeType = '—';
+            let idColumnLabel = 'ID рулона';
+            let displayId = item.shelf || '—';
+            
+            if (r1) {
+                routeType = 'Р1';
+            } else if (r2 && resin) {
+                routeType = 'Р2';
+                idColumnLabel = 'Стеллаж';
+            } else if (r2) {
+                routeType = 'Р2';
+            }
+
+            let statusClass = 'status-wait';
+            let statusText = 'Ожидает';
+            if (item.status === 'В работе') {
+                statusClass = 'status-work';
+                statusText = 'В работе';
+            }
+
+            html += `
+                <div class="row">
+                    <div class="col col-order">
+                        <div class="label">№ заказа</div>
+                        <div class="value">${item.order_number}</div>
+                    </div>
+                    <div class="col col-type">
+                        <div class="label">Тип</div>
+                        <div class="value" style="font-size: 14px;">${routeType}</div>
+                    </div>
+                    <div class="col col-id">
+                        <div class="label">${idColumnLabel}</div>
+                        <div class="value">${displayId}</div>
+                    </div>
+                    <div class="col col-blocks">
+                        <div class="label">Кол-во блоков</div>
+                        <div class="value">${item.blocks || 0}</div>
+                    </div>
+                    <div class="col col-status">
+                        <div class="label">Статус</div>
+                        <div class="value ${statusClass}">${statusText}</div>
+                    </div>
+                    <div class="col col-actions">
+                        <div class="label">&nbsp;</div>
+                        ${item.status === 'Ожидание' 
+                            ? `<button class="btn-green" onclick="updateCuttingOrder('${item.id}', 'В работе')">Взять в работу</button>` 
+                            : `<button class="btn-red" onclick="updateCuttingOrder('${item.id}', 'Выполнено')">Завершить</button>`
+                        }
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
     }
 
-    async function finishDrying(stageId, orderNumber, blocks, shelfLetter) {
+    async function updateCuttingOrder(stageId, newStatus) {
         const { data: stageData, error: getError } = await supabaseClient
             .from('stages')
-            .select('zone')
+            .select('order_number, shelf, blocks')
             .eq('id', stageId)
             .single();
 
         if (getError || !stageData) {
-            showMessage('Ошибка получения зоны', 'err');
+            showMessage('Ошибка получения данных этапа', 'err');
             return;
         }
-        const zone = stageData.zone || 'Не указана';
 
         const { error: updateError } = await supabaseClient
             .from('stages')
-            .update({ status: 'Выполнено' })
+            .update({ status: newStatus })
             .eq('id', stageId);
 
         if (updateError) {
-            showMessage('Ошибка завершения этапа', 'err');
+            showMessage('Ошибка обновления статуса', 'err');
             return;
         }
 
-        const { count, error: countError } = await supabaseClient
-            .from('stages')
-            .select('*', { count: 'exact', head: true })
-            .eq('order_number', orderNumber)
-            .eq('stage', 'Сушка')
-            .neq('status', 'Выполнено');
+        if (newStatus === 'Выполнено') {
+            const { count, error: countError } = await supabaseClient
+                .from('stages')
+                .select('*', { count: 'exact', head: true })
+                .eq('order_number', stageData.order_number)
+                .eq('stage', 'Раскрой')
+                .neq('status', 'Выполнено');
 
-        if (countError) {
-            showMessage('Ошибка проверки оставшихся стеллажей', 'err');
-            return;
-        }
-
-        if (count === 0) {
-            const { data: orderData, error: orderError } = await supabaseClient
-                .from('orders')
-                .select('r2')
-                .eq('order_number', orderNumber)
-                .single();
-
-            if (orderError || !orderData) {
-                showMessage('Ошибка получения настроек заказа', 'err');
+            if (countError) {
+                showMessage('Ошибка подсчёта оставшихся', 'err');
                 return;
             }
 
-            // ============================================================
-            // ЕСЛИ Р2 (после смолы) - ИДЕМ НА РАСКРОЙ
-            // ============================================================
-            if (orderData.r2 === true) {
-                // 1. Получаем список ВСЕХ завершенных стеллажей этого заказа
-                const { data: completedShelves, error: fetchError } = await supabaseClient
-                    .from('stages')
-                    .select('shelf, blocks')
-                    .eq('order_number', orderNumber)
-                    .eq('stage', 'Сушка')
-                    .eq('status', 'Выполнено');
+            if (count === 0) {
+                const { data: orderData, error: orderError } = await supabaseClient
+                    .from('orders')
+                    .select('r1, r2, resin')
+                    .eq('order_number', stageData.order_number)
+                    .single();
 
-                if (fetchError || !completedShelves) {
-                    showMessage('Ошибка получения данных стеллажей', 'err');
+                if (orderError || !orderData) {
+                    showMessage('Ошибка получения данных заказа', 'err');
                     return;
                 }
 
-                // 2. Подготавливаем массив для вставки на Раскрой
-                // Важно: сохраняем shelf как БУКВУ (A, B, C...)
-                const insertPromises = completedShelves.map(item => {
-                    return supabaseClient
-                        .from('stages')
-                        .insert([
-                            { 
-                                order_number: orderNumber, 
-                                stage: 'Раскрой', 
-                                status: 'Ожидание',
-                                shelf: item.shelf, // Сохраняем букву стеллажа
-                                blocks: item.blocks
-                            }
-                        ]);
-                });
+                let nextStage = 'ОТК';
+                let nextStageName = 'ОТК';
 
-                await Promise.all(insertPromises);
-                
-                // 3. Обновляем заказ в orders
+                if (orderData.r1 === true) {
+                    nextStage = 'Смола';
+                    nextStageName = 'Смола';
+                } else if (orderData.r2 === true) {
+                    nextStage = 'Сушка';
+                    nextStageName = 'Сушка';
+                }
+
                 await supabaseClient
                     .from('orders')
-                    .update({ stage: 'Раскрой' })
-                    .eq('order_number', orderNumber);
+                    .update({ stage: nextStage })
+                    .eq('order_number', stageData.order_number);
 
-                showMessage(`Сушка завершена! Все стеллажи отправлены обратно на Раскрой (Р2)`, 'ok');
-
-            } else {
-                // ============================================================
-                // ЕСЛИ НЕТ Р2 - ИДЕМ НА ОТК
-                // ============================================================
                 await supabaseClient
-                    .from('otk_queue')
+                    .from('stages')
                     .insert([
                         { 
-                            order_number: orderNumber, 
-                            shelf: shelfLetter, 
-                            zone: zone,
-                            blocks: blocks,
-                            status: 'Ожидание'
+                            order_number: stageData.order_number, 
+                            stage: nextStage, 
+                            status: 'Ожидание',
+                            shelf: stageData.shelf,
+                            blocks: stageData.blocks
                         }
                     ]);
 
-                await supabaseClient
-                    .from('orders')
-                    .update({ stage: 'ОТК' })
-                    .eq('order_number', orderNumber);
-
-                showMessage(`Сушка завершена! Заказ отправлен на ОТК (Зона: ${zone})`, 'ok');
+                showMessage(`Все завершены! Заказ переведён на ${nextStageName}`, 'ok');
+            } else {
+                showMessage(`Элемент ${stageData.shelf} завершён. Осталось ещё ${count}`, 'ok');
             }
-
         } else {
-            showMessage(`Стеллаж ${shelfLetter} завершён. Осталось ещё ${count} стеллажей на сушке`, 'ok');
+            showMessage('Статус обновлён', 'ok');
         }
 
-        loadDryingShelves();
+        loadCuttingOrders();
     }
 
-    document.addEventListener('DOMContentLoaded', loadDryingShelves);
+    document.addEventListener('DOMContentLoaded', loadCuttingOrders);
 </script>
 </body>
 </html>
