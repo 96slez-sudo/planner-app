@@ -95,6 +95,12 @@
         .status-wait { background-color: #e0e0e0 !important; border-color: #b0b0b0 !important; color: #555 !important; }
         .status-work { background-color: #ffe066 !important; border-color: #d4b300 !important; color: #1a1a1a !important; }
 
+        /* Стили для типа заказа */
+        .type-r2 { background-color: #e8f5e9 !important; border-color: #66bb6a !important; color: #2e7d32 !important; }
+        .type-r1 { background-color: #e3f2fd !important; border-color: #42a5f5 !important; color: #0d47a1 !important; }
+        .type-resin { background-color: #fff3e0 !important; border-color: #ffa726 !important; color: #e65100 !important; }
+        .type-full { background-color: #f3e5f5 !important; border-color: #ab47bc !important; color: #4a148c !important; }
+
         .msg { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; display: none; }
         .msg.show { display: block; }
         .msg.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
@@ -159,6 +165,7 @@
         el.className = 'msg show ' + type;
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
+
     function formatDate(dateStr) {
         if (!dateStr) return '—';
         try {
@@ -167,11 +174,20 @@
         } catch (e) { return dateStr; }
     }
 
+    // Функция для получения класса CSS в зависимости от типа
+    function getTypeClass(type) {
+        if (!type) return '';
+        if (type === 'Р2') return 'type-r2';
+        if (type === 'Р1' || type === 'Р1+Р2') return 'type-r1';
+        if (type === 'Смола' || type === 'Смола+Р2') return 'type-resin';
+        if (type === 'Р1+Смола' || type === 'Р1+Смола+Р2') return 'type-full';
+        return '';
+    }
+
     async function loadOrders() {
         const grid = document.getElementById('ordersGrid');
         grid.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
-        // Главная читает ИСКЛЮЧИТЕЛЬНО из orders
         const { data, error } = await supabaseClient
             .from('orders')
             .select('*')
@@ -186,6 +202,7 @@
             grid.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Нет активных заказов</div>';
             return;
         }
+
         let html = '';
         data.forEach(item => {
             let statusClass = 'status-wait';
@@ -197,9 +214,15 @@
                 statusClass = 'status-wait'; 
                 statusText = 'Ожидает'; 
             }
+
+            // Определяем тип для отображения
+            const typeDisplay = item.path || '—';
+            const typeClass = getTypeClass(item.path);
+
             html += `
                 <div class="order-row">
                     <div class="order-col"><div class="label">№ заказа</div><div class="value">${item.order_number}</div></div>
+                    <div class="order-col"><div class="label">Тип</div><div class="value ${typeClass}" style="font-size: 13px;">${typeDisplay}</div></div>
                     <div class="order-col"><div class="label">Этап</div><div class="value">${item.stage || '—'}</div></div>
                     <div class="order-col"><div class="label">Статус</div><div class="value ${statusClass}">${statusText}</div></div>
                     <div class="order-col"><div class="label">Дата запуска</div><div class="value">${formatDate(item.creation_date)}</div></div>
