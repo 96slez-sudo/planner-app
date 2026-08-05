@@ -91,21 +91,21 @@
             height: 40px;
         }
         
-        /* Для списка рулонов/стеллажей, чтобы текст переносился */
+        /* Чтобы текст переносился */
         .col-id .value {
             flex-wrap: wrap;
             height: auto;
             min-height: 40px;
             padding: 6px 12px;
             gap: 4px;
-            font-size: 13px;
+            font-size: 14px;
         }
 
-        .col-order { width: 160px; }
-        .col-type { width: 180px; }
-        .col-id { width: 200px; }
-        .col-blocks { width: 160px; }
-        .col-status { width: 180px; }
+        .col-order { width: 140px; }
+        .col-type { width: 120px; }
+        .col-id { width: 180px; }
+        .col-blocks { width: 140px; }
+        .col-status { width: 160px; }
         .col-actions { width: 160px; }
 
         .status-wait { background: #e0e0e0 !important; border-color: #b0b0b0 !important; color: #555 !important; }
@@ -117,7 +117,7 @@
             justify-content: center;
             padding: 0;
             height: 40px;
-            width: 160px;
+            width: 100%;
             background-color: #0f8653;
             border-radius: 8px;
             color: #ffffff;
@@ -134,7 +134,7 @@
             justify-content: center;
             padding: 0;
             height: 40px;
-            width: 160px;
+            width: 100%;
             background-color: #e74c3c;
             border-radius: 8px;
             color: #ffffff;
@@ -167,21 +167,20 @@
         @media (max-width: 992px) {
             .row { align-items: flex-start; }
             .col-order, .col-type, .col-id, .col-blocks, .col-status, .col-actions { width: 100%; max-width: 100%; }
-            .btn-green, .btn-red { width: 100%; }
+            .btn-green, .btn-red { height: 36px; }
         }
         @media (max-width: 600px) {
             .header .title { font-size: 16px; }
             .header .subtitle { font-size: 14px; }
             .stage-btn { font-size: 14px; padding: 6px 12px; }
             .page-title { font-size: 26px; }
-            .btn-green, .btn-red { width: 100%; height: 36px; }
             .col .value { height: 36px; }
+            .col-id .value { min-height: 36px; }
         }
         @media (max-width: 480px) {
             .header { flex-direction: column; align-items: flex-start; gap: 4px; }
             .col .label { font-size: 16px; }
             .col .value { font-size: 13px; height: 32px; }
-            .btn-green, .btn-red { height: 32px; }
             .col-id .value { min-height: 32px; }
         }
     </style>
@@ -246,7 +245,7 @@
             return;
         }
 
-        // 2. Чтобы понять "тип" (Р1 или Р2) и "проходил ли через смолу", нам нужны данные из orders
+        // 2. Чтобы понять "тип" (Р1 или Р2), нам нужны данные из orders
         const orderNumbers = [...new Set(data.map(d => d.order_number))];
         const { data: ordersData, error: ordersError } = await supabaseClient
             .from('orders')
@@ -258,11 +257,10 @@
             return;
         }
 
-        // Создаем мапу для быстрого поиска настроек заказа
         const orderMap = {};
         ordersData.forEach(o => { orderMap[o.order_number] = o; });
 
-        // 3. ГРУППИРУЕМ рулоны / стеллажи по номерам заказов
+        // 3. ГРУППИРУЕМ по номерам заказов
         const groupedOrders = {};
         data.forEach(item => {
             const orderNum = item.order_number;
@@ -270,20 +268,22 @@
                 groupedOrders[orderNum] = {
                     order_number: orderNum,
                     ids: [],
-                    idLabels: [], // Здесь будут ID рулонов ИЛИ названия стеллажей
+                    idLabels: [], 
                     totalBlocks: 0,
                     status: item.status
                 };
             }
             groupedOrders[orderNum].ids.push(item.id);
             
-            // Если это пришло со стеллажа (из смолы) - показываем стеллаж. Если из рулона - показываем рулон.
-            const idLabel = item.shelf && item.shelf.includes('_') ? item.shelf : (item.shelf || '—');
+            // Если пришло со стеллажа (resin = true) - показываем просто букву. Иначе рулон.
+            const orderSettings = orderMap[orderNum];
+            const isFromResin = orderSettings?.resin === true;
+            const idLabel = isFromResin ? (item.shelf || '—') : (item.shelf || '—');
             groupedOrders[orderNum].idLabels.push(idLabel);
             groupedOrders[orderNum].totalBlocks += (item.blocks || 0);
         });
 
-        // 4. Сортируем группы (Ожидание -> В работе)
+        // 4. Сортируем группы
         const sortedGroups = Object.values(groupedOrders).sort((a, b) => {
             if (a.status === 'Ожидание' && b.status !== 'Ожидание') return -1;
             if (a.status !== 'Ожидание' && b.status === 'Ожидание') return 1;
@@ -297,17 +297,14 @@
             const r2 = orderSettings?.r2 || false;
             const resin = orderSettings?.resin || false;
 
-            // ОПРЕДЕЛЯЕМ ТИП МАРШРУТА
+            // ОПРЕДЕЛЯЕМ ТИП МАРШРУТА (Просто Р1 или Р2)
             let routeType = '—';
-            if (resin && r2) {
-                routeType = 'Р2 (из смолы, стеллаж)';
-            } else if (r2) {
-                routeType = 'Р2 (без смолы)';
-            } else if (r1) {
-                routeType = 'Р1 (без смолы)';
-            }
+            if (r1) routeType = 'Р1';
+            else if (r2) routeType = 'Р2';
             
-            const idList = group.idLabels.join(', ');
+            // Если идет из смолы - показываем просто стеллаж (в данном случае он уже один)
+            const isFromResin = resin === true;
+            const displayValue = isFromResin ? group.idLabels[0] : group.idLabels.join(', ');
             
             let statusClass = 'status-wait';
             let statusText = 'Ожидает';
@@ -324,11 +321,11 @@
                     </div>
                     <div class="col col-type">
                         <div class="label">Тип маршрута</div>
-                        <div class="value" style="font-size: 13px;">${routeType}</div>
+                        <div class="value" style="font-size: 14px;">${routeType}</div>
                     </div>
                     <div class="col col-id">
-                        <div class="label">${resin && r2 ? 'Стеллаж' : 'ID рулонов'}</div>
-                        <div class="value">${idList}</div>
+                        <div class="label">Стеллаж/Рулон</div>
+                        <div class="value">${displayValue}</div>
                     </div>
                     <div class="col col-blocks">
                         <div class="label">Кол-во блоков</div>
