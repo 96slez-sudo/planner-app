@@ -60,12 +60,12 @@
         
         .order-card {
             display: flex;
-            flex-wrap: nowrap; /* ЗАПРЕТ ПЕРЕНОСА */
+            flex-wrap: nowrap; 
             align-items: center; 
             gap: 16px 24px;
             padding: 8px 0;
             border-bottom: 1px solid #eeeeee;
-            overflow-x: auto; /* Если не влезает - скролл */
+            overflow-x: auto; 
         }
         .order-card:last-child { border-bottom: none; }
 
@@ -90,7 +90,6 @@
             white-space: nowrap;
         }
 
-        /* ЖЕСТКИЕ ШИРИНЫ ДЛЯ ВЫРАВНИВАНИЯ */
         .col-order { width: 160px; }
         .col-roll { width: 180px; }
         .col-blocks { width: 140px; }
@@ -142,18 +141,16 @@
             padding: 4px 10px;
             border: 1px solid #cccccc;
             border-radius: 6px;
-            background: #ffffff; /* БЕЛЫЙ ФОН */
+            background: #ffffff;
             min-height: 48px;
             transition: border-color 0.2s;
         }
-        /* Рамка при выборе */
         .shelf-item.selected-shelf {
             border-color: #0f8653;
             border-width: 2px;
             box-shadow: 0 0 0 1px #0f8653;
         }
 
-        /* Цвета стеллажей (только для занятого серого фона) */
         .shelf-item.state-grey { 
             background-color: #a0a0a0; 
             border-color: #888; 
@@ -161,7 +158,6 @@
         .shelf-item.state-grey .state-text { color: #444; }
         .shelf-item.state-grey .input-blocks { background: #e0e0e0; border-color: #aaa; color: #666; }
 
-        /* БУКВЫ (меняют цвет, а не фон карточки) */
         .letter {
             display: flex;
             align-items: center;
@@ -175,16 +171,10 @@
             transition: 0.2s;
             flex-shrink: 0;
         }
-        
         .letter.state-green { background-color: #1e8449; color: #fff; }
         .letter.state-yellow { background-color: #ffd966; color: #161616; }
         .letter.state-grey { background-color: #777; color: #fff; cursor: not-allowed; }
-
-        /* Выбранная буква */
-        .letter.selected {
-            background-color: #0f8653 !important;
-            color: #ffffff !important;
-        }
+        .letter.selected { background-color: #0f8653 !important; color: #ffffff !important; }
 
         .state-text {
             flex: 1;
@@ -261,7 +251,6 @@
         .msg.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .msg.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
-        /* АДАПТИВ */
         @media (max-width: 992px) {
             .col-order, .col-roll, .col-blocks, .col-status, .col-actions { width: 100%; max-width: 100%; flex: 1 1 100%; }
             .btn-green, .btn-auto, .btn-assign { width: 100%; }
@@ -480,6 +469,7 @@
             return;
         }
 
+        // 1. Создаем записи на сушку СРАЗУ (они появятся в статусе Ожидание)
         for (let a of assignments) {
             await supabaseClient
                 .from('stages')
@@ -494,23 +484,26 @@
                 ]);
         }
 
+        // 2. Закрываем этот рулон на смоле
         await supabaseClient
             .from('stages')
             .update({ status: 'Выполнено' })
             .eq('id', stageId);
 
+        // 3. Проверяем, остались ли еще рулоны В РАБОТЕ на смоле
         const { count, error: countError } = await supabaseClient
             .from('stages')
             .select('*', { count: 'exact', head: true })
             .eq('order_number', stageData.order_number)
             .eq('stage', 'Смола')
-            .neq('status', 'Выполнено');
+            .eq('status', 'В работе');
 
         if (countError) {
             showMessage('Ошибка подсчёта рулонов', 'err');
             return;
         }
 
+        // 4. Если ЭТО БЫЛ ПОСЛЕДНИЙ рулон, меняем этап заказа
         if (count === 0) {
             await supabaseClient
                 .from('orders')
@@ -518,7 +511,7 @@
                 .eq('order_number', stageData.order_number);
             showMessage(`Последний рулон завершён! Весь заказ переведён на Сушку`, 'ok');
         } else {
-            showMessage(`Рулон назначен на стеллаж. Осталось ещё ${count} рулон(ов) на смоле.`, 'ok');
+            showMessage(`Рулон назначен на стеллаж и ожидает на Сушке. Осталось ещё ${count} рулон(ов) на смоле.`, 'ok');
         }
 
         loadResinOrders();
