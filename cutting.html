@@ -392,8 +392,67 @@
                     showMessage(`Все завершены! Заказ переведён на Смолу`, 'ok');
 
                 } else {
-                    // Идем на ОТК. Просто обновляем stage в orders. 
-                    // otk_orders больше не используется для хранения заказов.
+                    // Идем на ОТК. 
+                    // Сначала получаем общее кол-во блоков этого заказа
+                    const { data: orderData } = await supabaseClient
+                        .from('orders')
+                        .select('blocks')
+                        .eq('order_number', stageData.order_number)
+                        .single();
+                    
+                    // Получаем букву стеллажа (если это Р2)
+                    let shelfLetter = isShelf ? stageData.shelf : '—';
+
+                    // Проверяем, есть ли уже запись этого заказа в otk_orders
+                    const { data: existingOtk, error: checkError } = await supabaseClient
+                        .from('otk_orders')
+                        .select('id, shelves_list')
+                        .eq('order_number', stageData.order_number)
+                        .maybeSingle();
+
+                    if (checkError) {
+                        showMessage('Ошибка проверки ОТК', 'err');
+                        return;
+                    }
+
+                    if (existingOtk) {
+                        // Если запись уже есть, дописываем стеллаж в список (если это Р2)
+                        let newShelvesList = existingOtk.shelves_list || '';
+                        if (isShelf) {
+                            // Проверяем, есть ли уже такая буква в списке, чтобы не дублировать
+                            const existingShelves = newShelvesList.split(',').map(s => s.trim());
+                            if (!existingShelves.includes(shelfLetter)) {
+                                if (newShelvesList.length > 0) {
+                                    newShelvesList += ', ' + shelfLetter;
+                                } else {
+                                    newShelvesList = shelfLetter;
+                                }
+                            }
+                        }
+                        
+                        // Обновляем запись (добавляем стеллаж)
+                        await supabaseClient
+                            .from('otk_orders')
+                            .update({ shelves_list: newShelvesList })
+                            .eq('id', existingOtk.id);
+
+                    } else {
+                        // Если записи нет, создаем новую
+                        let shelvesList = isShelf ? shelfLetter : '';
+                        
+                        await supabaseClient
+                            .from('otk_orders')
+                            .insert([
+                                { 
+                                    order_number: stageData.order_number,
+                                    total_blocks: orderData?.blocks || 0,
+                                    shelves_list: shelvesList,
+                                    status: 'Ожидание'
+                                }
+                            ]);
+                    }
+
+                    // Обновляем этап заказа в orders
                     await supabaseClient
                         .from('orders')
                         .update({ stage: 'ОТК' })
