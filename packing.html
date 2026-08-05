@@ -244,6 +244,22 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
+    // Функция для проверки, завершен ли заказ на ОТК
+    async function isOtkCompleted(orderNumber) {
+        const { data, error } = await supabaseClient
+            .from('otk_orders')
+            .select('status')
+            .eq('order_number', orderNumber)
+            .eq('status', 'Завершено')
+            .maybeSingle();
+
+        if (error) {
+            console.error('Ошибка проверки ОТК:', error);
+            return false;
+        }
+        return !!data;
+    }
+
     async function loadPackingOrders() {
         const container = document.getElementById('list');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
@@ -277,18 +293,8 @@
                 statusText = 'В работе';
             }
 
-            // Проверяем, все ли части заказа завершены на ОТК
-            const { count: otkActiveCount, error: otkError } = await supabaseClient
-                .from('otk_orders')
-                .select('*', { count: 'exact', head: true })
-                .eq('order_number', item.order_number)
-                .in('status', ['Ожидание', 'В работе']);
-
-            if (otkError) {
-                console.error('Ошибка проверки ОТК:', otkError);
-            }
-
-            const hasActiveOtk = otkActiveCount > 0;
+            // Проверяем, завершен ли заказ на ОТК
+            const otkCompleted = await isOtkCompleted(item.order_number);
 
             html += `
                 <div class="row">
@@ -308,9 +314,9 @@
                         <div class="label">&nbsp;</div>
                         ${item.status === 'Ожидание' 
                             ? `<button class="btn-green" onclick="startPacking('${item.id}', '${item.order_number}')">Взять в работу</button>` 
-                            : hasActiveOtk
-                                ? `<button class="btn-disabled" disabled>Ожидание ОТК</button>`
-                                : `<button class="btn-red" id="finish-btn-${item.id}" onclick="finishPacking('${item.id}', '${item.order_number}')">Завершить</button>`
+                            : otkCompleted
+                                ? `<button class="btn-red" id="finish-btn-${item.id}" onclick="finishPacking('${item.id}', '${item.order_number}')">Завершить</button>`
+                                : `<button class="btn-disabled" disabled>Ожидание ОТК</button>`
                         }
                     </div>
                 </div>
@@ -334,20 +340,11 @@
     }
 
     async function finishPacking(packingId, orderNumber) {
-        // 1. ПРОВЕРКА: Есть ли еще активные заказы на ОТК для этого номера?
-        const { count: otkCount, error: otkError } = await supabaseClient
-            .from('otk_orders')
-            .select('*', { count: 'exact', head: true })
-            .eq('order_number', orderNumber)
-            .in('status', ['Ожидание', 'В работе']);
-
-        if (otkError) {
-            showMessage('Ошибка проверки ОТК: ' + otkError.message, 'err');
-            return;
-        }
-
-        if (otkCount > 0) {
-            showMessage(`Нельзя завершить! Заказ еще проходит ОТК. Осталось ${otkCount} частей.`, 'err');
+        // 1. ПРОВЕРКА: Завершен ли заказ на ОТК?
+        const otkCompleted = await isOtkCompleted(orderNumber);
+        
+        if (!otkCompleted) {
+            showMessage(`Нельзя завершить! Заказ еще не прошел ОТК.`, 'err');
             return;
         }
 
