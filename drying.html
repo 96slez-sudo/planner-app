@@ -431,9 +431,7 @@
                 return;
             }
 
-            // ============================================================
             // ЕСЛИ Р2 (после смолы) - ИДЕМ НА РАСКРОЙ
-            // ============================================================
             if (orderData.r2 === true) {
                 // 1. Получаем список ВСЕХ завершенных стеллажей этого заказа
                 const { data: completedShelves, error: fetchError } = await supabaseClient
@@ -448,8 +446,6 @@
                     return;
                 }
 
-                // 2. Подготавливаем массив для вставки на Раскрой
-                // Важно: сохраняем shelf как БУКВУ (A, B, C...)
                 const insertPromises = completedShelves.map(item => {
                     return supabaseClient
                         .from('stages')
@@ -458,7 +454,7 @@
                                 order_number: orderNumber, 
                                 stage: 'Раскрой', 
                                 status: 'Ожидание',
-                                shelf: item.shelf, // Сохраняем букву стеллажа
+                                shelf: item.shelf,
                                 blocks: item.blocks
                             }
                         ]);
@@ -466,7 +462,6 @@
 
                 await Promise.all(insertPromises);
                 
-                // 3. Обновляем заказ в orders
                 await supabaseClient
                     .from('orders')
                     .update({ stage: 'Раскрой' })
@@ -475,27 +470,38 @@
                 showMessage(`Сушка завершена! Все стеллажи отправлены обратно на Раскрой (Р2)`, 'ok');
 
             } else {
-                // ============================================================
-                // ЕСЛИ НЕТ Р2 - ИДЕМ НА ОТК
-                // ============================================================
+                // ЕСЛИ НЕТ Р2 - ИДЕМ НА ОТК (как целый заказ, агрегируя блоки)
+                // 1. Получаем общее количество блоков, завершенных на сушке
+                const { data: totals, error: sumError } = await supabaseClient
+                    .from('stages')
+                    .select('blocks')
+                    .eq('order_number', orderNumber)
+                    .eq('stage', 'Сушка')
+                    .eq('status', 'Выполнено');
+
+                let totalBlocks = 0;
+                if (totals && !sumError) {
+                    totals.forEach(item => { totalBlocks += (item.blocks || 0); });
+                }
+
+                // 2. Создаем запись в новой таблице otk_orders (целиком)
                 await supabaseClient
-                    .from('otk_queue')
+                    .from('otk_orders')
                     .insert([
                         { 
-                            order_number: orderNumber, 
-                            shelf: shelfLetter, 
-                            zone: zone,
-                            blocks: blocks,
+                            order_number: orderNumber,
+                            total_blocks: totalBlocks,
                             status: 'Ожидание'
                         }
                     ]);
 
+                // 3. Обновляем заказ в orders
                 await supabaseClient
                     .from('orders')
                     .update({ stage: 'ОТК' })
                     .eq('order_number', orderNumber);
 
-                showMessage(`Сушка завершена! Заказ отправлен на ОТК (Зона: ${zone})`, 'ok');
+                showMessage(`Сушка завершена! Заказ отправлен на ОТК (суммарно ${totalBlocks} блоков)`, 'ok');
             }
 
         } else {
