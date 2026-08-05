@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Печать</title>
+    <title>Упаковка</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Science+Gothic&display=swap" rel="stylesheet">
@@ -71,14 +71,23 @@
             flex-wrap: wrap;
             align-items: center; 
             gap: 16px 24px;
+            width: 100%;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #eeeeee;
         }
+        .row:last-child { border-bottom: none; }
 
         .col {
             display: flex;
             flex-direction: column;
             gap: 4px;
+            flex-shrink: 0;
         }
-        .col .label { font-size: 18px; color: #161616; }
+        .col .label { 
+            font-size: 18px; 
+            color: #161616; 
+            white-space: nowrap;
+        }
         .col .value {
             display: flex;
             align-items: center;
@@ -89,11 +98,12 @@
             font-size: 15px;
             background: #fff;
             height: 40px;
+            width: 100%;
+            white-space: nowrap;
         }
 
-        .col-order { width: 180px; }
-        .col-roll { width: 180px; }
-        .col-blocks { width: 180px; }
+        .col-order { width: 140px; }
+        .col-blocks { width: 140px; }
         .col-status { width: 200px; }
         .col-actions { width: 160px; }
 
@@ -106,7 +116,7 @@
             justify-content: center;
             padding: 0;
             height: 40px;
-            width: 160px;
+            width: 160px; 
             background-color: #0f8653;
             border-radius: 8px;
             color: #ffffff;
@@ -115,6 +125,7 @@
             cursor: pointer;
             transition: 0.2s;
             box-sizing: border-box;
+            flex-shrink: 0;
         }
         .btn-green:hover { opacity: 0.8; }
         .btn-red {
@@ -132,8 +143,27 @@
             cursor: pointer;
             transition: 0.2s;
             box-sizing: border-box;
+            flex-shrink: 0;
         }
         .btn-red:hover { opacity: 0.8; }
+
+        .btn-disabled {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            height: 40px;
+            width: 160px;
+            background-color: #f3f4f6;
+            color: #9ca3af;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            cursor: not-allowed;
+            box-sizing: border-box;
+            flex-shrink: 0;
+            font-family: 'Science Gothic', sans-serif;
+            font-size: 15px;
+        }
 
         .btn-refresh {
             width: 100%;
@@ -144,7 +174,7 @@
             font-size: 14px;
             border: none;
             cursor: pointer;
-            margin-top: 10px;
+            margin-top: 20px;
         }
         .btn-refresh:hover { background: #dce0e4; }
 
@@ -154,23 +184,23 @@
         .msg.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
         @media (max-width: 992px) {
-            .row { align-items: flex-start; }
-            .col-order, .col-roll, .col-blocks, .col-status, .col-actions { width: 100%; max-width: 100%; }
-            .btn-green, .btn-red { width: 100%; }
+            .row { gap: 12px; }
+            .col { flex: 1 1 100%; max-width: 100%; }
+            .col-order, .col-blocks, .col-status, .col-actions { width: 100%; }
+            .btn-green, .btn-red, .btn-disabled { width: 100%; height: 36px; }
         }
         @media (max-width: 600px) {
             .header .title { font-size: 16px; }
             .header .subtitle { font-size: 14px; }
             .stage-btn { font-size: 14px; padding: 6px 12px; }
             .page-title { font-size: 26px; }
-            .btn-green, .btn-red { width: 100%; height: 36px; }
             .col .value { height: 36px; }
         }
         @media (max-width: 480px) {
             .header { flex-direction: column; align-items: flex-start; gap: 4px; }
             .col .label { font-size: 16px; }
             .col .value { font-size: 13px; height: 32px; }
-            .btn-green, .btn-red { height: 32px; }
+            .btn-green, .btn-red, .btn-disabled { height: 32px; }
         }
     </style>
 </head>
@@ -185,20 +215,20 @@
     <div class="stages">
         <a href="/planner-app/create.html" class="stage-btn">Создание заказа</a>
         <a href="/planner-app/prep.html" class="stage-btn">Подготовка</a>
-        <a href="/planner-app/print.html" class="stage-btn active">Печать</a>
+        <a href="/planner-app/print.html" class="stage-btn">Печать</a>
         <a href="/planner-app/cutter.html" class="stage-btn">Каттер</a>
         <a href="/planner-app/cutting.html" class="stage-btn">Раскрой</a>
         <a href="/planner-app/resin.html" class="stage-btn">Смола</a>
         <a href="/planner-app/drying.html" class="stage-btn">Сушка</a>
         <a href="/planner-app/otk.html" class="stage-btn">ОТК</a>
-        <a href="/planner-app/packing.html" class="stage-btn">Упаковка</a>
+        <a href="/planner-app/packing.html" class="stage-btn active">Упаковка</a>
     </div>
 
-    <div class="page-title">Запустить рулоны в печать</div>
+    <div class="page-title">Очередь на упаковку</div>
     <div class="grid" id="list">
-        <div style="text-align: center; padding: 40px 0; color: #999;">Загрузка рулонов...</div>
+        <div style="text-align: center; padding: 40px 0; color: #999;">Загрузка заказов...</div>
     </div>
-    <button class="btn-refresh" onclick="loadPrintRolls()">Обновить</button>
+    <button class="btn-refresh" onclick="loadPackingOrders()">Обновить</button>
 </div>
 
 <script>
@@ -214,27 +244,28 @@
         setTimeout(function() { el.classList.remove('show'); }, 5000);
     }
 
-    // Функция для получения типа заказа из таблицы orders
-    async function getOrderRouteType(orderNumber) {
+    // Функция для проверки, завершен ли заказ на ОТК
+    async function isOtkCompleted(orderNumber) {
         const { data, error } = await supabaseClient
-            .from('orders')
-            .select('path')
+            .from('otk_orders')
+            .select('status')
             .eq('order_number', orderNumber)
-            .single();
-        
-        if (error || !data) {
-            console.error('Ошибка получения типа заказа:', error);
-            return null;
+            .eq('status', 'Завершено')
+            .maybeSingle();
+
+        if (error) {
+            console.error('Ошибка проверки ОТК:', error);
+            return false;
         }
-        return data.path;
+        return !!data;
     }
 
-    async function loadPrintRolls() {
+    async function loadPackingOrders() {
         const container = document.getElementById('list');
         container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Загрузка...</div>';
 
         const { data, error } = await supabaseClient
-            .from('rolls')
+            .from('packing_orders')
             .select('*')
             .in('status', ['Ожидание', 'В работе']);
 
@@ -243,7 +274,7 @@
             return;
         }
         if (!data || data.length === 0) {
-            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Нет рулонов на печати</div>';
+            container.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #999;">Нет заказов на упаковке</div>';
             return;
         }
 
@@ -255,17 +286,6 @@
 
         let html = '';
         for (const item of sorted) {
-            // Получаем тип заказа
-            const routeType = await getOrderRouteType(item.order_number);
-            
-            // Формируем ID рулона в зависимости от типа
-            let rollId;
-            if (routeType === 'Р2') {
-                rollId = `R${item.order_number}_${String(item.roll_index).padStart(2, '0')}`;
-            } else {
-                rollId = `${item.order_number}_${String(item.roll_index).padStart(2, '0')}`;
-            }
-            
             let statusClass = 'status-wait';
             let statusText = 'Ожидает';
             if (item.status === 'В работе') {
@@ -273,19 +293,18 @@
                 statusText = 'В работе';
             }
 
+            // Проверяем, завершен ли заказ на ОТК
+            const otkCompleted = await isOtkCompleted(item.order_number);
+
             html += `
                 <div class="row">
                     <div class="col col-order">
                         <div class="label">№ заказа</div>
                         <div class="value">${item.order_number}</div>
                     </div>
-                    <div class="col col-roll">
-                        <div class="label">ID рулона</div>
-                        <div class="value">${rollId}</div>
-                    </div>
                     <div class="col col-blocks">
                         <div class="label">Кол-во блоков</div>
-                        <div class="value">${item.blocks}</div>
+                        <div class="value">${item.total_blocks}</div>
                     </div>
                     <div class="col col-status">
                         <div class="label">Статус</div>
@@ -294,8 +313,10 @@
                     <div class="col col-actions">
                         <div class="label">&nbsp;</div>
                         ${item.status === 'Ожидание' 
-                            ? `<button class="btn-green" onclick="updatePrintRoll('${item.id}', 'В работе')">Взять в работу</button>` 
-                            : `<button class="btn-red" onclick="updatePrintRoll('${item.id}', 'Выполнено')">Завершить</button>`
+                            ? `<button class="btn-green" onclick="startPacking('${item.id}', '${item.order_number}')">Взять в работу</button>` 
+                            : otkCompleted
+                                ? `<button class="btn-red" id="finish-btn-${item.id}" onclick="finishPacking('${item.id}', '${item.order_number}')">Завершить</button>`
+                                : `<button class="btn-disabled" disabled>Ожидание ОТК</button>`
                         }
                     </div>
                 </div>
@@ -304,79 +325,68 @@
         container.innerHTML = html;
     }
 
-    async function updatePrintRoll(rollId, newStatus) {
-        const { data: rollData, error: getError } = await supabaseClient
-            .from('rolls')
-            .select('order_number, roll_index, blocks')
-            .eq('id', rollId)
-            .single();
-        if (getError || !rollData) {
-            showMessage('Ошибка получения рулона', 'err');
-            return;
-        }
+    async function startPacking(packingId, orderNumber) {
+        const { error } = await supabaseClient
+            .from('packing_orders')
+            .update({ status: 'В работе' })
+            .eq('id', packingId);
 
-        const { error: updateError } = await supabaseClient
-            .from('rolls')
-            .update({ status: newStatus })
-            .eq('id', rollId);
-        if (updateError) {
-            showMessage('Ошибка обновления рулона', 'err');
-            return;
-        }
-
-        if (newStatus === 'Выполнено') {
-            // Получаем тип заказа
-            const routeType = await getOrderRouteType(rollData.order_number);
-            
-            // Формируем ID рулона в зависимости от типа
-            let rollIdFormatted;
-            if (routeType === 'Р2') {
-                rollIdFormatted = `R${rollData.order_number}_${String(rollData.roll_index).padStart(2, '0')}`;
-            } else {
-                rollIdFormatted = `${rollData.order_number}_${String(rollData.roll_index).padStart(2, '0')}`;
-            }
-            
-            // Запись в order_history
-            await supabaseClient
-                .from('order_history')
-                .insert([
-                    { 
-                        order_id: rollData.order_number, 
-                        stage: 'Печать', 
-                        status: 'Завершено',
-                        timestamp: new Date().toISOString()
-                    }
-                ]);
-
-            // Создаём запись в STAGES для Каттера.
-            await supabaseClient
-                .from('stages')
-                .insert([
-                    { 
-                        order_number: rollData.order_number, 
-                        stage: 'Каттер', 
-                        status: 'Ожидание',
-                        shelf: rollIdFormatted,
-                        blocks: rollData.blocks,
-                        route_type: routeType
-                    }
-                ]);
-
-            // Обновляем таблицу orders
-            await supabaseClient
-                .from('orders')
-                .update({ stage: 'Каттер' })
-                .eq('order_number', rollData.order_number);
-
-            showMessage(`Рулон ${rollIdFormatted} (${rollData.blocks} блоков) переведён на Каттер`, 'ok');
+        if (error) {
+            showMessage('Ошибка: ' + error.message, 'err');
         } else {
-            showMessage('Рулон обновлён', 'ok');
+            showMessage(`Заказ ${orderNumber} взят в работу`, 'ok');
+            loadPackingOrders();
         }
-
-        loadPrintRolls();
     }
 
-    document.addEventListener('DOMContentLoaded', loadPrintRolls);
+    async function finishPacking(packingId, orderNumber) {
+        // 1. ПРОВЕРКА: Завершен ли заказ на ОТК?
+        const otkCompleted = await isOtkCompleted(orderNumber);
+        
+        if (!otkCompleted) {
+            showMessage(`Нельзя завершить! Заказ еще не прошел ОТК.`, 'err');
+            return;
+        }
+
+        // 2. Завершаем Упаковку
+        const { error } = await supabaseClient
+            .from('packing_orders')
+            .update({ status: 'Завершено' })
+            .eq('id', packingId);
+
+        if (error) {
+            showMessage('Ошибка завершения Упаковки: ' + error.message, 'err');
+            return;
+        }
+
+        // 3. Проверяем, есть ли еще активные записи на Упаковке для этого заказа
+        const { count: packingActiveCount, error: packingCheckError } = await supabaseClient
+            .from('packing_orders')
+            .select('*', { count: 'exact', head: true })
+            .eq('order_number', orderNumber)
+            .in('status', ['Ожидание', 'В работе']);
+
+        if (packingCheckError) {
+            showMessage('Ошибка проверки Упаковки: ' + packingCheckError.message, 'err');
+            return;
+        }
+
+        // 4. Если все части завершены на Упаковке, помечаем заказ как полностью завершенный
+        if (packingActiveCount === 0) {
+            await supabaseClient
+                .from('orders')
+                .update({ status: 'Завершено', stage: 'Завершено' })
+                .eq('order_number', orderNumber);
+            
+            showMessage(`Заказ ${orderNumber} полностью завершен! 🎉`, 'ok');
+        } else {
+            showMessage(`Часть заказа ${orderNumber} упакована. Осталось ${packingActiveCount} частей.`, 'ok');
+        }
+
+        loadPackingOrders();
+    }
+
+    document.addEventListener('DOMContentLoaded', loadPackingOrders);
 </script>
 </body>
 </html>
