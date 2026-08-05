@@ -275,6 +275,10 @@
             let idColumnLabel = 'ID рулона';
             let displayId = item.shelf || '—';
             
+            // ЛОГИКА ТИПА: Приоритет отдаем реальным данным.
+            // Если в поле shelf лежит 1 буква (A, B, C...) И заказ проходил смолу (resin: true) -> это стеллаж Р2
+            const isSingleLetterShelf = /^[A-H]$/.test(displayId);
+            
             if (r1) {
                 routeType = 'Р1';
             } else if (r2 && resin) {
@@ -282,6 +286,12 @@
                 idColumnLabel = 'Стеллаж';
             } else if (r2) {
                 routeType = 'Р2';
+            } 
+            
+            // ПЕРЕОПРЕДЕЛЕНИЕ: Если заказ пришел как стеллаж, но в базе r1=true или r2=false, мы все равно показываем его как стеллаж
+            if (resin && isSingleLetterShelf) {
+                routeType = 'Р2';
+                idColumnLabel = 'Стеллаж';
             }
 
             let statusClass = 'status-wait';
@@ -389,19 +399,15 @@
                     .update({ stage: nextStage })
                     .eq('order_number', stageData.order_number);
 
-                // ============================================================
-                // ВАЖНОЕ ИСПРАВЛЕНИЕ: Забираем все завершенные рулоны
-                // и отправляем их на следующий этап!
-                // ============================================================
-                const { data: completedRolls } = await supabaseClient
+                const { data: completedItems } = await supabaseClient
                     .from('stages')
                     .select('shelf, blocks')
                     .eq('order_number', stageData.order_number)
                     .eq('stage', 'Раскрой')
                     .eq('status', 'Выполнено');
 
-                if (completedRolls && completedRolls.length > 0) {
-                    const insertPromises = completedRolls.map(roll => {
+                if (completedItems && completedItems.length > 0) {
+                    const insertPromises = completedItems.map(item => {
                         return supabaseClient
                             .from('stages')
                             .insert([
@@ -409,8 +415,8 @@
                                     order_number: stageData.order_number, 
                                     stage: nextStage, 
                                     status: 'Ожидание',
-                                    shelf: roll.shelf,
-                                    blocks: roll.blocks
+                                    shelf: item.shelf,
+                                    blocks: item.blocks
                                 }
                             ]);
                     });
