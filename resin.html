@@ -74,7 +74,7 @@
             gap: 4px;
             flex-shrink: 0;
         }
-        .col .label { font-size: 18px; color: #161616; }
+        .col .label { font-size: 18px; color: #161616; white-space: nowrap; }
         .col .value {
             display: flex;
             align-items: center;
@@ -86,6 +86,7 @@
             background: #fff;
             height: 40px;
             width: 100%;
+            white-space: nowrap;
         }
 
         .col-order { width: 160px; }
@@ -135,60 +136,58 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 4px 8px;
-            border: 1px solid #6c6c6c;
+            padding: 4px 10px;
+            border: 1px solid #cccccc;
             border-radius: 6px;
-            background: #ffffff;
+            background: #ffffff; /* ВСЕ СВОБОДНЫЕ СТЕЛЛАЖИ БЕЛЫЕ */
             min-height: 48px;
             transition: border-color 0.2s;
         }
-        /* Когда стеллаж выбран (клик по букве) */
+        /* Когда стеллаж выбран (клик по букве) - рамка становится зеленой */
         .shelf-item.selected-shelf {
             border-color: #0f8653;
             border-width: 2px;
             box-shadow: 0 0 0 1px #0f8653;
         }
 
-        /* Цвета стеллажей (ПО ВАШЕЙ ЛОГИКЕ) */
-        .shelf-item.state-green { background-color: #1e8449; border-color: #1e8449; }
-        .shelf-item.state-green .letter { background: #146b3b; color: #fff; }
-        .shelf-item.state-green .state-text { color: #fff; }
-        .shelf-item.state-green .input-blocks { background: #fff; }
-
-        .shelf-item.state-yellow { background-color: #ffe066; border-color: #d4b300; }
-        .shelf-item.state-yellow .letter { background: #d4b300; color: #161616; }
-        .shelf-item.state-yellow .state-text { color: #7d6608; }
-        .shelf-item.state-yellow .input-blocks { background: #fff; }
-
-        .shelf-item.state-grey { background-color: #a0a0a0; border-color: #888; }
-        .shelf-item.state-grey .letter { background: #777; color: #fff; }
+        /* Цвета стеллажей */
+        .shelf-item.state-grey { 
+            background-color: #a0a0a0; 
+            border-color: #888; 
+        }
         .shelf-item.state-grey .state-text { color: #444; }
         .shelf-item.state-grey .input-blocks { background: #e0e0e0; border-color: #aaa; color: #666; }
 
+        /* БУКВЫ СТЕЛЛАЖЕЙ (меняют цвет, а не фон карточки) */
         .letter {
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 28px;
-            height: 28px;
-            border-radius: 4px;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
             font-weight: 600;
-            font-size: 14px;
+            font-size: 16px;
             cursor: pointer;
             transition: 0.2s;
             flex-shrink: 0;
         }
-        .letter:hover:not(.state-grey .letter) { background: #b0b0b0; }
+        
+        .letter.state-green { background-color: #1e8449; color: #fff; }
+        .letter.state-yellow { background-color: #ffd966; color: #161616; }
+        .letter.state-grey { background-color: #777; color: #fff; cursor: not-allowed; }
+
+        /* При выборе зеленая заливка */
         .letter.selected {
-            background: #0f8653 !important;
+            background-color: #0f8653 !important;
             color: #ffffff !important;
         }
 
         .state-text {
             flex: 1;
             font-size: 14px;
+            color: #161616;
         }
-        /* У серого стеллажа текст неактивный */
         .state-grey .state-text { opacity: 0.7; }
 
         .input-blocks {
@@ -260,7 +259,7 @@
         .msg.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
         @media (max-width: 992px) {
-            .col-order, .col-roll, .col-blocks, .col-status, .col-actions { width: 100%; max-width: 100%; }
+            .col-order, .col-roll, .col-blocks, .col-status, .col-actions { width: 100%; max-width: 100%; flex: 1 1 100%; }
             .btn-green, .btn-auto, .btn-assign { width: 100%; }
             .shelf-grid { grid-template-columns: repeat(2, 1fr); }
         }
@@ -324,14 +323,12 @@
        ФУНКЦИЯ ОТРИСОВКИ ПАНЕЛИ СТЕЛЛАЖЕЙ ДЛЯ КОНКРЕТНОГО РУЛОНА
        ============================================================ */
     async function renderShelfPanel(stageId, orderNumber, totalBlocks) {
-        // 1. Получаем ВСЕ активные сушки, чтобы посчитать занятые блоки в каждом стеллаже
         const { data: drying, error } = await supabaseClient
             .from('stages')
             .select('shelf, blocks')
             .eq('stage', 'Сушка')
             .in('status', ['Ожидание', 'В работе']);
 
-        // 2. Формируем карту занятых блоков (суммируем, если вдруг несколько заказов на одном стеллаже)
         const shelfUsage = {
             'A': 0, 'B': 0, 'C': 0, 'D': 0,
             'E': 0, 'F': 0, 'G': 0, 'H': 0
@@ -359,24 +356,25 @@
             const currentBlocks = shelfUsage[l] || 0;
             const freeBlocks = 46 - currentBlocks;
             
-            let stateClass = 'state-green';
+            let itemClass = '';
+            let letterClass = 'state-green';
             let stateText = `Свободен (${freeBlocks})`;
             let inputDisabled = false;
             let letterClickable = true;
 
             if (currentBlocks === 46) {
-                stateClass = 'state-grey';
+                itemClass = 'state-grey';
+                letterClass = 'state-grey';
                 stateText = 'Занят';
                 inputDisabled = true;
                 letterClickable = false;
             } else if (currentBlocks > 0 && currentBlocks < 46) {
-                stateClass = 'state-yellow';
-                stateText = `Свободен (${freeBlocks})`;
+                letterClass = 'state-yellow';
             }
 
             html += `
-                <div class="shelf-item ${stateClass}" id="shelf-${stageId}-${l}">
-                    <div class="letter" id="letter-${stageId}-${l}" data-stage="${stageId}" data-shelf="${l}" onclick="${letterClickable ? `selectShelf('${stageId}', '${l}')` : ''}" style="${!letterClickable ? 'cursor:not-allowed;' : ''}">
+                <div class="shelf-item ${itemClass}" id="shelf-${stageId}-${l}">
+                    <div class="letter ${letterClass}" id="letter-${stageId}-${l}" data-stage="${stageId}" data-shelf="${l}" onclick="${letterClickable ? `selectShelf('${stageId}', '${l}')` : ''}" style="${!letterClickable ? 'cursor:not-allowed;' : ''}">
                         ${l}
                     </div>
                     <span class="state-text">${stateText}</span>
@@ -402,7 +400,6 @@
         if (!letter) return;
         letter.classList.toggle('selected');
         
-        // Подсвечиваем рамку всего стеллажа
         const shelfItem = letter.closest('.shelf-item');
         if(shelfItem) shelfItem.classList.toggle('selected-shelf');
     }
@@ -411,7 +408,6 @@
         const panel = document.getElementById(`panel-${stageId}`);
         const letters = panel.querySelectorAll('.letter');
         
-        // Сбрасываем текущий выбор
         letters.forEach(el => el.classList.remove('selected'));
         panel.querySelectorAll('.shelf-item').forEach(el => el.classList.remove('selected-shelf'));
         panel.querySelectorAll('.input-blocks').forEach(inp => inp.value = '');
@@ -422,14 +418,10 @@
         for (let el of letters) {
             if (remaining <= 0) break;
             
-            // Получаем родительский блок стеллажа
             const shelfItem = el.closest('.shelf-item');
             if (!shelfItem) continue;
-            
-            // Если стеллаж серый (занят) - пропускаем
             if (shelfItem.classList.contains('state-grey')) continue;
 
-            // Получаем максимально возможное значение из input
             const input = shelfItem.querySelector('.input-blocks');
             if (!input || input.disabled) continue;
             
@@ -487,7 +479,6 @@
             return;
         }
 
-        // Создаём записи на сушку
         for (let a of assignments) {
             await supabaseClient
                 .from('stages')
@@ -502,13 +493,11 @@
                 ]);
         }
 
-        // Закрываем этот конкретный рулон на смоле
         await supabaseClient
             .from('stages')
             .update({ status: 'Выполнено' })
             .eq('id', stageId);
 
-        // Проверяем, остались ли ещё рулоны этого заказа на смоле
         const { count, error: countError } = await supabaseClient
             .from('stages')
             .select('*', { count: 'exact', head: true })
@@ -521,7 +510,6 @@
             return;
         }
 
-        // Если ЭТО БЫЛ ПОСЛЕДНИЙ рулон, обновляем основной статус заказа
         if (count === 0) {
             await supabaseClient
                 .from('orders')
@@ -613,7 +601,6 @@
                 </div>
             `;
 
-            // Если статус "В работе", разворачиваем выбор стеллажа
             if (status === 'В работе') {
                 html += await renderShelfPanel(item.id, orderNumber, blocks);
             }
