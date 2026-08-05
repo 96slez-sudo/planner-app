@@ -368,40 +368,92 @@
                 return;
             }
 
-            // ДОБАВЛЯЕМ БЛОКИ В otk_orders
-            const { data: existingOtk } = await supabaseClient
-                .from('otk_orders')
-                .select('id, total_blocks')
-                .eq('order_number', stageData.order_number)
-                .in('status', ['Ожидание', 'В работе']);
+            if (count === 0) {
+                const { data: orderData, error: orderError } = await supabaseClient
+                    .from('orders')
+                    .select('r1, r2, resin')
+                    .eq('order_number', stageData.order_number)
+                    .single();
 
-            if (existingOtk && existingOtk.length > 0) {
-                const newTotal = (existingOtk[0].total_blocks || 0) + stageData.blocks;
-                await supabaseClient
-                    .from('otk_orders')
-                    .update({ total_blocks: newTotal })
-                    .eq('id', existingOtk[0].id);
-                showMessage(`Блоки добавлены к существующему заказу на ОТК.`, 'ok');
+                if (orderError || !orderData) {
+                    showMessage('Ошибка получения данных заказа', 'err');
+                    return;
+                }
+
+                // ============================================================
+                // ЛОГИКА ПЕРЕХОДА НА СЛЕДУЮЩИЙ ЭТАП (ФИНАЛЬНАЯ)
+                // ============================================================
+                
+                // 1. Если есть Р1 и Смола -> Идем на Смолу (по рулонам)
+                if (orderData.r1 === true && orderData.resin === true) {
+                    const { data: completedRolls } = await supabaseClient
+                        .from('stages')
+                        .select('shelf, blocks')
+                        .eq('order_number', stageData.order_number)
+                        .eq('stage', 'Раскрой')
+                        .eq('status', 'Выполнено');
+
+                    if (completedRolls && completedRolls.length > 0) {
+                        const insertPromises = completedRolls.map(roll => {
+                            return supabaseClient
+                                .from('stages')
+                                .insert([
+                                    { 
+                                        order_number: stageData.order_number, 
+                                        stage: 'Смола', 
+                                        status: 'Ожидание',
+                                        shelf: roll.shelf,
+                                        blocks: roll.blocks
+                                    }
+                                ]);
+                        });
+                        await Promise.all(insertPromises);
+                    }
+
+                    await supabaseClient
+                        .from('orders')
+                        .update({ stage: 'Смола' })
+                        .eq('order_number', stageData.order_number);
+
+                    showMessage(`Все рулоны завершены! Заказ переведён на Смолу`, 'ok');
+
+                // 2. Иначе (если нет Смолы, или это Р2 после смолы) -> Идем на ОТК (целым заказом)
+                } else {
+                    // Считаем общее кол-во блоков в этом заказе
+                    const { data: totals } = await supabaseClient
+                        .from('stages')
+                        .select('blocks')
+                        .eq('order_number', stageData.order_number)
+                        .eq('stage', 'Раскрой')
+                        .eq('status', 'Выполнено');
+
+                    let totalBlocks = 0;
+                    if (totals) {
+                        totals.forEach(item => { totalBlocks += (item.blocks || 0); });
+                    }
+
+                    // Создаем заказ на ОТК
+                    await supabaseClient
+                        .from('otk_orders')
+                        .insert([
+                            { 
+                                order_number: stageData.order_number,
+                                total_blocks: totalBlocks,
+                                status: 'Ожидание'
+                            }
+                        ]);
+
+                    await supabaseClient
+                        .from('orders')
+                        .update({ stage: 'ОТК' })
+                        .eq('order_number', stageData.order_number);
+
+                    showMessage(`Все завершены! Заказ переведён на ОТК (суммарно ${totalBlocks} блоков)`, 'ok');
+                }
+
             } else {
-                await supabaseClient
-                    .from('otk_orders')
-                    .insert([
-                        { 
-                            order_number: stageData.order_number,
-                            total_blocks: stageData.blocks,
-                            status: 'Ожидание'
-                        }
-                    ]);
-                showMessage(`Заказ создан на ОТК.`, 'ok');
+                showMessage(`Элемент ${stageData.shelf} завершён. Осталось ещё ${count}`, 'ok');
             }
-
-            // Меняем этап заказа на ОТК (только если он еще не ОТК)
-            await supabaseClient
-                .from('orders')
-                .update({ stage: 'ОТК' })
-                .eq('order_number', stageData.order_number);
-
-            showMessage(`Стеллаж ${stageData.shelf} завершён. Заказ переведён на ОТК. Осталось ещё ${count} стеллажей.`, 'ok');
         } else {
             showMessage('Статус обновлён', 'ok');
         }
