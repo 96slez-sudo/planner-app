@@ -407,7 +407,6 @@
             return;
         }
 
-        // Считаем, сколько стеллажей этого заказа ещё сушится
         const { count, error: countError } = await supabaseClient
             .from('stages')
             .select('*', { count: 'exact', head: true })
@@ -420,7 +419,6 @@
             return;
         }
 
-        // ЛОГИКА ПЕРЕХОДА
         const { data: orderData, error: orderError } = await supabaseClient
             .from('orders')
             .select('r2')
@@ -432,9 +430,8 @@
             return;
         }
 
-        // ЕСЛИ ЕСТЬ Р2 -> ИДЕМ НА РАСКРОЙ Р2 (по стеллажам)
+        // ЕСЛИ ЕСТЬ Р2 -> ИДЕМ НА РАСКРОЙ Р2
         if (orderData.r2 === true) {
-            // Создаем запись на Раскрой Р2 для этого стеллажа
             await supabaseClient
                 .from('stages')
                 .insert([
@@ -450,8 +447,7 @@
             showMessage(`Стеллаж ${shelfLetter} отправлен на Раскрой Р2.`, 'ok');
 
         } else {
-            // ЕСЛИ НЕТ Р2 -> ИДЕМ НА ОТК (но только создаем запись в otk_orders, этап НЕ меняем!)
-            
+            // ЕСЛИ НЕТ Р2 -> ОТПРАВЛЯЕМ НА ОТК (otk_orders)
             // Проверяем, есть ли уже запись в otk_orders для этого заказа
             const { data: existing } = await supabaseClient
                 .from('otk_orders')
@@ -460,14 +456,13 @@
                 .in('status', ['Ожидание', 'В работе']);
 
             if (existing && existing.length > 0) {
-                // Если запись уже есть, обновляем сумму блоков
                 const newTotal = (existing[0].total_blocks || 0) + blocks;
                 await supabaseClient
                     .from('otk_orders')
                     .update({ total_blocks: newTotal })
                     .eq('id', existing[0].id);
+                showMessage(`Блоки добавлены к существующему заказу на ОТК.`, 'ok');
             } else {
-                // Если записи нет (это первый стеллаж), создаем заказ на ОТК
                 await supabaseClient
                     .from('otk_orders')
                     .insert([
@@ -477,10 +472,8 @@
                             status: 'Ожидание'
                         }
                     ]);
+                showMessage(`Заказ создан на ОТК.`, 'ok');
             }
-
-            // ВАЖНО: Этап заказа в таблице orders мы НЕ МЕНЯЕМ! 
-            // Он изменится только когда придет последний стеллаж с Раскроя Р2.
         }
 
         // Если это был последний стеллаж на сушке -> обновляем этап заказа на Раскрой (Р2)
