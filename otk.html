@@ -104,8 +104,9 @@
 
         .col-order { width: 160px; }
         .col-blocks { width: 160px; }
+        .col-note { width: 220px; }
         .col-status { width: 200px; }
-        .col-actions { width: 180px; }
+        .col-actions { width: 160px; }
 
         .status-wait { background: #e0e0e0 !important; border-color: #b0b0b0 !important; color: #555 !important; }
         .status-work { background: #ffe066 !important; border-color: #d4b300 !important; color: #1a1a1a !important; }
@@ -168,7 +169,7 @@
         @media (max-width: 992px) {
             .row { gap: 12px; }
             .col { flex: 1 1 100%; max-width: 100%; }
-            .col-order, .col-blocks, .col-status, .col-actions { width: 100%; }
+            .col-order, .col-blocks, .col-note, .col-status, .col-actions { width: 100%; }
             .btn-green, .btn-red { width: 100%; height: 36px; }
         }
         @media (max-width: 600px) {
@@ -259,6 +260,9 @@
                 statusText = 'В работе';
             }
 
+            let isComplete = item.completion_note === 'Полный';
+            let noteDisplay = item.completion_note || 'Ожидание частей';
+
             html += `
                 <div class="row">
                     <div class="col col-order">
@@ -269,15 +273,21 @@
                         <div class="label">Кол-во блоков</div>
                         <div class="value">${item.total_blocks}</div>
                     </div>
+                    <div class="col col-note">
+                        <div class="label">Статус сборки</div>
+                        <div class="value" style="font-size: 13px;">${noteDisplay}</div>
+                    </div>
                     <div class="col col-status">
-                        <div class="label">Статус</div>
+                        <div class="label">Статус ОТК</div>
                         <div class="value ${statusClass}">${statusText}</div>
                     </div>
                     <div class="col col-actions">
                         <div class="label">&nbsp;</div>
                         ${item.status === 'Ожидание' 
-                            ? `<button class="btn-green" onclick="startOtk('${item.id}', '${item.order_number}')">Взять в работу</button>` 
-                            : `<button class="btn-red" id="finish-btn-${item.id}" onclick="finishOtk('${item.id}', '${item.order_number}')">Завершить</button>`
+                            ? `<button class="btn-green" onclick="startOtk('${item.id}', '${item.order_number}', ${item.total_blocks})">Взять в работу</button>` 
+                            : isComplete 
+                                ? `<button class="btn-red" id="finish-btn-${item.id}" onclick="finishOtk('${item.id}', '${item.order_number}')">Завершить</button>`
+                                : `<button class="btn-drying btn-disabled" style="background:#f3f4f6; color:#9ca3af; border:1px solid #e5e7eb; border-radius:6px; width:160px; height:40px; cursor:not-allowed;" disabled>Ожидание частей</button>`
                         }
                     </div>
                 </div>
@@ -286,7 +296,8 @@
         container.innerHTML = html;
     }
 
-    async function startOtk(otkId, orderNumber) {
+    async function startOtk(otkId, orderNumber, totalBlocks) {
+        // 1. Меняем статус на ОТК
         const { error } = await supabaseClient
             .from('otk_orders')
             .update({ status: 'В работе' })
@@ -294,47 +305,26 @@
 
         if (error) {
             showMessage('Ошибка: ' + error.message, 'err');
-        } else {
-            showMessage(`Заказ ${orderNumber} взят в работу`, 'ok');
-            loadOtkOrders();
+            return;
         }
+
+        // 2. Сразу создаем запись на Упаковке
+        await supabaseClient
+            .from('packing_orders')
+            .insert([
+                {
+                    order_number: orderNumber,
+                    total_blocks: totalBlocks,
+                    status: 'Ожидание'
+                }
+            ]);
+
+        showMessage(`Заказ ${orderNumber} взят в работу на ОТК и появился на Упаковке!`, 'ok');
+        loadOtkOrders();
     }
 
     async function finishOtk(otkId, orderNumber) {
-        // 1. ПРОВЕРКА: Есть ли стеллажи на Сушке или Раскрое Р2?
-        const { count: dryingCount, error: dryingError } = await supabaseClient
-            .from('stages')
-            .select('*', { count: 'exact', head: true })
-            .eq('order_number', orderNumber)
-            .eq('stage', 'Сушка')
-            .neq('status', 'Выполнено');
-
-        if (dryingError) {
-            showMessage('Ошибка проверки Сушки', 'err');
-            return;
-        }
-
-        const { count: cuttingCount, error: cuttingError } = await supabaseClient
-            .from('stages')
-            .select('*', { count: 'exact', head: true })
-            .eq('order_number', orderNumber)
-            .eq('stage', 'Раскрой')
-            .neq('status', 'Выполнено');
-
-        if (cuttingError) {
-            showMessage('Ошибка проверки Раскроя', 'err');
-            return;
-        }
-
-        if (dryingCount > 0 || cuttingCount > 0) {
-            let msg = 'Нельзя завершить! Заказ еще на этапах:';
-            if (dryingCount > 0) msg += ` Сушка (${dryingCount})`;
-            if (cuttingCount > 0) msg += ` Раскрой (${cuttingCount})`;
-            showMessage(msg, 'err');
-            return;
-        }
-
-        // 2. Завершаем ОТК
+        // Завершаем ОТК
         const { error } = await supabaseClient
             .from('otk_orders')
             .update({ status: 'Завершено' })
@@ -345,31 +335,13 @@
             return;
         }
 
-        // 3. Получаем общее кол-во блоков перед отправкой на Упаковку
-        const { data: otkData } = await supabaseClient
-            .from('otk_orders')
-            .select('total_blocks')
-            .eq('id', otkId)
-            .single();
-
-        // 4. Отправляем на Упаковку
-        await supabaseClient
-            .from('packing_orders')
-            .insert([
-                {
-                    order_number: orderNumber,
-                    total_blocks: otkData?.total_blocks || 0,
-                    status: 'Ожидание'
-                }
-            ]);
-
-        // 5. Обновляем статус в orders
+        // Обновляем заказ в orders
         await supabaseClient
             .from('orders')
             .update({ stage: 'Упаковка' })
             .eq('order_number', orderNumber);
 
-        showMessage(`Заказ ${orderNumber} завершил ОТК и перешел на Упаковку!`, 'ok');
+        showMessage(`Заказ ${orderNumber} завершил ОТК!`, 'ok');
         loadOtkOrders();
     }
 
